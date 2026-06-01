@@ -131,16 +131,17 @@ export default function Navlog({ flightData, updateFlightData }: { flightData: a
             const isExpanded = expandedRow === i;
 
             if (!isExpanded) {
-              // 🔴 正常收縮狀態 (Normal Row)
+              // 🔴 正常收縮狀態 (Normal Row) - 🌟 加入 cursor-pointer 與 onClick 事件
               return (
-                <div key={i} className="flex px-3 py-2 border-b border-[#1e2630] items-center hover:bg-[#111] transition-colors relative group">
+                <div 
+                  key={i} 
+                  onClick={() => setExpandedRow(expandedRow === i ? null : i)}
+                  className="flex px-3 py-2 border-b border-[#1e2630] items-center hover:bg-[#111] transition-colors cursor-pointer group"
+                >
                   <div className="flex-[1.6]">
-                    <button 
-                      onClick={() => setExpandedRow(i)}
-                      className="text-2xl font-black text-white tracking-wider leading-none mb-1 text-left w-full hover:text-[#00bfa5] transition-colors outline-none flex items-center gap-2"
-                    >
+                    <div className="text-2xl font-black text-white tracking-wider leading-none mb-1 text-left w-full group-hover:text-[#00bfa5] transition-colors flex items-center gap-2">
                       {ident} <span className="text-[0.7rem] text-[#34495e] group-hover:text-[#00bfa5]">▼</span>
-                    </button>
+                    </div>
                     <div className="text-xs text-[#8fa0a6] font-mono leading-tight">{ident}<br/>{flightData?.sid_route || 'AWY'}</div>
                   </div>
                   <div className="flex-[2.4] flex flex-col font-mono text-[0.85rem] text-[#e2e8f0] font-bold">
@@ -165,8 +166,10 @@ export default function Navlog({ flightData, updateFlightData }: { flightData: a
                   <div className="flex-[1.0] flex flex-col items-end gap-1 pr-2">
                     <div className="text-[0.95rem] font-bold font-mono text-[#00bfa5] pt-1">{efob.toFixed(1)}T</div>
                     {devHtml}
+                    {/* 🌟 防冒泡機制：點擊輸入框時阻止事件向外傳遞給 Row */}
                     <input 
                       type="number" step="0.1" placeholder="T" defaultValue={wpData.afob || ""}
+                      onClick={(e) => e.stopPropagation()}
                       onBlur={(e) => handleWpInputChange(i, "afob", e.target.value)}
                       className="w-[80px] bg-[#007979] text-white font-mono font-black text-right border-none rounded-sm px-1 py-0.5 outline-none placeholder:text-white/50"
                     />
@@ -174,8 +177,10 @@ export default function Navlog({ flightData, updateFlightData }: { flightData: a
                   <div className="flex-[1.0] flex flex-col items-end gap-1">
                     <div className="text-[#8fa0a6] text-xs font-mono">{eetStr}</div>
                     <div className="text-[#00bfa5] text-[0.95rem] font-bold font-mono">{etaTime}</div>
+                    {/* 🌟 防冒泡機制 */}
                     <input 
                       type="text" placeholder="z" defaultValue={wpData.ata || ""}
+                      onClick={(e) => e.stopPropagation()}
                       onBlur={(e) => handleWpInputChange(i, "ata", e.target.value)}
                       className="w-[60px] bg-[#007979] text-white font-mono font-black text-right border-none rounded-sm px-1 py-0.5 outline-none placeholder:text-white/50"
                     />
@@ -183,7 +188,7 @@ export default function Navlog({ flightData, updateFlightData }: { flightData: a
                 </div>
               );
             } else {
-              // 🟢 展開狀態 (Expanded LIDO Panel)
+              // 🟢 展開狀態 (Expanded LIDO Panel) - 這裡不需要 onClick，避免誤觸收合
               return (
                 <div key={i} className="bg-[#2b2b2b] border-y border-[#444] p-4 my-1 rounded-md shadow-inner animate-fade-in flex gap-4">
                   <div className="flex-[1.2]">

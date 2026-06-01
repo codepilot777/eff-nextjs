@@ -47,23 +47,20 @@ export async function POST(request: Request) {
         return d.toISOString().substring(11, 16).replace(":", "") + "Z";
     };
 
-    // 🌟 新增：解析 Navlog 航點陣列
     const rawNavlog = sbData.navlog?.fix || [];
     const fixArray = Array.isArray(rawNavlog) ? rawNavlog : [rawNavlog];
     const parsedNavlog = fixArray.map((fix: any) => ({
       ident: fix.ident || "UKN",
-      time_accum: Math.floor(parseInt(fix.time_total || 0) / 60), // 秒轉分鐘
-      efob: parseInt(fix.fuel_plan_onboard || 0) / 1000.0 // 轉噸
+      time_accum: Math.floor(parseInt(fix.time_total || 0) / 60), 
+      efob: parseInt(fix.fuel_plan_onboard || 0) / 1000.0 
     }));
 
-    // 🌟 新增：解析 Alternates 備降場陣列
     const rawAltn = sbData.alternate;
     const altnArray = Array.isArray(rawAltn) ? rawAltn : (rawAltn ? [rawAltn] : []);
     const parsedAlternates = altnArray.map((a: any) => ({
       icao: a.icao_code || "N/A",
       burn: parseInt(a.burn || 0) / 1000.0,
-      time: Math.floor(parseInt(a.time || 0) / 60),
-      notam: "NIL"
+      time: Math.floor(parseInt(a.time || 0) / 60)
     }));
 
     const finalFlightNo = flightNo || `${gen.icao_airline} ${gen.flight_number}`;
@@ -105,8 +102,11 @@ export async function POST(request: Request) {
       cargo_hold_3: h3,
       cargo_hold_4: h4,
       
-      navlog: parsedNavlog, // 寫入資料庫
-      alternates: parsedAlternates, // 寫入資料庫
+      navlog: parsedNavlog,
+      alternates: parsedAlternates,
+
+      // 🌟 MAGIC HAPPENS HERE: 直接把整包原汁原味的 SimBrief JSON 塞進資料庫！
+      raw_simbrief: sbData,
 
       ezfw_sent: true,
       azf_sent: false,

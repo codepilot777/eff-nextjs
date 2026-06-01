@@ -158,7 +158,6 @@ function IOSPanelContent() {
 
     const nextVersion = (flightData.ofp_version || 1) + 1;
 
-    // 解析 Navlog 與 Alternates
     const rawNavlog = sb.navlog?.fix || [];
     const fixArray = Array.isArray(rawNavlog) ? rawNavlog : [rawNavlog];
     const parsedNavlog = fixArray.map((fix: any) => ({
@@ -186,6 +185,9 @@ function IOSPanelContent() {
       sta_unix: staUnix,
       cruise_alt: sb.general?.initial_altitude || "35000",
       avg_wind: sb.general?.avg_wind_comp || "N/A",
+      
+      // 🌟 MAGIC HAPPENS HERE: 把整包 SimBrief JSON 塞入資料庫，以後更新版本也會帶著最新天氣和 NOTAM！
+      raw_simbrief: sb,
       
       fuel_taxi_ofp: parseInt(sb.fuel?.taxi || 0) / 1000.0,
       fuel_trip_ofp: parseInt(sb.fuel?.enroute_burn || 0) / 1000.0,
@@ -319,19 +321,26 @@ function IOSPanelContent() {
             </div>
           </div>
 
-          {(flightData.pdc_requests || []).filter((r:any) => r.status === "PENDING CLEARANCE").map((req:any, i:number) => (
-            <div key={i} className="bg-[#11161d] border border-[#FF9100] rounded-xl p-4 shadow-[0_0_10px_rgba(255,145,0,0.15)]">
+          {/* 🌟 修正：PDC REQUEST 寫入 payload */}
+          {(flightData.pdc_requests || []).filter((r:any) => r.status === "PENDING CLEARANCE").map((req:any, idx:number) => (
+            <div key={`pdc-${idx}`} className="bg-[#11161d] border border-[#FF9100] rounded-xl p-4 shadow-[0_0_10px_rgba(255,145,0,0.15)]">
               <div className="text-[#FF9100] font-bold mb-1">⚠️ PDC REQUEST RECEIVED</div>
               <div className="text-xs text-[#e2e8f0] mb-3">Gate {req.gate} | ATIS {req.atis}</div>
               <textarea 
-                className="w-full bg-[#080a0d] border border-[#34495e] rounded-lg p-3 text-[#e2e8f0] text-sm h-32 outline-none focus:border-[#00bfa5] resize-none"
-                defaultValue={`${flightData.flight_no.replace(' ', '')} CLRD TO ${flightData.arr_icao} VIA ${flightData.pdc_route || '...'} \nINIT CLIMB ${flightData.pdc_climb || '...'} \nSQUAWK ${flightData.pdc_squawk || '...'} \nDEP FREQ ${flightData.pdc_freq || '...'} \nACKNOWLEDGE ATIS ${req.atis} ON DEPARTURE`}
+                id={`ios_pdc_input_${idx}`}
+                className="w-full bg-[#080a0d] border border-[#34495e] rounded-lg p-3 text-[#00E676] font-mono text-sm h-32 outline-none focus:border-[#00bfa5] resize-none"
+                defaultValue={`${flightData.flight_no.replace(' ', '')} CLRD TO ${flightData.arr_icao} VIA ${flightData.pdc_route || '...'}\nINIT CLIMB ${flightData.pdc_climb || '...'}\nSQUAWK ${flightData.pdc_squawk || '...'}\nDEP FREQ ${flightData.pdc_freq || '...'}\nACKNOWLEDGE ATIS ${req.atis} ON DEPARTURE`}
               ></textarea>
               <button 
                 onClick={() => {
+                  const input = document.getElementById(`ios_pdc_input_${idx}`) as HTMLTextAreaElement;
                   const updatedPdc = [...flightData.pdc_requests];
-                  updatedPdc[i].status = "APPROVED";
-                  updateFlightData({ pdc_requests: updatedPdc });
+                  const realIndex = flightData.pdc_requests.findIndex((r:any) => r.time === req.time);
+                  if(realIndex >= 0) {
+                    updatedPdc[realIndex].status = "APPROVED";
+                    updatedPdc[realIndex].clearance_payload = input.value; // 真正寫入資料庫！
+                    updateFlightData({ pdc_requests: updatedPdc });
+                  }
                 }}
                 className="mt-3 w-full bg-[#00E676]/20 border border-[#00E676] text-[#00E676] py-2 rounded-lg font-bold hover:bg-[#00E676] hover:text-black transition-colors"
               >
@@ -340,19 +349,26 @@ function IOSPanelContent() {
             </div>
           ))}
 
-          {(flightData.atis_requests || []).filter((r:any) => r.status === "PENDING RESPONSE").map((req:any, i:number) => (
-            <div key={i} className="bg-[#11161d] border border-[#00bfa5] rounded-xl p-4 shadow-[0_0_10px_rgba(0,191,165,0.15)]">
+          {/* 🌟 修正：ATIS REQUEST 寫入 response */}
+          {(flightData.atis_requests || []).filter((r:any) => r.status === "PENDING RESPONSE").map((req:any, idx:number) => (
+            <div key={`atis-${idx}`} className="bg-[#11161d] border border-[#00bfa5] rounded-xl p-4 shadow-[0_0_10px_rgba(0,191,165,0.15)]">
               <div className="text-[#00bfa5] font-bold mb-1">⚠️ ATIS REQUEST</div>
               <div className="text-xs text-[#e2e8f0] mb-3">{req.icao} ({req.type})</div>
               <textarea 
-                className="w-full bg-[#080a0d] border border-[#34495e] rounded-lg p-3 text-[#e2e8f0] text-sm h-24 outline-none focus:border-[#00bfa5] resize-none"
-                defaultValue={req.type === "DEPARTURE" ? flightData.atis_dep_text : flightData.atis_arr_text}
+                id={`ios_atis_input_${idx}`}
+                className="w-full bg-[#080a0d] border border-[#34495e] rounded-lg p-3 text-[#00bfa5] font-mono text-sm h-24 outline-none focus:border-[#00bfa5] resize-none"
+                defaultValue={req.type === "DEPARTURE" ? (flightData.metar_dep || 'NIL') : (flightData.metar_arr || 'NIL')}
               ></textarea>
               <button 
                 onClick={() => {
+                  const input = document.getElementById(`ios_atis_input_${idx}`) as HTMLTextAreaElement;
                   const updatedAtis = [...flightData.atis_requests];
-                  updatedAtis[i].status = "DELIVERED";
-                  updateFlightData({ atis_requests: updatedAtis });
+                  const realIndex = flightData.atis_requests.findIndex((r:any) => r.time === req.time);
+                  if(realIndex >= 0) {
+                    updatedAtis[realIndex].status = "DELIVERED";
+                    updatedAtis[realIndex].response = input.value; // 真正寫入資料庫！
+                    updateFlightData({ atis_requests: updatedAtis });
+                  }
                 }}
                 className="mt-3 w-full bg-[#00bfa5]/20 border border-[#00bfa5] text-[#00bfa5] py-2 rounded-lg font-bold hover:bg-[#00bfa5] hover:text-black transition-colors"
               >
@@ -427,12 +443,9 @@ function IOSPanelContent() {
 
           <div className="flex-1 overflow-y-auto pr-2">
             
-            {/* ========================================================= */}
-            {/* TAB 1: Config                                               */}
-            {/* ========================================================= */}
+            {/* TAB 1: Config */}
             {activeTab === "Config" && (
               <div className="animate-fade-in flex flex-col gap-6">
-                
                 <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-4">
                   <h5 className="text-white font-bold mb-2">📡 Active Flight Plan</h5>
                   <p className="text-[#8fa0a6] text-sm mb-4">Current OFP Version: <strong className="text-white">V{flightData.ofp_version || 1}</strong></p>
@@ -513,13 +526,10 @@ function IOSPanelContent() {
                     </div>
                   </div>
                 )}
-                
               </div>
             )}
 
-            {/* ========================================================= */}
-            {/* TAB 2: Payload                                              */}
-            {/* ========================================================= */}
+            {/* TAB 2: Payload */}
             {activeTab === "Payload" && (
               <div className="animate-fade-in flex flex-col gap-6">
                 
@@ -611,9 +621,7 @@ function IOSPanelContent() {
               </div>
             )}
 
-            {/* ========================================================= */}
-            {/* TAB 3: WX & NOTAMs                                          */}
-            {/* ========================================================= */}
+            {/* TAB 3: WX & NOTAMs */}
             {activeTab === "WX" && (
               <div className="animate-fade-in flex flex-col gap-6">
                 <div>
@@ -665,12 +673,9 @@ function IOSPanelContent() {
               </div>
             )}
 
-            {/* ========================================================= */}
-            {/* TAB 4: eTechLog                                             */}
-            {/* ========================================================= */}
+            {/* TAB 4: eTechLog */}
             {activeTab === "eTechLog" && (
               <div className="animate-fade-in flex flex-col gap-6">
-                
                 <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-6">
                   <h5 className="text-white font-bold mb-4 flex items-center gap-2">🔧 Maintenance Release Control</h5>
                   
@@ -760,13 +765,10 @@ function IOSPanelContent() {
                     )}
                   </div>
                 </div>
-
               </div>
             )}
 
-            {/* ========================================================= */}
-            {/* TAB 5: Fuel                                                 */}
-            {/* ========================================================= */}
+            {/* TAB 5: Fuel */}
             {activeTab === "Fuel" && (
               <div className="animate-fade-in">
                 <h5 className="text-white font-bold mb-4">⛽ Fuel Supplier Interface</h5>
