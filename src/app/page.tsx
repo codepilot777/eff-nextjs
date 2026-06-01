@@ -7,17 +7,19 @@ import { useRouter } from "next/navigation";
 export default function Home() {
   const router = useRouter();
   const [showPinModal, setShowPinModal] = useState(false);
+  const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
 
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pin === "0564") {
+    if (pin === "0564" && username.trim() !== "") {
       setShowPinModal(false);
-      // 🌟 修正：登入成功後直接跳轉至教官專屬工作區
+      // 儲存教官名稱到 LocalStorage，供後續篩選權限使用
+      localStorage.setItem("instructor_user", username.trim());
       router.push("/instructor");
     } else {
-      setError("Invalid PIN. Please try again.");
+      setError("Invalid PIN or missing Username.");
       setPin("");
     }
   };
@@ -44,7 +46,6 @@ export default function Home() {
           </button>
         </Link>
 
-        {/* 點擊 Instructor 改為觸發彈出視窗 */}
         <div className="flex-1 block">
           <button 
             onClick={() => setShowPinModal(true)}
@@ -57,21 +58,30 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 密碼驗證彈出視窗 (Modal) */}
+      {/* 密碼驗證與帳號輸入彈出視窗 */}
       {showPinModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-8 max-w-md w-full shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
-            <h3 className="text-2xl font-bold text-[#00bfa5] mb-2 text-center">Instructor Authorization</h3>
-            <p className="text-[#8fa0a6] mb-6 text-center text-sm">Enter Simulator IOS PIN (Default: 0564)</p>
+            <h3 className="text-2xl font-bold text-[#00bfa5] mb-2 text-center">Instructor Login</h3>
+            <p className="text-[#8fa0a6] mb-6 text-center text-sm">Enter your Name and IOS PIN (Default: 0564)<br/>Type "admin" to manage all sessions.</p>
             
             <form onSubmit={handlePinSubmit} className="flex flex-col gap-4">
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full bg-[#080a0d] border border-[#34495e] rounded-lg p-3 text-white text-center font-bold focus:outline-none focus:border-[#00bfa5] transition-colors"
+                placeholder="Username (e.g. Capt. Chan or admin)"
+                required
+                autoFocus
+              />
               <input
                 type="password"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                className="w-full bg-[#080a0d] border border-[#34495e] rounded-lg p-4 text-white text-center text-2xl tracking-[0.5em] focus:outline-none focus:border-[#00bfa5] transition-colors"
+                className="w-full bg-[#080a0d] border border-[#34495e] rounded-lg p-3 text-white text-center text-xl tracking-[0.5em] focus:outline-none focus:border-[#00bfa5] transition-colors"
                 placeholder="••••"
-                autoFocus
+                required
               />
               
               {error && <div className="text-[#FF1744] text-sm text-center font-bold animate-pulse">{error}</div>}

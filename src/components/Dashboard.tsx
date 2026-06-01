@@ -60,7 +60,8 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
       : <div className="mt-2 bg-[#FF9100] text-black p-1 rounded text-center font-bold text-xs shadow-[0_0_8px_rgba(255,145,0,0.4)] animate-pulse">FINAL {fVer.toString().padStart(2, '0')}</div>;
     isLsActive = true;
   } else if (flightData?.prelim_ls_sent) {
-    lsStageHtml = <div className="mt-2 bg-[#FF9100] text-black p-1 rounded text-center font-bold text-xs shadow-[0_0_8px_rgba(255,145,0,0.4)]">PRELIM {(flightData?.prelim_ls_version || 1).toString().padStart(2, '0')}</div>;
+    const pVer = flightData?.prelim_ls_version || 1;
+    lsStageHtml = <div className="mt-2 bg-[#FF9100] text-black p-1 rounded text-center font-bold text-xs shadow-[0_0_8px_rgba(255,145,0,0.4)]">PRELIM {pVer.toString().padStart(2, '0')}</div>;
     isLsActive = true;
   } else if (flightData?.azf_sent) {
     lsStageHtml = <div className="mt-2 text-[#00E676] text-center font-bold text-xs border border-dashed border-[#00E676] p-1 rounded">AZF SENT</div>;
@@ -83,7 +84,7 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   const ofpRes = flightData?.fuel_reserve_ofp || 0.0;
   const baseAltnOfp = flightData?.fuel_altn_ofp || 0.0;
   
-  // 🌟 公式重構：Fuel Required = Taxi + Trip + Cont + Altn + Reserve
+  // 公式重構：Fuel Required = Taxi + Trip + Cont + Altn + Reserve
   const ofpReqdBase = ofpTaxi + ofpTrip + ofpCont + baseAltnOfp + ofpRes;
   const ofpTotal = ofpReqdBase; // OFP 預設 Tankering 與 Extra 為 0
   
@@ -113,7 +114,7 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   const currExtra = isManual ? (mf.extra ?? 0.0) : 0.0;
   
   const currReqdBase = currTaxi + currTrip + currCont + currAltnOfp + ofpRes;
-  // 🌟 公式重構：Total Fuel = Fuel Required + Tankering + Extra
+  // 公式重構：Total Fuel = Fuel Required + Tankering + Extra
   const currTotal = isManual ? (mf.total ?? (currReqdBase + currTank + currExtra)) : (currReqdBase + currTank + currExtra);
 
   // 飛機重量計算：TOW 不包含 Taxi Fuel
@@ -167,7 +168,6 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
     updateFlightData({ final_fuel_accepted: true, final_fuel_request: currTotal });
   };
 
-  // 🌟 修正：解除 show 參數的限制，精準計算任何數值差異
   const diffStr = (rev: number, ofp: number) => {
     if (typeof rev !== 'number' || typeof ofp !== 'number') return null;
     if (ofp === 0 && rev === 0) return null;
@@ -198,7 +198,6 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   if (isReleased && isAccepted && isStarted) acStatus = <div className="bg-[#00E676] text-black p-1 rounded text-center font-bold mb-2 text-xs">✅ AIRCRAFT ACCEPTED</div>;
   else if (isReleased) acStatus = <div className="bg-[#FF9100] text-black p-1 rounded text-center font-bold mb-2 text-xs">⏳ TECHLOG RELEASED</div>;
 
-  // 🌟 修正：加入 flex-1，讓表格的每一行均勻撐滿剩餘高度
   const Row = ({ label, ofp, rev, isInput, field, isBold, color = "#e2e8f0" }: any) => (
     <div className="flex-1 grid grid-cols-[1.5fr_1fr_1fr_1.2fr_0.5fr] gap-1 items-center border-b border-dashed border-[#1d2733]">
       <div className={`text-xs ${isBold ? 'font-bold text-[#00E676]' : `text-[${color}]`}`}>{label}</div>
@@ -220,6 +219,119 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
       <div></div>
     </div>
   );
+
+  // ==============================================
+  // 5. 產生 Loadsheet 電報字串的 Helper 函數
+  // ==============================================
+  const zfw_act = Math.round((actualZfw > 0 ? actualZfw : ofpZfw) * 1000);
+  const tow_act = Math.round(currTow * 1000);
+  const law_act = Math.round(currLw * 1000);
+  const trip_act = Math.round(currTrip * 1000);
+  const taxi_act = Math.round(currTaxi * 1000);
+  const pax_wt_total = paxTot * (flightData?.pax_weight_std || 84);
+  const underload = 224528 - zfw_act;
+  const dow_kg = flightData?.dow || 161968;
+  const dispatcher = flightData?.dispatcher || 'SYSTEM';
+  const flight_num_clean = flightData?.flight_no?.replace(" ", "") || 'CPA564';
+  const reg_clean = reg.replace("-", "");
+  const pax_j = flightData?.pax_j || 0;
+  const pax_y = flightData?.pax_y || 0;
+  const pax_f = flightData?.pax_f || 0;
+  const pax_w = flightData?.pax_w || 0;
+  const crew_fd = flightData?.crew_fd || 2;
+  const crew_cc = flightData?.crew_cc || 14;
+  const cgo_h1 = flightData?.cargo_hold_1 || 0;
+  const cgo_h2 = flightData?.cargo_hold_2 || 0;
+  const cgo_h3 = flightData?.cargo_hold_3 || 0;
+  const cgo_h4 = flightData?.cargo_hold_4 || 0;
+  const cgo_bulk = flightData?.cargo_bulk || 0;
+  const cgo_total = cgo_h1 + cgo_h2 + cgo_h3 + cgo_h4 + cgo_bulk;
+
+  const date_str_ls = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, '').toUpperCase();
+  const date_str_ezfw = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).replace(/ /g, '').toUpperCase();
+
+  const getLsText = (isFinal: boolean) => {
+    const lsType = isFinal ? "FINAL" : "PRELIM";
+    const lsVer = isFinal ? (flightData?.final_ls_version || 1) : (flightData?.prelim_ls_version || 1);
+    const lsVerStr = lsVer.toString().padStart(2, '0');
+    
+    return `LDS/${reg_clean}/${flight_num_clean}
+LOADSHEET                   ${lsType}  ${lsVerStr}
+${depIcao.substring(0,3)}  ${arrIcao.substring(0,3)}  ${flight_num_clean}/20                ${reg_clean}
+J${pax_j.toString().padEnd(2)}Y${pax_y.toString().padEnd(3)}      ${crew_fd}/${crew_cc}                ${date_str_ls}
+
+ZFW ACT ${zfw_act.toString().padEnd(8)}  MAX 224528  L   ${underload}
+TO FUEL ${(-taxi_act).toString().padEnd(8)}
+TOW ACT ${tow_act.toString().padEnd(8)}  MAX 263083      ${263083 - tow_act}
+TRIP FUEL ${trip_act.toString().padEnd(8)}
+LAW ACT ${law_act.toString().padEnd(8)}  MAX 237682      ${237682 - law_act}
+
+BALANCE AND SEATING
+BW  155582      DOW ${dow_kg}
+BI  715.00      DOI 741.09
+LIZFW   678.16  MACZFW  22.75
+LITOW   683.36  MATOW   23.77
+LILAW   675.30  MACLAW  23.33
+
+STAB TO 5.5
+0A/${pax_f.toString().padEnd(3)} 0B/${pax_j.toString().padEnd(3)} 0C/${pax_w.toString().padEnd(3)} 0D/${pax_y.toString().padEnd(3)}
+T${pax_wt_total.toString().padEnd(5)} .1/${cgo_h1.toString().padEnd(4)} .2/${cgo_h2.toString().padEnd(4)} .3/${cgo_h3.toString().padEnd(4)} .4/${cgo_h4.toString().padEnd(4)} .5/${cgo_bulk.toString().padEnd(4)}
+
+${arrIcao.substring(0,3)}  J${pax_j.toString().padStart(3, '0')}    Y${pax_y.toString().padStart(3, '0')}
+TTL PAX ${paxTot.toString().padEnd(5)}   UNDERLOAD   ${underload}
+
+CMDR NAME
+SIGN
+
+SI
+NOTOC:
+PANTRY CODE:        77P-A
+PANTRY EFFECT       4285/11-
+SERVICE WEIGHT ADJUSTMENT/INDEX ADD
+${arrIcao.substring(0,3)}    POTABLE WATER       15/16   94  PCT
+805 53
+
+NORMAL MACTOW LIMITS:
+FWD MACTOW LIMIT        14.1
+AFT MACTOW LIMIT        38.6
+LOADSHEETER/${dispatcher}/HKG1576`;
+  };
+
+  const getAzfText = () => {
+    const tow_reqd = Math.round(zfw_act + (ofpReqdBase * 1000));
+    return `AZF/${reg_clean}/${flight_num_clean}
+- PAX/ ${paxTot}
+- CGO/ ${cgo_total}
+- ZFW/ ${zfw_act}
+- CRW/ ${crew_fd}/${crew_cc}
+- TOW/ ${tow_reqd}
+- DEP/ ${(flightData?.std_z || '0000').replace('Z', '')}
+- SEC/ ${depIcao}-${arrIcao}
+
+FLT STATUS: closed
+LCO: ${dispatcher}
+
+SI`;
+  };
+
+  const getEzfwText = () => {
+    const ttlLoad = pax_wt_total + cgo_total;
+    const estZfwKg = Math.round((flightData?.weight_zfw_ofp || 0.0) * 1000);
+    return `EZFW ${flight_num_clean}/${date_str_ezfw} ${reg_clean} J${pax_j}Y${pax_y}
+${crew_fd}/${crew_cc} ${depIcao}${arrIcao}
+
+PASSENGER           ${pax_wt_total.toString().padEnd(6)} KG
+CARGO               ${cgo_total.toString().padEnd(6)} KG
+TTL TRAFFIC LOAD    ${ttlLoad.toString().padEnd(6)} KG
+
+J${pax_j}  Y${pax_y}
+DOW                 ${dow_kg.toString().padEnd(6)} KG
+EST ZFW             ${estZfwKg.toString().padEnd(6)} KG
+
+LCO: ${dispatcher}
+SI
+LATEST EZFW`;
+  };
 
   return (
     <div className="relative flex gap-2 h-full w-full">
@@ -335,10 +447,8 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
             <div>Category</div><div className="text-right">OFP</div><div className="text-right">Diff</div><div className="text-right">{showRevVal ? 'Revised' : ''}</div><div></div>
           </div>
 
-          {/* 🌟 修正：此容器設定 flex-col 且 h-full，內部 Row 使用 flex-1，確保完美垂直均分 */}
-          <div className="flex-1 flex flex-col w-full h-full overflow-hidden text-sm">
+          <div className="flex-1 flex flex-col justify-between overflow-y-auto pr-1 text-sm mt-1">
             
-            {Row({ label: "Taxi", ofp: ofpTaxi, rev: currTaxi, isInput: true, field: 'taxi' })}
             {Row({ label: "Trip Fuel", ofp: ofpTrip, rev: currTrip, isInput: true, field: 'trip' })}
             {Row({ label: "Cont", ofp: ofpCont, rev: currCont, isInput: true, field: 'cont' })}
             {Row({ label: "Dest Hold", ofp: 0.0, rev: 0.0 })}
@@ -367,6 +477,7 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
             
             {Row({ label: "Tankering", ofp: 0.0, rev: currTank, isInput: true, field: 'tankering' })}
             {Row({ label: "Extra", ofp: 0.0, rev: currExtra, isInput: true, field: 'extra' })}
+            {Row({ label: "Taxi", ofp: ofpTaxi, rev: currTaxi, isInput: true, field: 'taxi' })}
             {Row({ label: "Total Fuel", ofp: ofpTotal, rev: currTotal, isInput: true, field: 'total', isBold: true })}
 
             <div className="flex-[0.5] flex items-center justify-center text-[0.6rem] text-[#8fa0a6]">Margin</div>
@@ -425,7 +536,7 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
           </div>
           <div className="flex justify-between text-xs mb-1">
             <span className="text-[#8fa0a6]">Cargo</span><span className="text-white font-bold">
-              {((flightData?.cargo_hold_1||0) + (flightData?.cargo_hold_2||0) + (flightData?.cargo_hold_3||0) + (flightData?.cargo_hold_4||0) + (flightData?.cargo_bulk||0)) / 1000} T
+              {(cgo_total) / 1000} T
             </span>
           </div>
           {lsStageHtml}
@@ -509,9 +620,9 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
       {/* ========================================== */}
       {activeModal && (
         <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-8 backdrop-blur-md animate-fade-in">
-          <div className="bg-[#11161d] border border-[#00bfa5] rounded-xl w-full max-w-2xl shadow-[0_0_40px_rgba(0,191,165,0.2)] flex flex-col overflow-hidden">
+          <div className="bg-[#11161d] border border-[#00bfa5] rounded-xl w-full max-w-5xl shadow-[0_0_40px_rgba(0,191,165,0.2)] flex flex-col overflow-hidden max-h-[90vh]">
             
-            <div className="flex justify-between items-center p-4 bg-[#17202a] border-b border-[#242f3d]">
+            <div className="flex justify-between items-center p-4 bg-[#17202a] border-b border-[#242f3d] shrink-0">
               <h2 className="text-lg font-black text-[#00bfa5] tracking-widest uppercase">
                 {activeModal === 'FMS' && 'FMS & ATS Data Preview'}
                 {activeModal === 'Loadsheet' && 'Loadsheet & Payload Detail'}
@@ -528,65 +639,125 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto text-[#e2e8f0] max-h-[60vh] font-mono text-sm leading-relaxed">
+            <div className="p-6 overflow-y-auto text-[#e2e8f0] flex-1 font-mono text-sm leading-relaxed">
               {activeModal === 'FMS' && (
-                <div>
-                  <div className="text-[#00bfa5] font-bold mb-4 border-b border-[#242f3d] pb-2">FMS OPERATION SUMMARY</div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">Aircraft Type</span><span className="font-bold">{acType}</span></div>
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">Reg</span><span className="font-bold">{reg}</span></div>
-                    
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">Drag/F-F Factor</span><span className="font-bold">P0.0 / P0.0</span></div>
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">MEL/CDL Pen</span><span className="font-bold">{melCdl}</span></div>
-                    
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">FMS Route</span><span className="font-bold text-[#00E676]">{routeStr}</span></div>
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">Total Distance</span><span className="font-bold">{totalDist} NM</span></div>
-                    
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">TOC</span><span className="font-bold">{cruiseAlt}</span></div>
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">TOC Temp</span><span className="font-bold">{tocTemp}</span></div>
-                    
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">Cost Index</span><span className="font-bold">{costIndex}</span></div>
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">EDTO Flight</span><span className="font-bold">{edtoFlight}</span></div>
-                    
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">Reserve</span><span className="font-bold">{ofpRes.toFixed(1)} T</span></div>
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">Min Divert Fuel</span><span className="font-bold">{minDivert}</span></div>
-                    
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">Avg Wind</span><span className="font-bold">{avgWind}</span></div>
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">Avg Trip (kg/gnm)</span><span className="font-bold">{avgTrip}</span></div>
-                    
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">Highest Trip MRA</span><span className="font-bold">{mraHigh}</span></div>
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">EDG MRA</span><span className="font-bold">{mraEdg}</span></div>
-                    
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">Dep Rwy</span><span className="font-bold">{depRwy}</span></div>
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">Arr Rwy</span><span className="font-bold">{arrRwy}</span></div>
-                    
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">SID</span><span className="font-bold text-[#FF9100]">{sid}</span></div>
-                    <div><span className="text-[#8fa0a6] text-xs uppercase block">STAR</span><span className="font-bold text-[#FF9100]">{star}</span></div>
+                <div className="flex flex-col md:flex-row gap-8 h-full">
+                  {/* 左側：FMS 數據 */}
+                  <div className="flex-[1.2]">
+                    <div className="text-[#00bfa5] font-bold mb-4 border-b border-[#242f3d] pb-2">FMS OPERATION SUMMARY</div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">Aircraft Type</span><span className="font-bold">{acType}</span></div>
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">Reg</span><span className="font-bold">{reg}</span></div>
+                      
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">Drag/F-F Factor</span><span className="font-bold">P0.0 / P0.0</span></div>
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">MEL/CDL Pen</span><span className="font-bold">{melCdl}</span></div>
+                      
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">FMS Route</span><span className="font-bold text-[#00E676]">{routeStr}</span></div>
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">Total Distance</span><span className="font-bold">{totalDist} NM</span></div>
+                      
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">TOC</span><span className="font-bold">{cruiseAlt}</span></div>
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">TOC Temp</span><span className="font-bold">{tocTemp}</span></div>
+                      
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">Cost Index</span><span className="font-bold">{costIndex}</span></div>
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">EDTO Flight</span><span className="font-bold">{edtoFlight}</span></div>
+                      
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">Reserve</span><span className="font-bold">{ofpRes.toFixed(1)} T</span></div>
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">Min Divert Fuel</span><span className="font-bold">{minDivert}</span></div>
+                      
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">Avg Wind</span><span className="font-bold">{avgWind}</span></div>
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">Avg Trip (kg/gnm)</span><span className="font-bold">{avgTrip}</span></div>
+                      
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">Highest Trip MRA</span><span className="font-bold">{mraHigh}</span></div>
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">EDG MRA</span><span className="font-bold">{mraEdg}</span></div>
+                      
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">Dep Rwy</span><span className="font-bold">{depRwy}</span></div>
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">Arr Rwy</span><span className="font-bold">{arrRwy}</span></div>
+                      
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">SID</span><span className="font-bold text-[#FF9100]">{sid}</span></div>
+                      <div><span className="text-[#8fa0a6] text-xs uppercase block">STAR</span><span className="font-bold text-[#FF9100]">{star}</span></div>
+                    </div>
                   </div>
                   
-                  <div className="text-[#00bfa5] font-bold mb-4 mt-6 border-b border-[#242f3d] pb-2">ICAO ATS FLIGHT PLAN</div>
-                  <div className="bg-[#0a0a0a] p-4 rounded border border-[#34495e] font-mono text-xs text-[#e2e8f0] whitespace-pre-wrap leading-relaxed">
-{`(FPL-${flightData?.flight_no?.replace(" ", "") || 'CPA564'}-IS
+                  {/* 右側：ATS Flight Plan */}
+                  <div className="flex-[0.8] flex flex-col h-full">
+                    <div className="text-[#00bfa5] font-bold mb-4 border-b border-[#242f3d] pb-2">ICAO ATS FLIGHT PLAN</div>
+                    <div className="bg-[#0a0a0a] p-4 rounded border border-[#34495e] font-mono text-xs text-[#e2e8f0] whitespace-pre-wrap leading-relaxed flex-1 overflow-y-auto min-h-[300px]">
+{flightData?.raw_simbrief?.atc?.flightplan_text || `(FPL-${flightData?.flight_no?.replace(" ", "") || 'CPA564'}-IS
 -B773/H-SDE3GHIJ2J3J5M1RWXY/LB1
--${flightData?.dep_icao || 'VHHH'}{flightData?.std_z?.substring(0,4) || '0000'}
--N0480F{cruiseAlt} {routeStr} {flightData?.sid_route || ''} DCT OCEAN DCT MKG DCT {flightData?.star_route || ''}
--${flightData?.arr_icao || 'RJBB'}0315 {flightData?.dep_icao || 'VHHH'}
--REG/{reg.replace("-", "")} CAPT/{flightData?.captain?.replace(" ", "") || 'PILOT'})`}
+-${flightData?.dep_icao || 'VHHH'}${flightData?.std_z?.substring(0,4) || '0000'}
+-N0480F${cruiseAlt} ${routeStr} ${flightData?.sid_route || ''} DCT OCEAN DCT MKG DCT ${flightData?.star_route || ''}
+-${flightData?.arr_icao || 'RJBB'}0315 ${flightData?.dep_icao || 'VHHH'}
+-REG/${reg.replace("-", "")} CAPT/${flightData?.captain?.replace(" ", "") || 'PILOT'})`}
+                    </div>
                   </div>
                 </div>
               )}
+              
+              {/* 🌟 Loadsheet Modal：嚴格區分左右容器，左側固定，右側獨立水平滾動 */}
               {activeModal === 'Loadsheet' && (
-                <div>
-                  <div className="text-[#00E676] mb-4">-- LOADSHEET PREVIEW --</div>
-                  TOTAL PAX: <strong>{paxTot}</strong> (F{flightData?.pax_f||0} J{flightData?.pax_j||0} W{flightData?.pax_w||0} Y{flightData?.pax_y||0})<br />
-                  CARGO HOLD 1: <strong>{flightData?.cargo_hold_1 || 0} kg</strong><br />
-                  CARGO HOLD 2: <strong>{flightData?.cargo_hold_2 || 0} kg</strong><br />
-                  CARGO HOLD 3: <strong>{flightData?.cargo_hold_3 || 0} kg</strong><br />
-                  CARGO HOLD 4: <strong>{flightData?.cargo_hold_4 || 0} kg</strong><br />
-                  BULK: <strong>{flightData?.cargo_bulk || 0} kg</strong><br /><br />
-                  ESTIMATED ZFW: <strong>{ofpZfw.toFixed(1)} T</strong><br />
-                  ESTIMATED TOW: <strong>{(flightData?.weight_tow_ofp || 0).toFixed(1)} T</strong><br />
-                  MAC ZFW: <strong>26.4 %</strong> (LIZFW: 56.1)
+                <div className="flex flex-row h-full w-full overflow-hidden">
+                  
+                  {/* 左側容器：固定寬度 340px，加上右側分隔線 */}
+                  <div className="w-[340px] shrink-0 flex flex-col h-full border-r border-[#242f3d] pr-6">
+                    <div className="text-xl font-bold text-[#00bfa5] border-b border-[#242f3d] pb-2 mb-4 uppercase shrink-0">
+                      Weights & Fuel ({isManual ? 'MANUAL' : (actualZfw > 0 ? 'REVISED' : 'OFP')})
+                    </div>
+                    <div className="overflow-y-auto pr-2 flex-1 min-h-0">
+                      <table className="w-full text-sm">
+                        <tbody>
+                          <tr><td className="text-[#8fa0a6] py-1">Trip Fuel</td><td className="text-right font-bold" style={{color: isManual ? '#FF9100' : (actualZfw > 0 ? '#00E676' : '#e2e8f0')}}>{currTrip.toFixed(1)} T</td></tr>
+                          <tr><td className="text-[#8fa0a6] py-1">Contingency</td><td className="text-right font-bold" style={{color: isManual ? '#FF9100' : (actualZfw > 0 ? '#00E676' : '#e2e8f0')}}>{currCont.toFixed(1)} T</td></tr>
+                          <tr><td className="text-[#8fa0a6] py-1">Alternate</td><td className="text-right font-bold" style={{color: isManual ? '#FF9100' : (actualZfw > 0 ? '#00E676' : '#e2e8f0')}}>{currAltnOfp.toFixed(1)} T</td></tr>
+                          <tr><td className="text-[#8fa0a6] py-1">Reserve</td><td className="text-right font-bold" style={{color: isManual ? '#FF9100' : (actualZfw > 0 ? '#00E676' : '#e2e8f0')}}>{ofpRes.toFixed(1)} T</td></tr>
+                          <tr className="border-b border-[#333]"><td className="text-[#00E676] py-1 font-bold">Fuel Reqd</td><td className="text-right font-bold text-[#00E676]">{currReqdBase.toFixed(1)} T</td></tr>
+                          <tr><td className="text-[#8fa0a6] py-1 pt-3">Zero Fuel Wt</td><td className="text-right font-bold pt-3" style={{color: isManual ? '#FF9100' : (actualZfw > 0 ? '#00E676' : '#e2e8f0')}}>{(actualZfw > 0 ? actualZfw : ofpZfw).toFixed(1)} T</td></tr>
+                          <tr><td className="text-[#8fa0a6] py-1">Takeoff Wt</td><td className="text-right font-bold" style={{color: isManual ? '#FF9100' : (actualZfw > 0 ? '#00E676' : '#e2e8f0')}}>{currTow.toFixed(1)} T</td></tr>
+                          <tr><td className="text-[#8fa0a6] py-1">Landing Wt</td><td className="text-right font-bold" style={{color: isManual ? '#FF9100' : (actualZfw > 0 ? '#00E676' : '#e2e8f0')}}>{currLw.toFixed(1)} T</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* 右側容器：佔滿剩餘寬度，專門處理水平滾動 */}
+                  <div className="flex-1 overflow-x-auto overflow-y-hidden h-full pl-6 pb-2">
+                    <div className="flex gap-4 w-max h-full min-h-0">
+                      {(!flightData?.final_ls_sent && !flightData?.prelim_ls_sent && !flightData?.azf_sent && !flightData?.ezfw_sent) && (
+                        <div className="text-[#8fa0a6] p-8 text-center italic w-full flex items-center justify-center">No load documents dispatched yet.</div>
+                      )}
+                      {flightData?.final_ls_sent && (
+                        <div className="bg-[#0a0a0a] border border-[#242f3d] rounded-lg p-5 w-[480px] shadow-[0_4px_15px_rgba(0,0,0,0.5)] flex-shrink-0 flex flex-col h-full min-h-0">
+                          <h4 className="text-[#2979FF] border-b-2 border-dashed border-[#34495e] pb-2 mt-0 font-mono text-[1.2rem] font-black tracking-widest shrink-0">FINAL {(flightData?.final_ls_version || 1).toString().padStart(2, '0')}</h4>
+                          <div className="flex-1 overflow-y-auto mt-2 min-h-0">
+                            <pre className="text-[#e2e8f0] font-mono text-[0.9rem] font-bold leading-[1.4] tracking-[0.05em] whitespace-pre-wrap m-0">{getLsText(true)}</pre>
+                          </div>
+                        </div>
+                      )}
+                      {flightData?.prelim_ls_sent && (
+                        <div className="bg-[#0a0a0a] border border-[#242f3d] rounded-lg p-5 w-[480px] shadow-[0_4px_15px_rgba(0,0,0,0.5)] flex-shrink-0 flex flex-col h-full min-h-0">
+                          <h4 className="text-[#FF9100] border-b-2 border-dashed border-[#34495e] pb-2 mt-0 font-mono text-[1.2rem] font-black tracking-widest shrink-0">PRELIM {(flightData?.prelim_ls_version || 1).toString().padStart(2, '0')}</h4>
+                          <div className="flex-1 overflow-y-auto mt-2 min-h-0">
+                            <pre className="text-[#e2e8f0] font-mono text-[0.9rem] font-bold leading-[1.4] tracking-[0.05em] whitespace-pre-wrap m-0">{getLsText(false)}</pre>
+                          </div>
+                        </div>
+                      )}
+                      {flightData?.azf_sent && (
+                        <div className="bg-[#0a0a0a] border border-[#242f3d] rounded-lg p-5 w-[480px] shadow-[0_4px_15px_rgba(0,0,0,0.5)] flex-shrink-0 flex flex-col h-full min-h-0">
+                          <h4 className="text-[#00E676] border-b-2 border-dashed border-[#34495e] pb-2 mt-0 font-mono text-[1.2rem] font-black tracking-widest shrink-0">AZF DATASHEET</h4>
+                          <div className="flex-1 overflow-y-auto mt-2 min-h-0">
+                            <pre className="text-[#e2e8f0] font-mono text-[0.9rem] font-bold leading-[1.4] tracking-[0.05em] whitespace-pre-wrap m-0">{getAzfText()}</pre>
+                          </div>
+                        </div>
+                      )}
+                      {flightData?.ezfw_sent && (
+                        <div className="bg-[#0a0a0a] border border-[#242f3d] rounded-lg p-5 w-[480px] shadow-[0_4px_15px_rgba(0,0,0,0.5)] flex-shrink-0 flex flex-col h-full min-h-0">
+                          <h4 className="text-[#00bfa5] border-b-2 border-dashed border-[#34495e] pb-2 mt-0 font-mono text-[1.2rem] font-black tracking-widest shrink-0">EZFW DATASHEET</h4>
+                          <div className="flex-1 overflow-y-auto mt-2 min-h-0">
+                            <pre className="text-[#e2e8f0] font-mono text-[0.9rem] font-bold leading-[1.4] tracking-[0.05em] whitespace-pre-wrap m-0">{getEzfwText()}</pre>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
               {activeModal === 'Airports' && (
@@ -603,17 +774,45 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
                   FLIGHT TIME: {flightData?.alternates?.[0]?.time || 30} MINS
                 </div>
               )}
+              
+              {/* 🌟 完整還原 Streamlit Refuelling Modal 邏輯與樣式 */}
               {activeModal === 'Refuelling' && (
-                <div>
-                  <div className="text-[#FF9100] mb-4">-- DIGITAL FUEL RECEIPT --</div>
-                  SUPPLIER: <strong>AFSC (HKIA)</strong><br />
-                  REQUESTED BLOCK FUEL: <strong>{currTotal.toFixed(1)} T</strong><br /><br />
+                <div className="flex flex-col">
+                  <div className="text-[1.1rem] font-bold color-[#00bfa5] mb-4 uppercase">Fuel Supplier Receipt</div>
                   
-                  {flightData?.fuel_receipt_sent ? (
-                    <div className="bg-[#0a0a0a] border border-[#34495e] p-4 rounded mt-4">
-                      UPLIFT VOLUME: <strong>{((flightData.actual_uplift || currTotal) / 0.803 * 1000).toFixed(0)} LITERS</strong><br />
-                      FUEL DENSITY: <strong>0.803 kg/L</strong><br />
-                      ACTUAL UPLIFT WEIGHT: <strong>{(flightData.actual_uplift || currTotal).toFixed(1)} T</strong><br /><br />
+                  {!flightData?.fuel_receipt_sent ? (
+                    <div className="bg-[#11161d] border border-[#FF9100] text-[#FF9100] p-6 rounded-lg text-center font-bold">
+                      ⏳ Waiting for fuel supplier tender.
+                    </div>
+                  ) : (
+                    <div className="bg-[#11161d] border border-[#242f3d] rounded-lg p-6">
+                      <div className="grid grid-cols-2 gap-6 mb-6">
+                        <div>
+                          <div className="text-[#8fa0a6] text-xs font-bold uppercase mb-1">Supplier Code</div>
+                          <div className="font-mono text-white text-lg">AFSC (HKIA)</div>
+                          <div className="text-[#8fa0a6] text-xs font-bold uppercase mt-4 mb-1">Date</div>
+                          <div className="font-mono text-white text-lg">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-').toUpperCase()}</div>
+                        </div>
+                        <div>
+                          <div className="text-[#8fa0a6] text-xs font-bold uppercase mb-1">Product</div>
+                          <div className="font-mono text-white text-lg">JET A-1</div>
+                          <div className="text-[#8fa0a6] text-xs font-bold uppercase mt-4 mb-1">SG</div>
+                          <div className="font-mono text-white text-lg">0.795</div>
+                        </div>
+                      </div>
+                      
+                      <hr className="border-[#34495e] mb-6"/>
+                      
+                      <div className="grid grid-cols-2 gap-6 mb-8 text-center">
+                        <div className="bg-[#0a0a0a] border border-[#00bfa5] rounded-lg p-4">
+                          <div className="text-[#8fa0a6] text-xs font-bold uppercase mb-2">Uplifted</div>
+                          <div className="text-4xl font-black text-white">{(flightData?.actual_uplift || 0).toFixed(1)} <span className="text-xl text-[#00bfa5]">T</span></div>
+                        </div>
+                        <div className="bg-[#0a0a0a] border border-[#00bfa5] rounded-lg p-4">
+                          <div className="text-[#8fa0a6] text-xs font-bold uppercase mb-2">Total FOB</div>
+                          <div className="text-4xl font-black text-[#00E676]">{((flightData?.trainee_log_fuel || 0) + (flightData?.actual_uplift || 0)).toFixed(1)} <span className="text-xl text-[#00E676]">T</span></div>
+                        </div>
+                      </div>
                       
                       {!flightData?.pilots_signed_fuel ? (
                         <button 
@@ -621,21 +820,20 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
                             updateFlightData({ pilots_signed_fuel: true });
                             setActiveModal(null);
                           }}
-                          className="w-full bg-[#00E676] text-black font-black py-3 rounded hover:bg-[#00c853] mt-2"
+                          className="w-full py-4 bg-[#00E676] text-black font-black text-xl rounded-lg hover:bg-[#00c853] shadow-[0_4px_15px_rgba(0,230,118,0.4)] transition-all"
                         >
-                          SIGN DIGITAL RECEIPT
+                          ACCEPT FUEL RECEIPT
                         </button>
                       ) : (
-                        <div className="text-[#00E676] font-bold border border-[#00E676] p-2 text-center rounded">
-                          ✅ RECEIPT SIGNED BY CAPTAIN
+                        <div className="bg-[#00E676]/20 border border-[#00E676] text-[#00E676] p-4 rounded-lg text-center font-bold text-lg">
+                          ✅ FUEL RECEIPT ACCEPTED.
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <div className="text-[#8fa0a6] italic">Waiting for supplier to issue the receipt...</div>
                   )}
                 </div>
               )}
+              
               {activeModal === 'SNN' && (
                 <div>
                   <div className="text-[#FF9100] mb-4">-- SPECIAL NAVIGATION NOTE (SNN) --</div>

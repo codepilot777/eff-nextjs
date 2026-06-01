@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 
-export default function TechLog({ flightData, updateFlightData }: { flightData: any, updateFlightData: any }) {
-  // ==========================================
-  // 1. 本地 UI 導航與模式狀態
-  // ==========================================
-  const [roleMode, setRoleMode] = useState<"FLIGHT CREW" | "ENGINEER">("FLIGHT CREW");
+// 🌟 新增 forcedRole 屬性，若傳入則鎖死身分，不顯示切換選單
+export default function TechLog({ flightData, updateFlightData, forcedRole }: { flightData: any, updateFlightData: any, forcedRole?: "FLIGHT CREW" | "ENGINEER" }) {
+  
+  // 1. 本地 UI 導航與模式狀態 (若有 forcedRole 則優先使用)
+  const [roleMode, setRoleMode] = useState<"FLIGHT CREW" | "ENGINEER">(forcedRole || "FLIGHT CREW");
   const [activeNav, setActiveNav] = useState<"dashboard" | "history" | "reporting">("dashboard");
   const [activeTask, setActiveTask] = useState<string | null>(null);
   const [selectedHist, setSelectedHist] = useState<number | null>(1);
@@ -16,10 +16,9 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
   const [repCat, setRepCat] = useState("General / Unknown");
   const [repSummary, setRepSummary] = useState("");
   const [repDesc, setRepDesc] = useState("");
+  const [newAta, setNewAta] = useState("");
   
-  // ==========================================
   // 2. 飛機狀態與資料庫提取
-  // ==========================================
   const reg = flightData?.aircraft_reg || "B-HNQ";
   const isPrepared = flightData?.tl_prepared || false;
   const isFuelDone = flightData?.tl_fuel_record_completed || false;
@@ -44,16 +43,14 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
   const saddEntries = defects.filter((d: any) => d.deferral_type === "SADD");
   const addEntries = defects.filter((d: any) => d.deferral_type === "ADD");
 
-  // 模擬歷史紀錄 (對應 database.py 的 dummy data)
+  // 模擬歷史紀錄
   const historyRecords = [
     { id: 1, date: "20-MAY-2026", flt: "CX881", route: "LAX ➔ HKG", cmdr: "HO W S", fuelArr: "10.5", fuelUp: "85.0", checks: ["Transit Check"], serv: ["Toilet serviced"], def: [{sys: "CABIN", desc: "Toilet F INOP.", status: "OPEN"}] },
     { id: 2, date: "21-MAY-2026", flt: "CX880", route: "HKG ➔ LAX", cmdr: "HO W S", fuelArr: "13.0", fuelUp: "95.0", checks: ["Weekly Check"], serv: ["Hydraulic C +0.5 Qts"], def: [] },
     { id: 3, date: "22-MAY-2026", flt: "CX714", route: "SIN ➔ HKG", cmdr: "LEE C K", fuelArr: "6.8", fuelUp: "25.0", checks: ["Transit Check"], serv: [], def: [] },
   ];
 
-  // ==========================================
   // 3. Helper Functions
-  // ==========================================
   const StatusPill = ({ label, isOk }: { label: string, isOk: boolean }) => (
     <div className="flex flex-col items-center">
       <span className={`text-sm font-bold ${isOk ? 'text-[#00E676]' : 'text-[#FF9100]'}`}>
@@ -92,21 +89,22 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden bg-[#080a0d] animate-fade-in">
       
-      {/* ========================================== */}
-      {/* 🚀 TOP BAR (專屬 eTechLog Header)          */}
-      {/* ========================================== */}
+      {/* 🚀 TOP BAR */}
       <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-4 mb-4 border-t-4 border-t-[#00E676] shrink-0 shadow-lg relative">
-        {/* 角色切換開關 (浮動在右上角) */}
-        <div className="absolute top-4 right-4">
-          <select 
-            value={roleMode} 
-            onChange={(e) => { setRoleMode(e.target.value as any); setActiveTask(null); }}
-            className="bg-[#1a222a] border border-[#34495e] text-[#00bfa5] text-xs font-bold rounded px-2 py-1 outline-none cursor-pointer"
-          >
-            <option value="FLIGHT CREW">👨‍✈️ FLIGHT CREW MODE</option>
-            <option value="ENGINEER">🔧 ENGINEER MODE</option>
-          </select>
-        </div>
+        
+        {/* 🌟 如果沒有 forcedRole，才顯示角色切換下拉選單 */}
+        {!forcedRole && (
+          <div className="absolute top-4 right-4">
+            <select 
+              value={roleMode} 
+              onChange={(e) => { setRoleMode(e.target.value as any); setActiveTask(null); }}
+              className="bg-[#1a222a] border border-[#34495e] text-[#00bfa5] text-xs font-bold rounded px-2 py-1 outline-none cursor-pointer"
+            >
+              <option value="FLIGHT CREW">👨‍✈️ FLIGHT CREW MODE</option>
+              <option value="ENGINEER">🔧 ENGINEER MODE</option>
+            </select>
+          </div>
+        )}
 
         <div className="flex justify-between items-center mb-4 pr-40">
           <div className="flex-1">
@@ -140,9 +138,7 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
         )}
       </div>
 
-      {/* ========================================== */}
-      {/* 🚀 MAIN CONTENT AREA (根據 Bottom Bar 切換)*/}
-      {/* ========================================== */}
+      {/* 🚀 MAIN CONTENT AREA */}
       <div className="flex-1 overflow-hidden flex gap-4 pb-2">
         
         {/* ------------------------------------- */}
@@ -150,9 +146,8 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
         {/* ------------------------------------- */}
         {activeNav === "dashboard" && (
           <>
-            {/* 左欄：Tasks & Lists */}
             <div className="flex-[4] flex flex-col gap-4 overflow-y-auto pr-2">
-              <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-4 shadow">
+              <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-4 shadow-lg">
                 <h4 className="text-[#00bfa5] font-bold mb-3 border-b border-[#242f3d] pb-2">Servicing Summary</h4>
                 <div className="text-sm mb-2"><span className="text-[#8fa0a6] font-bold">EDTO transit:</span> <span className={`font-bold ${isChecks ? 'text-[#00E676]' : 'text-[#FF9100]'}`}>{isChecks ? 'Completed' : 'Required'}</span></div>
                 <div className="text-sm mb-2"><span className="text-[#8fa0a6] font-bold">Daily Check:</span> <span className="text-white font-bold">{isChecks ? '24h 00m remaining' : '0h 45m remaining'}</span></div>
@@ -168,7 +163,7 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
                 </div>
               </div>
 
-              <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-4 shadow">
+              <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-4 shadow-lg">
                 <h4 className="text-[#00bfa5] font-bold mb-3 border-b border-[#242f3d] pb-2">Tasks</h4>
                 
                 {roleMode === "FLIGHT CREW" ? (
@@ -195,7 +190,6 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
                 )}
               </div>
 
-              {/* Defects Lists */}
               <div className="flex flex-col gap-2">
                 <details className="bg-[#11161d] border border-[#242f3d] rounded-lg p-3 group cursor-pointer" open>
                   <summary className="font-bold text-[#00bfa5] outline-none">Open TL Entries ({openEntries.length})</summary>
@@ -217,7 +211,6 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
               </div>
             </div>
 
-            {/* 右欄：動態 Task 面板 */}
             <div className="flex-[6] bg-[#11161d] border border-[#242f3d] rounded-xl p-6 shadow-lg overflow-y-auto">
               {!activeTask ? (
                 <div className="h-full flex flex-col items-center justify-center text-[#8fa0a6] italic">
@@ -296,7 +289,6 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
                     </>
                   )}
 
-                  {/* 工程師 Tasks */}
                   {activeTask === "maint_check" && (
                     <>
                       <h3 className="text-2xl font-black text-[#00E676] border-b border-[#242f3d] pb-3 mb-6">Maintenance Check</h3>
@@ -323,8 +315,6 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
                         <div className="grid grid-cols-2 gap-4">
                           <div><label className="block text-[0.65rem] text-[#8fa0a6] mb-1">Engine 1 Uplift</label><input type="number" defaultValue="0.0" step="0.5" className="w-full bg-[#080a0d] border border-[#34495e] p-2 rounded text-white outline-none" /></div>
                           <div><label className="block text-[0.65rem] text-[#8fa0a6] mb-1">Engine 2 Uplift</label><input type="number" defaultValue="0.0" step="0.5" className="w-full bg-[#080a0d] border border-[#34495e] p-2 rounded text-white outline-none" /></div>
-                          <div><label className="block text-[0.65rem] text-[#8fa0a6] mb-1">Engine 1 Departure Qty</label><input type="number" defaultValue="23.0" step="0.5" className="w-full bg-[#0a0a0a] border border-[#34495e] p-2 rounded text-[#8fa0a6] outline-none" disabled/></div>
-                          <div><label className="block text-[0.65rem] text-[#8fa0a6] mb-1">Engine 2 Departure Qty</label><input type="number" defaultValue="22.0" step="0.5" className="w-full bg-[#0a0a0a] border border-[#34495e] p-2 rounded text-[#8fa0a6] outline-none" disabled/></div>
                         </div>
                         <h5 className="text-white font-bold text-sm border-b border-[#333] pb-1 m-0 mt-2">Hydraulic & IDG (Quarts)</h5>
                         <div className="grid grid-cols-3 gap-3">
@@ -332,11 +322,6 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
                           <div><label className="block text-[0.65rem] text-[#8fa0a6] mb-1">Hyd C</label><input type="number" defaultValue="0.0" step="0.5" className="w-full bg-[#080a0d] border border-[#34495e] p-2 rounded text-white outline-none" /></div>
                           <div><label className="block text-[0.65rem] text-[#8fa0a6] mb-1">Hyd R</label><input type="number" defaultValue="0.0" step="0.5" className="w-full bg-[#080a0d] border border-[#34495e] p-2 rounded text-white outline-none" /></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 mt-2">
-                           <div><label className="block text-[0.65rem] text-[#8fa0a6] mb-1">IDG 1</label><input type="number" defaultValue="0.0" step="0.5" className="w-full bg-[#080a0d] border border-[#34495e] p-2 rounded text-white outline-none" /></div>
-                           <div><label className="block text-[0.65rem] text-[#8fa0a6] mb-1">IDG 2</label><input type="number" defaultValue="0.0" step="0.5" className="w-full bg-[#080a0d] border border-[#34495e] p-2 rounded text-white outline-none" /></div>
-                        </div>
-                        <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1 mt-2">Potable Water Qty (%) (xx/16)</label><input type="number" defaultValue="16" className="w-full bg-[#080a0d] border border-[#34495e] p-2 rounded text-white outline-none" /></div>
                       </div>
                       <div className="pt-4 shrink-0"><button onClick={() => {updateFlightData({tl_fluids: true}); setActiveTask(null);}} className="w-full py-4 bg-[#00E676] text-black font-black rounded-lg hover:bg-[#00c853]">CONFIRM</button></div>
                     </>
@@ -356,7 +341,6 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
                     </>
                   )}
 
-                  {/* 檢視特定 Defect (View Entry) */}
                   {activeTask === "view_entry" && selectedEntry && (
                     <>
                       {defects.filter((d:any)=>d.id === selectedEntry).map((sel:any) => (
@@ -540,9 +524,7 @@ export default function TechLog({ flightData, updateFlightData }: { flightData: 
         
       </div>
 
-      {/* ========================================== */}
-      {/* 🚀 BOTTOM BAR (專屬 eTechLog Navigation)     */}
-      {/* ========================================== */}
+      {/* 🚀 BOTTOM BAR */}
       <div className="flex items-center justify-around gap-2 bg-[#11151a] border-t border-[#34495e] px-2 py-3 mt-auto shrink-0 shadow-[0_-5px_20px_rgba(0,0,0,0.5)] relative z-20">
         {[
           { id: "dashboard", label: "Dashboard", icon: "📊" },
