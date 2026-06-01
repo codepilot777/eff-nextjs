@@ -1,65 +1,100 @@
-import Image from "next/image";
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const router = useRouter();
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
+
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin === "0564") {
+      setShowPinModal(false);
+      // 🌟 修正：登入成功後直接跳轉至教官專屬工作區
+      router.push("/instructor");
+    } else {
+      setError("Invalid PIN. Please try again.");
+      setPin("");
+    }
+  };
+
+  const closePinModal = () => {
+    setShowPinModal(false);
+    setError("");
+    setPin("");
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="relative flex flex-col items-center justify-center min-h-screen bg-[#080a0d] text-slate-300 font-sans p-6">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-black text-white mb-3">✈️ Cathay Pacific Flight Training Hub</h1>
+        <h2 className="text-xl text-[#00bfa5] font-bold">EFF & eTechLog Simulator Portal (Next.js)</h2>
+      </div>
+
+      <div className="flex gap-6 w-full max-w-4xl">
+        <Link href="/flight-select?role=Trainee" className="flex-1 block">
+          <button className="w-full h-80 flex flex-col items-center justify-center bg-[#11161d] border-2 border-[#242f3d] rounded-xl hover:border-[#00bfa5] hover:bg-[#17202a] hover:shadow-[0_0_20px_rgba(0,191,165,0.4)] transition-all group">
+            <span className="text-5xl mb-4">👨‍✈️</span>
+            <span className="text-2xl font-bold text-white mb-2">TRAINEE PILOT PORTAL</span>
+            <span className="text-[#8fa0a6] text-center px-4">Access EFB, sign documents,<br/>and communicate with ATC.</span>
+          </button>
+        </Link>
+
+        {/* 點擊 Instructor 改為觸發彈出視窗 */}
+        <div className="flex-1 block">
+          <button 
+            onClick={() => setShowPinModal(true)}
+            className="w-full h-80 flex flex-col items-center justify-center bg-[#11161d] border-2 border-[#242f3d] rounded-xl hover:border-[#00bfa5] hover:bg-[#17202a] hover:shadow-[0_0_20px_rgba(0,191,165,0.4)] transition-all group"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <span className="text-5xl mb-4">📡</span>
+            <span className="text-2xl font-bold text-white mb-2">IOS INSTRUCTOR STATION</span>
+            <span className="text-[#8fa0a6] text-center px-4">Inject defects, dispatch paperwork,<br/>upload OFP and manage payload.</span>
+          </button>
         </div>
-      </main>
+      </div>
+
+      {/* 密碼驗證彈出視窗 (Modal) */}
+      {showPinModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-8 max-w-md w-full shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
+            <h3 className="text-2xl font-bold text-[#00bfa5] mb-2 text-center">Instructor Authorization</h3>
+            <p className="text-[#8fa0a6] mb-6 text-center text-sm">Enter Simulator IOS PIN (Default: 0564)</p>
+            
+            <form onSubmit={handlePinSubmit} className="flex flex-col gap-4">
+              <input
+                type="password"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                className="w-full bg-[#080a0d] border border-[#34495e] rounded-lg p-4 text-white text-center text-2xl tracking-[0.5em] focus:outline-none focus:border-[#00bfa5] transition-colors"
+                placeholder="••••"
+                autoFocus
+              />
+              
+              {error && <div className="text-[#FF1744] text-sm text-center font-bold animate-pulse">{error}</div>}
+              
+              <div className="flex gap-3 mt-4">
+                <button 
+                  type="button" 
+                  onClick={closePinModal} 
+                  className="flex-1 py-3 rounded-lg border border-[#34495e] text-[#8fa0a6] hover:bg-[#34495e] hover:text-white transition-colors font-bold"
+                >
+                  CANCEL
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-3 rounded-lg bg-[#00bfa5]/20 border border-[#00bfa5] text-[#00bfa5] hover:bg-[#00bfa5] hover:text-black transition-colors font-bold"
+                >
+                  AUTHORIZE
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
