@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
-import path from 'path';
+import { createClient } from '@libsql/client';
 
 export async function POST(request: Request) {
   try {
@@ -10,13 +9,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing flight id' }, { status: 400 });
     }
 
-    const dbPath = path.resolve(process.cwd(), 'eff_database.db');
-    const db = new Database(dbPath);
+    // 🌟 連接 Turso 雲端資料庫 (Local 開發時如果冇填 ENV，會自動 fallback 用返 file)
+    const db = createClient({
+      url: process.env.TURSO_DATABASE_URL || "file:eff_database.db",
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
 
-    const stmt = db.prepare('DELETE FROM flights WHERE flight_no = ?');
-    const info = stmt.run(id);
+    // 🌟 非同步執行 Delete (args 陣列用來防止 SQL Injection)
+    const info = await db.execute({
+      sql: 'DELETE FROM flights WHERE flight_no = ?',
+      args: [id]
+    });
 
-    if (info.changes > 0) {
+    // 🌟 Turso 傳回的變更行數名稱叫 rowsAffected
+    if (info.rowsAffected > 0) {
       return NextResponse.json({ success: true });
     } else {
       return NextResponse.json({ error: 'Flight not found' }, { status: 404 });

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
-import path from 'path';
+import { createClient } from '@libsql/client';
 
 export async function POST(request: Request) {
   try {
@@ -105,7 +104,6 @@ export async function POST(request: Request) {
       navlog: parsedNavlog,
       alternates: parsedAlternates,
 
-      // 🌟 MAGIC HAPPENS HERE: 直接把整包原汁原味的 SimBrief JSON 塞進資料庫！
       raw_simbrief: sbData,
 
       ezfw_sent: true,
@@ -119,18 +117,25 @@ export async function POST(request: Request) {
       pilots_signed_fuel: false
     };
 
-    const dbPath = path.resolve(process.cwd(), 'eff_database.db');
-    const db = new Database(dbPath);
+    // 🌟 連接 Turso 雲端資料庫
+    const db = createClient({
+      url: process.env.TURSO_DATABASE_URL || "file:eff_database.db",
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
     
-    db.prepare(`
+    // 🌟 非同步執行：如果 Table 不存在就建立
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS flights (
         flight_no TEXT PRIMARY KEY,
         data JSON
       )
-    `).run();
+    `);
 
-    const stmt = db.prepare('REPLACE INTO flights (flight_no, data) VALUES (?, ?)');
-    stmt.run(finalFlightNo, JSON.stringify(flightData));
+    // 🌟 非同步執行：寫入或覆蓋航班資料
+    await db.execute({
+      sql: 'REPLACE INTO flights (flight_no, data) VALUES (?, ?)',
+      args: [finalFlightNo, JSON.stringify(flightData)]
+    });
 
     return NextResponse.json({ success: true, flight_no: finalFlightNo });
 

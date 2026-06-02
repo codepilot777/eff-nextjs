@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
-import path from 'path';
+import { createClient } from '@libsql/client';
 
 export async function POST(request: Request) {
   try {
@@ -13,16 +12,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing flight id or data payload' }, { status: 400 });
     }
 
-    // 2. 連接 SQLite 資料庫
-    const dbPath = path.resolve(process.cwd(), 'eff_database.db');
-    const db = new Database(dbPath);
+    // 2. 連接 Turso 雲端資料庫
+    const db = createClient({
+      url: process.env.TURSO_DATABASE_URL || "file:eff_database.db",
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
 
-    // 3. 執行 SQL 更新
+    // 3. 執行 SQL 更新 (非同步執行)
     // 我們將整包新的 JSON data 轉換為字串，並覆寫對應 flight_no 的記錄
-    const stmt = db.prepare('UPDATE flights SET data = ? WHERE flight_no = ?');
-    const info = stmt.run(JSON.stringify(data), id);
+    const info = await db.execute({
+      sql: 'UPDATE flights SET data = ? WHERE flight_no = ?',
+      args: [JSON.stringify(data), id]
+    });
 
-    if (info.changes > 0) {
+    // 判斷是否成功更新 (Turso 使用 rowsAffected)
+    if (info.rowsAffected > 0) {
       return NextResponse.json({ success: true, message: 'Flight updated successfully' });
     } else {
       return NextResponse.json({ error: 'Flight not found in database' }, { status: 404 });

@@ -1,26 +1,31 @@
 import { NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
-import path from 'path';
+import { createClient } from '@libsql/client';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role'); // 可能是 "Trainee" 或 "Instructor"
 
-    const dbPath = path.resolve(process.cwd(), 'eff_database.db');
-    const db = new Database(dbPath, { readonly: true });
+    // 🌟 連接 Turso 雲端資料庫
+    const db = createClient({
+      url: process.env.TURSO_DATABASE_URL || "file:eff_database.db",
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
     
-    const rows = db.prepare('SELECT flight_no, data FROM flights').all() as { flight_no: string, data: string }[];
+    // 🌟 非同步執行 SQL 查詢，取得所有航班記錄
+    const result = await db.execute('SELECT flight_no, data FROM flights');
     
-    let flights = rows.map(r => {
-      const parsed = JSON.parse(r.data);
+    // Turso 的多筆資料會放在 result.rows 陣列裡
+    let flights = result.rows.map((r) => {
+      // 確保 data 轉換回 JSON，並補上 _db_id 供前端辨識
+      const parsed = JSON.parse(r.data as string);
       parsed._db_id = r.flight_no; 
       return parsed;
     });
 
     // 🌟 權限過濾：學員 (Trainee) 只能看到已發佈 (Published) 的航班
     if (role === 'Trainee') {
-      flights = flights.filter(f => f.is_published === true);
+      flights = flights.filter((f: any) => f.is_published === true);
     }
 
     return NextResponse.json(flights);
