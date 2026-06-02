@@ -220,7 +220,17 @@ export default function TechLogDashboard({ tlData, flightData, roleMode, activeT
                         <div id="defer_div" style={{display:'none'}}>
                           <div className="grid grid-cols-2 gap-2 mb-2"><select id="val_def_type" className="w-full bg-[#1a1a1a] p-2 rounded text-white"><option>ADD</option><option>SADD</option><option>PADD</option></select><input id="val_def_mel" type="text" placeholder="MEL Ref" className="w-full bg-[#1a1a1a] p-2 rounded text-white" /></div>
                           <textarea id="val_def_reason" className="w-full h-16 bg-[#1a1a1a] p-2 rounded text-white mb-2" />
-                          <button onClick={() => handleDeferDefect(sel.id, (document.getElementById('val_def_type') as HTMLSelectElement).value, (document.getElementById('val_def_reason') as HTMLTextAreaElement).value)} className="w-full py-3 bg-[#FF9100] text-black font-bold rounded">DEFER DEFECT</button>
+                          <button 
+                            onClick={() => handleDeferDefect(
+                              sel.id, 
+                              (document.getElementById('val_def_type') as HTMLSelectElement).value, 
+                              (document.getElementById('val_def_mel') as HTMLInputElement).value, // 🌟 補返呢行就過關！
+                              (document.getElementById('val_def_reason') as HTMLTextAreaElement).value
+                            )} 
+                            className="w-full py-3 bg-[#FF9100] text-black font-bold rounded hover:bg-[#FFA000] transition-colors"
+                          >
+                            DEFER DEFECT
+                          </button>
                         </div>
                       </div>
                     )}
