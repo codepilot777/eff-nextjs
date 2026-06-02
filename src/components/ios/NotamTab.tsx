@@ -19,16 +19,32 @@ export default function NotamTab({ flightData, updateFlightData }: { flightData:
   const handleGenerate = async () => {
     if (!aiPrompt) return;
     setIsGenerating(true);
+    setGeneratedResult(""); // 清除舊結果
+    
     try {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ promptType: "NOTAM", plainText: aiPrompt, stdZ: flightData?.std_z || "0000Z", staZ: flightData?.sta_z || "0000Z" })
+        body: JSON.stringify({ 
+          promptType: "NOTAM", 
+          plainText: aiPrompt, 
+          stdZ: flightData?.std_z || "0000Z", 
+          staZ: flightData?.sta_z || "0000Z" 
+        })
       });
+      
       const data = await res.json();
+      
+      // 🌟 修正盲點：如果 backend 回傳 400/500 Error，主動掉入 Catch block
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP Error ${res.status}`);
+      }
+
       setGeneratedResult(data.text);
-    } catch (e) {
-      alert("AI Generation Error");
+    } catch (e: any) {
+      console.error("AI Generation Failed:", e);
+      // 將 Error 顯示出來，不再死得不明不白
+      setGeneratedResult(`❌ ERROR: ${e.message || "Failed to generate NOTAM. Please check API Key or backend logs."}`);
     } finally {
       setIsGenerating(false);
     }
@@ -50,31 +66,64 @@ export default function NotamTab({ flightData, updateFlightData }: { flightData:
 
   return (
     <div className="animate-fade-in flex flex-col gap-4">
-      <div className="bg-lido-800 border border-[#333333] rounded-xl p-5 shadow-lg">
-        <h5 className="text-[#FF9100] font-bold mb-3">🤖 AI NOTAM Generator</h5>
-        <textarea value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} className="w-full bg-lido-950 border border-[#404040] rounded-lg p-3 text-sm text-white h-20 outline-none focus:border-[#FF9100] mb-3" placeholder="RWY 07R closed 0600Z to 1200Z..." />
-        <button onClick={handleGenerate} disabled={isGenerating} className="w-full bg-[#FF9100]/20 border border-[#FF9100] text-[#FF9100] py-2 rounded-lg font-bold">{isGenerating ? "⏳ GENERATING..." : "✨ GENERATE ICAO NOTAM"}</button>
-        {generatedResult && <textarea readOnly value={generatedResult} className="w-full bg-[#0a0a0a] border border-[#FF9100] text-[#FF9100] rounded-lg p-3 text-sm font-mono h-24 mt-4" />}
+      
+      {/* AI NOTAM Generator Box */}
+      <div className="bg-[#1a1a1a] border-2 border-[#FF9100]/50 rounded-xl p-5 shadow-lg">
+        <h5 className="text-[#FF9100] font-black tracking-widest mb-3 uppercase flex items-center gap-2">
+          <span>🤖 AI NOTAM Generator</span>
+          {isGenerating && <span className="inline-block w-2 h-2 bg-[#FF9100] rounded-full animate-pulse shadow-[0_0_8px_#FF9100]"></span>}
+        </h5>
+        
+        <textarea 
+          value={aiPrompt} 
+          onChange={e => setAiPrompt(e.target.value)} 
+          className="w-full bg-[#0a0a0a] border border-[#404040] rounded-lg p-3 text-sm text-white h-20 outline-none focus:border-[#FF9100] mb-3 transition-colors resize-none" 
+          placeholder="e.g. RWY 07R closed 0600Z to 1200Z due to maintenance..." 
+        />
+        
+        <button 
+          onClick={handleGenerate} 
+          disabled={isGenerating} 
+          className={`w-full py-3 rounded-lg font-black tracking-widest uppercase transition-all ${
+            isGenerating 
+              ? "bg-[#FF9100]/20 text-[#FF9100] border border-[#FF9100]/50 cursor-not-allowed" 
+              : "bg-[#FF9100] text-black hover:bg-[#FFA000] shadow-[0_0_15px_rgba(255,145,0,0.3)]"
+          }`}
+        >
+          {isGenerating ? "⏳ GENERATING FROM GEMINI..." : "✨ GENERATE ICAO NOTAM"}
+        </button>
+        
+        {generatedResult && (
+          <textarea 
+            readOnly 
+            value={generatedResult} 
+            className={`w-full bg-[#0a0a0a] border rounded-lg p-3 text-sm font-mono h-28 mt-4 resize-none ${
+              generatedResult.startsWith('❌') ? 'border-[#FF1744] text-[#FF1744]' : 'border-[#00bfa5] text-[#00bfa5]'
+            }`} 
+          />
+        )}
       </div>
 
-      <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#333333]">
-        <h6 className="text-text-muted text-xs font-bold mb-2 uppercase">Departure: {flightData.dep_icao}</h6>
-        <textarea id="notam_dep" defaultValue={getNotam(flightData.notam_dep, flightData.raw_simbrief?.origin?.notam)} className="w-full bg-lido-800 border border-[#404040] rounded p-3 text-xs text-white h-32 font-mono whitespace-pre-wrap" />
+      <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
+        <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Departure: {flightData.dep_icao}</h6>
+        <textarea id="notam_dep" defaultValue={getNotam(flightData.notam_dep, flightData.raw_simbrief?.origin?.notam)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-32 font-mono whitespace-pre-wrap outline-none focus:border-[#00bfa5]" />
       </div>
       
-      <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#333333]">
-        <h6 className="text-text-muted text-xs font-bold mb-2 uppercase">Arrival: {flightData.arr_icao}</h6>
-        <textarea id="notam_arr" defaultValue={getNotam(flightData.notam_arr, flightData.raw_simbrief?.destination?.notam)} className="w-full bg-lido-800 border border-[#404040] rounded p-3 text-xs text-white h-32 font-mono whitespace-pre-wrap" />
+      <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
+        <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Arrival: {flightData.arr_icao}</h6>
+        <textarea id="notam_arr" defaultValue={getNotam(flightData.notam_arr, flightData.raw_simbrief?.destination?.notam)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-32 font-mono whitespace-pre-wrap outline-none focus:border-[#00bfa5]" />
       </div>
 
       {rawAlternates.map((a: any, i: number) => (
-        <div key={i} className="bg-[#0a0a0a] p-4 rounded-lg border border-[#333333]">
-          <h6 className="text-text-muted text-xs font-bold mb-2 uppercase">Alternate: {a.icao_code || a.icao}</h6>
-          <textarea id={`notam_altn_${i}`} defaultValue={getNotam((flightData.alternates || [])[i]?.notam, a.notam)} className="w-full bg-lido-800 border border-[#404040] rounded p-3 text-xs text-white h-32 font-mono whitespace-pre-wrap" />
+        <div key={i} className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
+          <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Alternate: {a.icao_code || a.icao}</h6>
+          <textarea id={`notam_altn_${i}`} defaultValue={getNotam((flightData.alternates || [])[i]?.notam, a.notam)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-32 font-mono whitespace-pre-wrap outline-none focus:border-[#00bfa5]" />
         </div>
       ))}
 
-      <button onClick={handleSave} className="w-full bg-[#00bfa5]/20 border-2 border-[#00bfa5] text-status-teal py-4 rounded-lg font-bold hover:bg-[#00bfa5] hover:text-black mt-4">💾 SAVE & PUBLISH NOTAMs TO EFB</button>
+      <button onClick={handleSave} className="w-full bg-[#00E676] text-black py-4 rounded-lg font-black tracking-widest hover:bg-[#00c853] mt-2 shadow-lg">
+        💾 SAVE & PUBLISH NOTAMs TO EFB
+      </button>
     </div>
   );
 }

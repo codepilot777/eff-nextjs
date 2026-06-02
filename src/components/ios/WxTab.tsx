@@ -17,16 +17,32 @@ export default function WxTab({ flightData, updateFlightData }: { flightData: an
   const handleGenerate = async () => {
     if (!aiPrompt) return;
     setIsGenerating(true);
+    setGeneratedResult(""); // 清除舊結果
+    
     try {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ promptType: "METAR", plainText: aiPrompt, stdZ: flightData?.std_z || "0000Z", staZ: flightData?.sta_z || "0000Z" })
+        // 🌟 對應後端的 "WX" promptType
+        body: JSON.stringify({ 
+          promptType: "WX", 
+          plainText: aiPrompt, 
+          stdZ: flightData?.std_z || "0000Z", 
+          staZ: flightData?.sta_z || "0000Z" 
+        })
       });
+      
       const data = await res.json();
+      
+      // 🌟 主動捕捉 HTTP Error
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP Error ${res.status}`);
+      }
+      
       setGeneratedResult(data.text);
-    } catch (e) {
-      alert("AI Generation Error");
+    } catch (e: any) {
+      console.error("AI WX Generation Failed:", e);
+      setGeneratedResult(`❌ ERROR: ${e.message || "Failed to generate Weather. Please check API Key or backend logs."}`);
     } finally {
       setIsGenerating(false);
     }
@@ -54,34 +70,72 @@ export default function WxTab({ flightData, updateFlightData }: { flightData: an
 
   return (
     <div className="animate-fade-in flex flex-col gap-4">
-      <div className="bg-lido-800 border border-[#333333] rounded-xl p-5 shadow-lg">
-        <h5 className="text-status-teal font-bold mb-3">🤖 AI Weather Generator</h5>
-        <textarea value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} className="w-full bg-lido-950 border border-[#404040] rounded-lg p-3 text-sm text-white h-20 outline-none focus:border-[#00bfa5] mb-3" placeholder="Heavy thunderstorms, visibility 800m..." />
-        <button onClick={handleGenerate} disabled={isGenerating} className="w-full bg-[#00bfa5]/20 border border-[#00bfa5] text-status-teal py-2 rounded-lg font-bold">{isGenerating ? "⏳ GENERATING..." : "✨ GENERATE METAR / TAF"}</button>
-        {generatedResult && <textarea readOnly value={generatedResult} className="w-full bg-[#0a0a0a] border border-[#00bfa5] text-status-teal rounded-lg p-3 text-sm font-mono h-24 mt-4" />}
+      
+      {/* 🤖 AI Weather Generator Box */}
+      <div className="bg-[#1a1a1a] border-2 border-[#00bfa5]/50 rounded-xl p-5 shadow-lg">
+        <h5 className="text-[#00bfa5] font-black tracking-widest mb-3 uppercase flex items-center gap-2">
+          <span>🤖 AI Weather Generator</span>
+          {isGenerating && <span className="inline-block w-2 h-2 bg-[#00bfa5] rounded-full animate-pulse shadow-[0_0_8px_#00bfa5]"></span>}
+        </h5>
+        
+        <textarea 
+          value={aiPrompt} 
+          onChange={e => setAiPrompt(e.target.value)} 
+          className="w-full bg-[#0a0a0a] border border-[#404040] rounded-lg p-3 text-sm text-white h-20 outline-none focus:border-[#00bfa5] mb-3 transition-colors resize-none" 
+          placeholder="e.g. Heavy thunderstorms, visibility 800m, wind 270 at 25 knots gusting 40..." 
+        />
+        
+        <button 
+          onClick={handleGenerate} 
+          disabled={isGenerating} 
+          className={`w-full py-3 rounded-lg font-black tracking-widest uppercase transition-all ${
+            isGenerating 
+              ? "bg-[#00bfa5]/20 text-[#00bfa5] border border-[#00bfa5]/50 cursor-not-allowed" 
+              : "bg-[#00bfa5] text-black hover:bg-[#00E676] shadow-[0_0_15px_rgba(0,191,165,0.3)]"
+          }`}
+        >
+          {isGenerating ? "⏳ GENERATING FROM GEMINI..." : "✨ GENERATE METAR & TAF"}
+        </button>
+        
+        {generatedResult && (
+          <textarea 
+            readOnly 
+            value={generatedResult} 
+            className={`w-full bg-[#0a0a0a] border rounded-lg p-3 text-sm font-mono h-28 mt-4 resize-none ${
+              generatedResult.startsWith('❌') ? 'border-[#FF1744] text-[#FF1744]' : 'border-[#00E676] text-[#00E676]'
+            }`} 
+          />
+        )}
       </div>
 
-      <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#333333]">
-        <h6 className="text-text-muted text-xs font-bold mb-2 uppercase">Departure: {flightData.dep_icao}</h6>
-        <textarea id="wx_mdep" defaultValue={getWx(flightData.metar_dep, flightData.raw_simbrief?.origin?.metar)} className="w-full bg-lido-800 border border-[#404040] rounded p-2 text-xs text-white h-20 mb-2 font-mono" placeholder="METAR" />
-        <textarea id="wx_tdep" defaultValue={getWx(flightData.taf_dep, flightData.raw_simbrief?.origin?.taf)} className="w-full bg-lido-800 border border-[#404040] rounded p-2 text-xs text-white h-24 font-mono" placeholder="TAF" />
+      {/* 🛫 Departure WX */}
+      <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
+        <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Departure: {flightData.dep_icao}</h6>
+        <textarea id="wx_mdep" defaultValue={getWx(flightData.metar_dep, flightData.raw_simbrief?.origin?.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
+        <textarea id="wx_tdep" defaultValue={getWx(flightData.taf_dep, flightData.raw_simbrief?.origin?.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
       </div>
       
-      <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#333333]">
-        <h6 className="text-text-muted text-xs font-bold mb-2 uppercase">Arrival: {flightData.arr_icao}</h6>
-        <textarea id="wx_marr" defaultValue={getWx(flightData.metar_arr, flightData.raw_simbrief?.destination?.metar)} className="w-full bg-lido-800 border border-[#404040] rounded p-2 text-xs text-white h-20 mb-2 font-mono" placeholder="METAR" />
-        <textarea id="wx_tarr" defaultValue={getWx(flightData.taf_arr, flightData.raw_simbrief?.destination?.taf)} className="w-full bg-lido-800 border border-[#404040] rounded p-2 text-xs text-white h-24 font-mono" placeholder="TAF" />
+      {/* 🛬 Arrival WX */}
+      <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
+        <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Arrival: {flightData.arr_icao}</h6>
+        <textarea id="wx_marr" defaultValue={getWx(flightData.metar_arr, flightData.raw_simbrief?.destination?.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
+        <textarea id="wx_tarr" defaultValue={getWx(flightData.taf_arr, flightData.raw_simbrief?.destination?.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
       </div>
 
+      {/* 🔀 Alternates WX */}
       {rawAlternates.map((a: any, i: number) => (
-        <div key={i} className="bg-[#0a0a0a] p-4 rounded-lg border border-[#333333]">
-          <h6 className="text-text-muted text-xs font-bold mb-2 uppercase">Alternate: {a.icao_code || a.icao}</h6>
-          <textarea id={`wx_maltn_${i}`} defaultValue={getWx((flightData.alternates || [])[i]?.metar, a.metar)} className="w-full bg-lido-800 border border-[#404040] rounded p-2 text-xs text-white h-20 mb-2 font-mono" placeholder="METAR" />
-          <textarea id={`wx_taltn_${i}`} defaultValue={getWx((flightData.alternates || [])[i]?.taf, a.taf)} className="w-full bg-lido-800 border border-[#404040] rounded p-2 text-xs text-white h-24 font-mono" placeholder="TAF" />
+        <div key={i} className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
+          <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Alternate: {a.icao_code || a.icao}</h6>
+          <textarea id={`wx_maltn_${i}`} defaultValue={getWx((flightData.alternates || [])[i]?.metar, a.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
+          <textarea id={`wx_taltn_${i}`} defaultValue={getWx((flightData.alternates || [])[i]?.taf, a.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
         </div>
       ))}
 
-      <button onClick={handleSave} className="w-full bg-[#00bfa5]/20 border-2 border-[#00bfa5] text-status-teal py-4 rounded-lg font-bold hover:bg-[#00bfa5] hover:text-black">💾 SAVE & PUBLISH WX TO EFB</button>
+      {/* 💾 Save Button */}
+      <button onClick={handleSave} className="w-full bg-[#00E676] text-black py-4 rounded-lg font-black tracking-widest hover:bg-[#00c853] mt-2 shadow-lg transition-colors">
+        💾 SAVE & PUBLISH WX TO EFB
+      </button>
+      
     </div>
   );
 }
