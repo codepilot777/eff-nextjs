@@ -13,18 +13,18 @@ export default function Weather({ flightData }: { flightData: any }) {
   };
 
   const WxCard = ({ title, metar, taf }: { title: string, metar: string, taf: string }) => (
-    <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-5 mb-5 shrink-0 shadow-lg">
-      <h2 className="text-xl font-black text-[#00bfa5] mb-4 border-b border-[#242f3d] pb-2">{title}</h2>
+    <div className="bg-lido-800 border border-[#333333] rounded-xl p-5 mb-5 shrink-0 shadow-lg">
+      <h2 className="text-xl font-black text-status-teal mb-4 border-b border-[#333333] pb-2">{title}</h2>
       <div className="flex flex-col gap-4">
         <div>
-          <h3 className="text-[#8fa0a6] font-bold text-xs mb-1 uppercase tracking-wider">METAR</h3>
-          <div className="bg-[#0a0a0a] p-3 rounded-lg text-[#e2e8f0] font-mono text-sm whitespace-pre-wrap shadow-inner border border-[#1d2733] leading-relaxed">
+          <h3 className="text-text-muted font-bold text-xs mb-1 uppercase tracking-wider">METAR</h3>
+          <div className="bg-[#0a0a0a] p-3 rounded-lg text-text-main font-mono text-sm whitespace-pre-wrap shadow-inner border border-[#1d2733] leading-relaxed">
             {metar}
           </div>
         </div>
         <div>
-          <h3 className="text-[#8fa0a6] font-bold text-xs mb-1 uppercase tracking-wider">TAF</h3>
-          <div className="bg-[#0a0a0a] p-3 rounded-lg text-[#e2e8f0] font-mono text-sm whitespace-pre-wrap shadow-inner border border-[#1d2733] leading-relaxed">
+          <h3 className="text-text-muted font-bold text-xs mb-1 uppercase tracking-wider">TAF</h3>
+          <div className="bg-[#0a0a0a] p-3 rounded-lg text-text-main font-mono text-sm whitespace-pre-wrap shadow-inner border border-[#1d2733] leading-relaxed">
             {taf}
           </div>
         </div>

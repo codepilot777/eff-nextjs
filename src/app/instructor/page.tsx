@@ -153,20 +153,20 @@ export default function InstructorHub() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080a0d] text-slate-300 font-sans p-8 overflow-y-auto">
+    <div className="min-h-screen bg-lido-950 text-slate-300 font-sans p-8 overflow-y-auto">
       
-      <div className="flex justify-between items-center mb-8 border-b-2 border-[#242f3d] pb-4">
+      <div className="flex justify-between items-center mb-8 border-b-2 border-[#333333] pb-4">
         <div>
-          <h1 className="text-3xl font-black text-[#00bfa5]">📡 IOS INSTRUCTOR STATION</h1>
-          <h2 className="text-[#8fa0a6] font-bold mt-1 flex items-center gap-3">
+          <h1 className="text-3xl font-black text-status-teal">📡 IOS INSTRUCTOR STATION</h1>
+          <h2 className="text-text-muted font-bold mt-1 flex items-center gap-3">
             Session Management Hub 
-            <span className="bg-[#17202a] px-3 py-1 rounded-full text-xs border border-[#34495e] text-white">
+            <span className="bg-lido-800 px-3 py-1 rounded-full text-xs border border-[#404040] text-white">
               👤 Logged in as: {currentUser}
             </span>
           </h2>
         </div>
         <Link href="/">
-          <button className="bg-[#17202a] border border-[#34495e] text-white px-6 py-3 rounded-lg font-bold hover:bg-[#34495e] transition-colors">
+          <button className="bg-lido-800 border border-[#404040] text-white px-6 py-3 rounded-lg font-bold hover:bg-[#34495e] transition-colors">
             🚪 LOGOUT
           </button>
         </Link>
@@ -179,26 +179,26 @@ export default function InstructorHub() {
         <h3 className="text-xl font-bold text-white mb-4">▶ Your Simulator Sessions</h3>
         
         {isLoading ? (
-          <div className="text-[#00bfa5] animate-pulse font-bold">Loading database...</div>
+          <div className="text-status-teal animate-pulse font-bold">Loading database...</div>
         ) : visibleFlights.length === 0 ? (
-          <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-8 text-center text-[#8fa0a6]">
+          <div className="bg-lido-800 border border-[#333333] rounded-xl p-8 text-center text-text-muted">
             No sessions found for your account. Please create a new flight below.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {visibleFlights.map((f) => (
-              <div key={f._db_id} className="bg-[#11161d] border border-[#242f3d] rounded-xl p-5 hover:border-[#00bfa5] hover:shadow-[0_0_15px_rgba(0,191,165,0.2)] transition-all flex flex-col relative">
+              <div key={f._db_id} className="bg-lido-800 border border-[#333333] rounded-xl p-5 hover:border-[#00bfa5] hover:shadow-[0_0_15px_rgba(0,191,165,0.2)] transition-all flex flex-col relative">
                 
                 <button 
                   onClick={() => handleDeleteFlight(f._db_id)}
-                  className="absolute top-4 right-4 text-[#8fa0a6] hover:text-[#FF1744] font-black text-xl transition-colors"
+                  className="absolute top-4 right-4 text-text-muted hover:text-[#FF1744] font-black text-xl transition-colors"
                   title="Delete Session"
                 >
                   🗑️
                 </button>
 
                 <div className="flex justify-start items-center mb-3 gap-3 pr-8">
-                  <h4 className="text-[#00bfa5] font-black text-2xl m-0">{f.flight_no}</h4>
+                  <h4 className="text-status-teal font-black text-2xl m-0">{f.flight_no}</h4>
                   {f.is_published ? (
                     <span className="bg-[#00E676]/20 text-[#00E676] text-[0.65rem] font-bold px-2 py-1 rounded border border-[#00E676]">PUBLISHED</span>
                   ) : (
@@ -206,20 +206,20 @@ export default function InstructorHub() {
                   )}
                 </div>
                 
-                <div className="text-[#e2e8f0] text-sm mb-1">
-                  <strong className="text-[#8fa0a6]">Route:</strong> {f.dep_icao} ➔ {f.arr_icao}
+                <div className="text-text-main text-sm mb-1">
+                  <strong className="text-text-muted">Route:</strong> {f.dep_icao} ➔ {f.arr_icao}
                 </div>
-                <div className="text-[#e2e8f0] text-sm mb-1">
-                  <strong className="text-[#8fa0a6]">Aircraft:</strong> {f.aircraft_reg} ({f.aircraft_type})
+                <div className="text-text-main text-sm mb-1">
+                  <strong className="text-text-muted">Aircraft:</strong> {f.aircraft_reg} ({f.aircraft_type})
                 </div>
-                <div className="text-[#e2e8f0] text-[0.7rem] mb-4">
-                  <strong className="text-[#8fa0a6]">Created By:</strong> {f.created_by}
+                <div className="text-text-main text-[0.7rem] mb-4">
+                  <strong className="text-text-muted">Created By:</strong> {f.created_by}
                 </div>
                 
                 <div className="mt-auto flex gap-2">
                   <button 
                     onClick={() => router.push(`/instructor/ios?id=${encodeURIComponent(f._db_id)}`)}
-                    className="flex-[2] py-3 bg-[#17202a] border border-[#34495e] text-white font-bold rounded-lg hover:bg-[#00bfa5] hover:text-black hover:border-[#00bfa5] transition-colors text-xs"
+                    className="flex-[2] py-3 bg-lido-800 border border-[#404040] text-white font-bold rounded-lg hover:bg-[#00bfa5] hover:text-black hover:border-[#00bfa5] transition-colors text-xs"
                   >
                     IOS PANEL
                   </button>
@@ -245,34 +245,34 @@ export default function InstructorHub() {
       <div>
         <h3 className="text-xl font-bold text-white mb-4">➕ Create New Simulator Flight</h3>
         
-        <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-6 flex flex-col lg:flex-row gap-8">
+        <div className="bg-lido-800 border border-[#333333] rounded-xl p-6 flex flex-col lg:flex-row gap-8">
           
           {/* 左側：基礎參數 */}
           <div className="flex-[1.5] flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-[#8fa0a6] uppercase mb-1">SimBrief Username</label>
-                <input type="text" value={sbUser} onChange={(e) => setSbUser(e.target.value)} className="w-full bg-[#080a0d] border border-[#34495e] rounded-md p-2 text-white focus:border-[#00bfa5] outline-none" />
+                <label className="block text-xs font-bold text-text-muted uppercase mb-1">SimBrief Username</label>
+                <input type="text" value={sbUser} onChange={(e) => setSbUser(e.target.value)} className="w-full bg-lido-950 border border-[#404040] rounded-md p-2 text-white focus:border-[#00bfa5] outline-none" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-[#8fa0a6] uppercase mb-1">Flight Number</label>
-                <input type="text" value={fltNo} onChange={(e) => setFltNo(e.target.value)} className="w-full bg-[#080a0d] border border-[#34495e] rounded-md p-2 text-white focus:border-[#00bfa5] outline-none" />
+                <label className="block text-xs font-bold text-text-muted uppercase mb-1">Flight Number</label>
+                <input type="text" value={fltNo} onChange={(e) => setFltNo(e.target.value)} className="w-full bg-lido-950 border border-[#404040] rounded-md p-2 text-white focus:border-[#00bfa5] outline-none" />
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-[#8fa0a6] uppercase mb-1">DEP ICAO</label>
-                <input type="text" value={dep} onChange={(e) => setDep(e.target.value)} className="w-full bg-[#080a0d] border border-[#34495e] rounded-md p-2 text-white focus:border-[#00bfa5] outline-none uppercase" />
+                <label className="block text-xs font-bold text-text-muted uppercase mb-1">DEP ICAO</label>
+                <input type="text" value={dep} onChange={(e) => setDep(e.target.value)} className="w-full bg-lido-950 border border-[#404040] rounded-md p-2 text-white focus:border-[#00bfa5] outline-none uppercase" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-[#8fa0a6] uppercase mb-1">ARR ICAO</label>
-                <input type="text" value={arr} onChange={(e) => setArr(e.target.value)} className="w-full bg-[#080a0d] border border-[#34495e] rounded-md p-2 text-white focus:border-[#00bfa5] outline-none uppercase" />
+                <label className="block text-xs font-bold text-text-muted uppercase mb-1">ARR ICAO</label>
+                <input type="text" value={arr} onChange={(e) => setArr(e.target.value)} className="w-full bg-lido-950 border border-[#404040] rounded-md p-2 text-white focus:border-[#00bfa5] outline-none uppercase" />
               </div>
             </div>
             
             {/* 🌟 Commander 與 ZFW 移至此處，強制輸入 */}
-            <hr className="border-[#242f3d] my-1" />
+            <hr className="border-[#333333] my-1" />
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-[#FF9100] uppercase mb-1">Commander Name</label>
@@ -300,7 +300,7 @@ export default function InstructorHub() {
 
           {/* 右側：抓取流程 */}
           <div className="flex-1 flex flex-col justify-center gap-4 bg-[#0a0a0a] p-6 rounded-lg border border-[#1d2733]">
-            <h4 className="text-[#00bfa5] font-bold mb-2">🚀 Dispatch Workflow</h4>
+            <h4 className="text-status-teal font-bold mb-2">🚀 Dispatch Workflow</h4>
             
             <a href={getSimbriefUrl()} target="_blank" rel="noreferrer" className="w-full">
               <button className="w-full bg-[#FF9100] text-black font-black py-3 rounded-lg hover:bg-[#ffA000] shadow-[0_4px_10px_rgba(255,145,0,0.3)] transition-all">
@@ -313,8 +313,8 @@ export default function InstructorHub() {
               disabled={isFetchingPreview}
               className={`w-full font-black py-3 rounded-lg transition-all ${
                 isFetchingPreview 
-                  ? "bg-[#34495e] text-[#8fa0a6] cursor-not-allowed" 
-                  : "bg-[#00bfa5]/20 border-2 border-[#00bfa5] text-[#00bfa5] hover:bg-[#00bfa5] hover:text-black"
+                  ? "bg-[#34495e] text-text-muted cursor-not-allowed" 
+                  : "bg-[#00bfa5]/20 border-2 border-[#00bfa5] text-status-teal hover:bg-[#00bfa5] hover:text-black"
               }`}
             >
               {isFetchingPreview ? "⏳ FETCHING FROM SIMBRIEF..." : "2️⃣ PREVIEW FLIGHT PLAN"}
@@ -327,11 +327,11 @@ export default function InstructorHub() {
       {/* 3. 預覽與進階覆寫視窗 (Review & Override)    */}
       {/* ========================================== */}
       {previewHtml && (
-        <div className="mt-8 bg-[#11161d] border border-[#00bfa5] rounded-xl p-6 shadow-[0_0_20px_rgba(0,191,165,0.15)] animate-fade-in-up">
-          <h4 className="text-[#00bfa5] font-bold text-xl mb-4">📝 Review SimBrief Plan</h4>
+        <div className="mt-8 bg-lido-800 border border-[#00bfa5] rounded-xl p-6 shadow-[0_0_20px_rgba(0,191,165,0.15)] animate-fade-in-up">
+          <h4 className="text-status-teal font-bold text-xl mb-4">📝 Review SimBrief Plan</h4>
           
           <div 
-            className="bg-[#0a0a0a] text-[#e2e8f0] p-4 rounded-lg overflow-y-auto max-h-[400px] border border-[#34495e]"
+            className="bg-[#0a0a0a] text-text-main p-4 rounded-lg overflow-y-auto max-h-[400px] border border-[#404040]"
             style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: "13px", lineHeight: "1.3" }}
             dangerouslySetInnerHTML={{ __html: previewHtml }}
           />
@@ -339,7 +339,7 @@ export default function InstructorHub() {
           <div className="flex gap-4 mt-6">
             <button 
               onClick={() => setPreviewHtml(null)} 
-              className="flex-1 py-4 bg-[#17202a] border border-[#34495e] text-white rounded-lg font-bold hover:bg-[#FF1744] transition-colors"
+              className="flex-1 py-4 bg-lido-800 border border-[#404040] text-white rounded-lg font-bold hover:bg-[#FF1744] transition-colors"
             >
               ❌ CANCEL
             </button>

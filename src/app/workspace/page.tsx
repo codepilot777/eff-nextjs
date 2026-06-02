@@ -24,8 +24,7 @@ function WorkspaceContent() {
     try {
       const res = await fetch(`/api/flight?id=${encodeURIComponent(flightId)}`);
       if (res.ok) {
-        const data = await res.json();
-        setFlightData(data);
+        setFlightData(await res.json());
       }
     } catch (error) {
       console.error("Failed to fetch flight data:", error);
@@ -54,7 +53,6 @@ function WorkspaceContent() {
     }
   };
 
-  // 🌟 將 ACARS 與 ATC 合併為 COMMS
   const navButtons = [
     { id: "DASH", label: "DASHBOARD" },
     { id: "NAVLOG", label: "NAVLOG" },
@@ -64,7 +62,7 @@ function WorkspaceContent() {
     { id: "TECHLOG", label: "TECH LOG" },
   ];
 
-  if (!flightId) return <div className="p-8 text-red-500">Error: Missing flight ID.</div>;
+  if (!flightId) return <div className="p-8 text-[#FF1744]">Error: Missing flight ID.</div>;
 
   const isActivated = flightData?.activated_version > 0;
   const versionStr = isActivated ? `V${flightData.activated_version} ACTIVATED` : `V${flightData?.ofp_version || 1} PENDING`;
@@ -75,30 +73,27 @@ function WorkspaceContent() {
   const depIcao = flightData?.dep_icao || "----";
   const arrIcao = flightData?.arr_icao || "----";
   
-  const mockIata = (icao: string) => {
-    const map: any = { VHHH: "HKG", RJBB: "KIX", RCTP: "TPE", RJTT: "HND", EGLL: "LHR", WSSS: "SIN", YSSY: "SYD", KLAX: "SYD" };
-    return map[icao] || "---";
-  };
+  const depIata = flightData?.raw_simbrief?.origin?.iata_code || "---";
+  const arrIata = flightData?.raw_simbrief?.destination?.iata_code || "---";
 
   const eetMins = Math.floor((flightData?.eet_seconds || 0) / 60);
   const fltH = Math.floor(eetMins / 60).toString().padStart(2, '0');
   const fltM = (eetMins % 60).toString().padStart(2, '0');
   
-  const blkMins = eetMins + 30; // Block = Flight Time + 30 mins
+  const blkMins = eetMins + 30;
   const blkH = Math.floor(blkMins / 60).toString().padStart(2, '0');
   const blkM = (blkMins % 60).toString().padStart(2, '0');
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#080a0d] text-slate-300 font-sans selection:bg-[#00bfa5] selection:text-black">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#0a0a0a] text-[#e2e8f0] font-sans">
       
       {isLoading && !flightData && (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-[#080a0d]">
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-[#0a0a0a]">
           <div className="text-2xl font-bold text-[#00bfa5] animate-pulse">Loading Flight {flightId}...</div>
         </div>
       )}
 
-      <header className="flex-none flex items-center justify-between h-[70px] bg-[#11151a] border-b-[3px] border-[#005a54] px-6 shadow-md z-50">
-        
+      <header className="flex-none flex items-center justify-between h-[70px] bg-[#1a1a1a] border-b-[3px] border-[#00bfa5] px-6 shadow-md z-50">
         <div className="flex items-center gap-4">
           <div className="text-[1.25rem] font-black text-[#00bfa5] cursor-pointer hover:text-white transition-colors" onClick={() => router.push(`/flight-select?role=${role}`)}>
             {flightData?.flight_no || flightId}
@@ -114,12 +109,12 @@ function WorkspaceContent() {
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-center justify-center leading-none">
             <span className="text-[#00bfa5] font-bold text-lg">{depIcao}</span>
-            <span className="text-[#8fa0a6] text-[0.65rem] font-bold mt-0.5">{mockIata(depIcao)}</span>
+            <span className="text-[#8fa0a6] text-[0.65rem] font-bold mt-0.5">{depIata}</span>
           </div>
-          <div className="text-[#34495e] text-xl font-light">➔</div>
+          <div className="text-[#333333] text-xl font-light">➔</div>
           <div className="flex flex-col items-center justify-center leading-none">
             <span className="text-[#00bfa5] font-bold text-lg">{arrIcao}</span>
-            <span className="text-[#8fa0a6] text-[0.65rem] font-bold mt-0.5">{mockIata(arrIcao)}</span>
+            <span className="text-[#8fa0a6] text-[0.65rem] font-bold mt-0.5">{arrIata}</span>
           </div>
         </div>
         
@@ -129,13 +124,13 @@ function WorkspaceContent() {
               <span className="text-[#8fa0a6] text-[0.65rem]">FLIGHT TIME</span>
               <span className="text-[#e2e8f0]">{fltH}:{fltM}</span>
             </div>
-            <div className="border-l border-[#34495e] h-6"></div>
+            <div className="border-l border-[#333333] h-6"></div>
             <div className="flex flex-col items-start leading-tight">
               <span className="text-[#8fa0a6] text-[0.65rem]">BLOCK TIME</span>
               <span className="text-[#e2e8f0]">{blkH}:{blkM}</span>
             </div>
           </div>
-          <div className="border-l border-[#34495e] h-8 mx-2"></div>
+          <div className="border-l border-[#333333] h-8 mx-2"></div>
           <div className="flex items-center text-[#00E676] text-xs font-bold tracking-wider">
             <span className="inline-block w-2 h-2 bg-[#00E676] rounded-full mr-2 animate-pulse shadow-[0_0_8px_#00E676]"></span>
             LIVE SYNC
@@ -143,17 +138,16 @@ function WorkspaceContent() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden relative p-2">
+      <main className="flex-1 overflow-hidden relative p-2 bg-[#0a0a0a]">
         {currentTab === "DASH" && flightData && <Dashboard flightData={flightData} updateFlightData={updateFlightData} />}
         {currentTab === "NAVLOG" && flightData && <Navlog flightData={flightData} updateFlightData={updateFlightData} />}
         {currentTab === "WEATHER" && flightData && <Weather flightData={flightData} />}
         {currentTab === "NOTAM" && flightData && <Notam flightData={flightData} />}
-        {/* 🌟 掛載全新的 COMMS 組件 */}
         {currentTab === "COMMS" && flightData && <Comms flightData={flightData} updateFlightData={updateFlightData} />}
         {currentTab === "TECHLOG" && flightData && <TechLog flightData={flightData} updateFlightData={updateFlightData} />}
       </main>
 
-      <footer className="flex-none flex items-center justify-around gap-2 bg-[#11151a] border-t-2 border-[#00bfa5] px-2 py-2 pb-[max(10px,env(safe-area-inset-bottom))] shadow-[0_-5px_25px_rgba(0,0,0,0.8)] z-50">
+      <footer className="flex-none flex items-center justify-around gap-2 bg-[#1a1a1a] border-t-2 border-[#00bfa5] px-2 py-2 pb-[max(10px,env(safe-area-inset-bottom))] shadow-[0_-5px_25px_rgba(0,0,0,0.8)] z-50">
         {navButtons.map((btn) => {
           const isActive = currentTab === btn.id;
           return (
@@ -162,7 +156,7 @@ function WorkspaceContent() {
               onClick={() => setCurrentTab(btn.id)}
               className={`
                 flex-1 h-[50px] flex items-center justify-center rounded-lg border transition-all duration-200
-                ${isActive ? "bg-[#00bfa5]/15 border-[#00bfa5] text-[#00bfa5]" : "bg-transparent border-transparent text-[#8fa0a6] hover:bg-[#17202a] hover:text-white"}
+                ${isActive ? "bg-[#00bfa5]/15 border-[#00bfa5] text-[#00bfa5]" : "bg-transparent border-transparent text-[#8fa0a6] hover:bg-[#2a2a2a] hover:text-white"}
               `}
             >
               <span className="text-sm font-black tracking-widest uppercase">
@@ -178,7 +172,7 @@ function WorkspaceContent() {
 
 export default function WorkspacePage() {
   return (
-    <Suspense fallback={<div className="bg-[#080a0d] min-h-screen"></div>}>
+    <Suspense fallback={<div className="bg-[#0a0a0a] min-h-screen"></div>}>
       <WorkspaceContent />
     </Suspense>
   );

@@ -53,7 +53,7 @@ export default function Navlog({ flightData, updateFlightData }: { flightData: a
   };
 
   return (
-    <div className="h-full w-full flex flex-col bg-[#0a0a0a] overflow-hidden rounded-lg border border-[#242f3d]">
+    <div className="h-full w-full flex flex-col bg-[#0a0a0a] overflow-hidden rounded-lg border border-[#333333]">
       
       {/* 1. 標題列 */}
       <div className="flex bg-[#1e1e1e] text-[#a0a0a0] font-mono text-[0.65rem] px-3 py-1 uppercase border-b border-[#333] shrink-0">
@@ -76,11 +76,11 @@ export default function Navlog({ flightData, updateFlightData }: { flightData: a
         <div className="flex px-3 py-2 border-b border-[#1e2630] items-center">
           <div className="flex-[1.6]">
             <div className="text-2xl font-black text-white tracking-wider leading-none mb-1">{flightData?.dep_icao || 'VHHH'}</div>
-            <div className="text-xs text-[#8fa0a6] font-mono leading-tight">HONG KONG INTL<br/>{flightData?.dep_rwy || '07R'}</div>
+            <div className="text-xs text-text-muted font-mono leading-tight">HONG KONG INTL<br/>{flightData?.dep_rwy || '07R'}</div>
           </div>
-          <div className="flex-[4.6] text-xs text-[#8fa0a6] font-mono pt-3">RWY</div>
+          <div className="flex-[4.6] text-xs text-text-muted font-mono pt-3">RWY</div>
           <div className="flex-[1.0] flex flex-col items-end gap-1">
-            <div className="text-[0.95rem] font-bold font-mono text-[#e2e8f0]">{reqdOfp.toFixed(1)}T <span className="text-[#00bfa5] text-[0.7rem]">3.6</span></div>
+            <div className="text-[0.95rem] font-bold font-mono text-text-main">{reqdOfp.toFixed(1)}T <span className="text-status-teal text-[0.7rem]">3.6</span></div>
             <input 
               type="number" step="0.1" placeholder="T" defaultValue={depTimes.fuel || ""}
               onBlur={(e) => handleDepInputChange("fuel", e.target.value)}
@@ -88,7 +88,7 @@ export default function Navlog({ flightData, updateFlightData }: { flightData: a
             />
           </div>
           <div className="flex-[1.0] flex justify-end gap-2 text-xs">
-            <div className="flex flex-col text-right text-[#8fa0a6] font-mono leading-[1.6rem] pt-1">
+            <div className="flex flex-col text-right text-text-muted font-mono leading-[1.6rem] pt-1">
               <span>DOORS</span><span>READY</span><span>OUT</span><span>OFF</span>
             </div>
             <div className="flex flex-col gap-1 w-[60px]">
@@ -105,7 +105,7 @@ export default function Navlog({ flightData, updateFlightData }: { flightData: a
 
         {/* 4. 航點列表 (Navlog Waypoints) */}
         {navlog.length === 0 ? (
-          <div className="p-8 text-center text-[#8fa0a6]">No detailed NavLog available from this flight plan.</div>
+          <div className="p-8 text-center text-text-muted">No detailed NavLog available from this flight plan.</div>
         ) : (
           navlog.map((fix: any, i: number) => {
             const ident = fix.ident;
@@ -139,32 +139,32 @@ export default function Navlog({ flightData, updateFlightData }: { flightData: a
                   className="flex px-3 py-2 border-b border-[#1e2630] items-center hover:bg-[#111] transition-colors cursor-pointer group"
                 >
                   <div className="flex-[1.6]">
-                    <div className="text-2xl font-black text-white tracking-wider leading-none mb-1 text-left w-full group-hover:text-[#00bfa5] transition-colors flex items-center gap-2">
-                      {ident} <span className="text-[0.7rem] text-[#34495e] group-hover:text-[#00bfa5]">▼</span>
+                    <div className="text-2xl font-black text-white tracking-wider leading-none mb-1 text-left w-full group-hover:text-status-teal transition-colors flex items-center gap-2">
+                      {ident} <span className="text-[0.7rem] text-[#34495e] group-hover:text-status-teal">▼</span>
                     </div>
-                    <div className="text-xs text-[#8fa0a6] font-mono leading-tight">{ident}<br/>{flightData?.sid_route || 'AWY'}</div>
+                    <div className="text-xs text-text-muted font-mono leading-tight">{ident}<br/>{flightData?.sid_route || 'AWY'}</div>
                   </div>
-                  <div className="flex-[2.4] flex flex-col font-mono text-[0.85rem] text-[#e2e8f0] font-bold">
+                  <div className="flex-[2.4] flex flex-col font-mono text-[0.85rem] text-text-main font-bold">
                     <div className="flex justify-between mb-0.5">
                       <span className="bg-[#e2e8f0] text-[#111] px-1 rounded-sm text-[0.75rem]">{flStr}</span>
                       <span>{mock.track}</span><span>{mock.dist}</span>
                     </div>
-                    <div className="flex justify-between text-[#8fa0a6] text-xs">
+                    <div className="flex justify-between text-text-muted text-xs">
                       <span>{mock.mora}</span><span></span><span>{mock.gs}</span>
                     </div>
                   </div>
-                  <div className="flex-[2.6] flex flex-col font-mono text-[0.85rem] text-[#e2e8f0] font-bold px-4">
+                  <div className="flex-[2.6] flex flex-col font-mono text-[0.85rem] text-text-main font-bold px-4">
                     <div className="flex justify-between mb-0.5">
-                      <span className="text-[#8fa0a6] text-xs">{mock.lat}</span>
+                      <span className="text-text-muted text-xs">{mock.lat}</span>
                       <span>{mock.wind}</span>
                     </div>
-                    <div className="flex justify-between text-[#8fa0a6] text-xs">
+                    <div className="flex justify-between text-text-muted text-xs">
                       <span>{mock.lon}<br/>--</span>
                       <span>{wt}</span>
                     </div>
                   </div>
                   <div className="flex-[1.0] flex flex-col items-end gap-1 pr-2">
-                    <div className="text-[0.95rem] font-bold font-mono text-[#00bfa5] pt-1">{efob.toFixed(1)}T</div>
+                    <div className="text-[0.95rem] font-bold font-mono text-status-teal pt-1">{efob.toFixed(1)}T</div>
                     {devHtml}
                     {/* 🌟 防冒泡機制：點擊輸入框時阻止事件向外傳遞給 Row */}
                     <input 
@@ -175,8 +175,8 @@ export default function Navlog({ flightData, updateFlightData }: { flightData: a
                     />
                   </div>
                   <div className="flex-[1.0] flex flex-col items-end gap-1">
-                    <div className="text-[#8fa0a6] text-xs font-mono">{eetStr}</div>
-                    <div className="text-[#00bfa5] text-[0.95rem] font-bold font-mono">{etaTime}</div>
+                    <div className="text-text-muted text-xs font-mono">{eetStr}</div>
+                    <div className="text-status-teal text-[0.95rem] font-bold font-mono">{etaTime}</div>
                     {/* 🌟 防冒泡機制 */}
                     <input 
                       type="text" placeholder="z" defaultValue={wpData.ata || ""}
@@ -193,49 +193,49 @@ export default function Navlog({ flightData, updateFlightData }: { flightData: a
                 <div key={i} className="bg-[#2b2b2b] border-y border-[#444] p-4 my-1 rounded-md shadow-inner animate-fade-in flex gap-4">
                   <div className="flex-[1.2]">
                     <div className="text-[1.8rem] font-black text-white leading-none mt-1">{ident}</div>
-                    <div className="text-[#8fa0a6] text-xs font-mono mt-2">{ident}<br/>{flightData?.sid_route || 'AWY'}</div>
+                    <div className="text-text-muted text-xs font-mono mt-2">{ident}<br/>{flightData?.sid_route || 'AWY'}</div>
                   </div>
                   
                   <div className="flex-[2.5] flex gap-2">
                     <div className="flex-1">
-                      <div className="text-[#8fa0a6] text-xs mb-1">FL</div>
+                      <div className="text-text-muted text-xs mb-1">FL</div>
                       <input type="text" defaultValue={wpData.ex_fl || ""} onBlur={(e) => handleWpInputChange(i, "ex_fl", e.target.value)} className="w-full p-2 bg-white text-black font-black text-right rounded outline-none" />
                     </div>
-                    <div className="flex-[2.5] font-mono text-xs text-[#e2e8f0] border-l border-[#555] pl-3 leading-snug flex flex-col justify-center">
-                      <div><span className="text-[#8fa0a6]">FL350</span> 213/014-M040</div>
-                      <div><span className="text-[#8fa0a6]">FL310</span> 186/009-M031</div>
-                      <div><span className="text-[#8fa0a6]">FL200</span> 035/006-M007</div>
-                      <div><span className="text-[#8fa0a6]">FL150</span> 129/004-P003</div>
+                    <div className="flex-[2.5] font-mono text-xs text-text-main border-l border-[#555] pl-3 leading-snug flex flex-col justify-center">
+                      <div><span className="text-text-muted">FL350</span> 213/014-M040</div>
+                      <div><span className="text-text-muted">FL310</span> 186/009-M031</div>
+                      <div><span className="text-text-muted">FL200</span> 035/006-M007</div>
+                      <div><span className="text-text-muted">FL150</span> 129/004-P003</div>
                     </div>
                   </div>
 
                   <div className="flex-[2.0]">
-                    <div className="flex justify-between text-[#8fa0a6] text-xs mb-1"><span>Use TOT</span><span>Extra --</span></div>
+                    <div className="flex justify-between text-text-muted text-xs mb-1"><span>Use TOT</span><span>Extra --</span></div>
                     <div className="flex gap-2">
                       <div className="flex-1">
-                        <div className="text-[#8fa0a6] text-[0.65rem]">TOT</div>
+                        <div className="text-text-muted text-[0.65rem]">TOT</div>
                         <input type="text" defaultValue={wpData.ex_tot || ""} onBlur={(e) => handleWpInputChange(i, "ex_tot", e.target.value)} className="w-full p-2 bg-white text-black font-black text-right rounded outline-none" />
                       </div>
                       <div className="flex-1">
-                        <div className="text-[#8fa0a6] text-[0.65rem]">CALC</div>
+                        <div className="text-text-muted text-[0.65rem]">CALC</div>
                         <input type="text" defaultValue={wpData.ex_calc || ""} onBlur={(e) => handleWpInputChange(i, "ex_calc", e.target.value)} className="w-full p-2 bg-white text-black font-black text-right rounded outline-none" />
                       </div>
                     </div>
                   </div>
 
                   <div className="flex-[1.8]">
-                    <div className="text-[#8fa0a6] text-xs mb-1">Crew notes</div>
+                    <div className="text-text-muted text-xs mb-1">Crew notes</div>
                     <textarea defaultValue={wpData.ex_notes || ""} onBlur={(e) => handleWpInputChange(i, "ex_notes", e.target.value)} className="w-full h-[60px] p-2 bg-white text-black rounded outline-none resize-none" placeholder="Add notes"></textarea>
                   </div>
 
                   <div className="flex-[2.2]">
                     <div className="flex justify-between border-b border-[#444] pb-1 mb-2">
-                      <div className="text-center"><div className="text-[#8fa0a6] text-[0.65rem]">Use CETA</div><div className="text-white font-bold">--</div></div>
-                      <div className="text-center"><div className="text-[#8fa0a6] text-[0.65rem]">Use ETA</div><div className="text-white font-bold">--</div></div>
-                      <div className="text-center"><div className="text-[#8fa0a6] text-[0.65rem]">Use NOW</div><div className="text-[#00bfa5] font-bold">--</div></div>
+                      <div className="text-center"><div className="text-text-muted text-[0.65rem]">Use CETA</div><div className="text-white font-bold">--</div></div>
+                      <div className="text-center"><div className="text-text-muted text-[0.65rem]">Use ETA</div><div className="text-white font-bold">--</div></div>
+                      <div className="text-center"><div className="text-text-muted text-[0.65rem]">Use NOW</div><div className="text-status-teal font-bold">--</div></div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="text-[#8fa0a6] text-xs flex-1 text-right">ATA</div>
+                      <div className="text-text-muted text-xs flex-1 text-right">ATA</div>
                       <input type="text" defaultValue={wpData.ata || ""} onBlur={(e) => handleWpInputChange(i, "ata", e.target.value)} className="w-[80px] p-2 bg-white text-black font-black text-right rounded outline-none" placeholder="z" />
                     </div>
                   </div>

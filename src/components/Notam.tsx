@@ -29,16 +29,16 @@ export default function Notam({ flightData }: { flightData: any }) {
   const Accordion = ({ id, title, content }: { id: string, title: string, content: string }) => {
     const isOpen = expanded === id;
     return (
-      <div className="border border-[#242f3d] rounded-lg mb-3 bg-[#11161d] overflow-hidden transition-all">
+      <div className="border border-[#333333] rounded-lg mb-3 bg-lido-800 overflow-hidden transition-all">
         <button 
           onClick={() => setExpanded(isOpen ? null : id)}
-          className="w-full px-5 py-4 flex justify-between items-center bg-[#17202a] hover:bg-[#1e2a38] transition-colors"
+          className="w-full px-5 py-4 flex justify-between items-center bg-lido-800 hover:bg-[#1e2a38] transition-colors"
         >
-          <span className="font-bold text-[#00bfa5] text-lg">{title}</span>
-          <span className="text-[#8fa0a6]">{isOpen ? '▲' : '▼'}</span>
+          <span className="font-bold text-status-teal text-lg">{title}</span>
+          <span className="text-text-muted">{isOpen ? '▲' : '▼'}</span>
         </button>
         {isOpen && (
-          <div className="p-5 bg-[#0a0a0a] text-[#e2e8f0] font-mono text-sm whitespace-pre-wrap leading-relaxed max-h-[60vh] overflow-y-auto">
+          <div className="p-5 bg-[#0a0a0a] text-text-main font-mono text-sm whitespace-pre-wrap leading-relaxed max-h-[60vh] overflow-y-auto">
             {content}
           </div>
         )}
