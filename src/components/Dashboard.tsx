@@ -24,7 +24,6 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   const depIcao = flightData?.dep_icao || orig.icao_code || 'VHHH';
   const arrIcao = flightData?.arr_icao || dest.icao_code || 'RJBB';
   
-  // 自動從 SimBrief 提取真實的 IATA 代碼
   const depIata = orig.iata_code || "---";
   const arrIata = dest.iata_code || "---";
 
@@ -81,12 +80,22 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   }
 
   const isManual = flightData?.fuel_manual_mode || false;
+  
+  const alternates = flightData?.alternates || [];
+  const altnList = alternates.length > 0 ? alternates : [{ icao: flightData?.altn_icao || 'N/A', burn: flightData?.fuel_altn_ofp || 0.0, time: 30 }];
+  const altnOptions = altnList.map((a: any) => a.icao);
+  const selectedAltn = flightData?.selected_altn || altnOptions[0] || 'N/A';
+  
+  // 🌟 重點修改：將 baseAltnOfp 動態綁定為所選 Alternate 的油量
+  const baseAltnOfp = altnList.find((a: any) => a.icao === selectedAltn)?.burn || flightData?.fuel_altn_ofp || 0.0;
+  // 🌟 因為修改的是 OFP 基準，Revised (currAltnOfp) 直接等於 base，這樣 Diff 就是 0
+  const currAltnOfp = baseAltnOfp;
+
   const ofpZfw = flightData?.weight_zfw_ofp || 0.0;
   const ofpTaxi = flightData?.fuel_taxi_ofp || 0.0;
   const ofpTrip = flightData?.fuel_trip_ofp || 0.0;
   const ofpCont = flightData?.fuel_cont_ofp || 0.0;
   const ofpRes = flightData?.fuel_reserve_ofp || 0.0;
-  const baseAltnOfp = flightData?.fuel_altn_ofp || 0.0;
   const ofpReqdBase = ofpTaxi + ofpTrip + ofpCont + baseAltnOfp + ofpRes;
   const ofpTotal = ofpReqdBase; 
   
@@ -95,18 +104,9 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   const autoTaxi = ofpTaxi;
   const autoCont = ofpCont;
   const autoTrip = ofpTrip + (delta * 0.03);
-  
-  const alternates = flightData?.alternates || [];
-  const altnList = alternates.length > 0 ? alternates : [{ icao: flightData?.altn_icao || 'N/A', burn: baseAltnOfp, time: 30 }];
-  const altnOptions = altnList.map((a: any) => a.icao);
-  const selectedAltn = flightData?.selected_altn || altnOptions[0] || 'N/A';
-  const currAltnOfp = altnList.find((a: any) => a.icao === selectedAltn)?.burn || baseAltnOfp;
-  
-  // 👇 加入呢兩行，計返 autoTotal 出嚟
   const autoReqdBase = autoTaxi + autoTrip + autoCont + currAltnOfp + ofpRes;
   const autoTotal = autoReqdBase;
-  // 👆
-
+  
   const mf = flightData?.manual_fuel || {};
   const currTaxi = isManual ? (mf.taxi ?? autoTaxi) : autoTaxi;
   const currTrip = isManual ? (mf.trip ?? autoTrip) : autoTrip;

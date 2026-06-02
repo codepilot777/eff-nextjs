@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Dashboard from "@/components/Dashboard";
 import Navlog from "@/components/Navlog";
@@ -19,8 +19,12 @@ function WorkspaceContent() {
   const [flightData, setFlightData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+ // 🌟 加入更新鎖定標記
+  const isUpdatingRef = useRef(false);
+
   const fetchFlightData = async () => {
-    if (!flightId) return;
+    // 🌟 如果更新緊，暫停獲取舊資料，防止畫面閃爍倒退
+    if (!flightId || isUpdatingRef.current) return;
     try {
       const res = await fetch(`/api/flight?id=${encodeURIComponent(flightId)}`);
       if (res.ok) {
@@ -40,6 +44,7 @@ function WorkspaceContent() {
   }, [flightId]);
 
   const updateFlightData = async (updates: any) => {
+    isUpdatingRef.current = true; // 🌟 鎖上更新鎖
     const updatedData = { ...flightData, ...updates };
     setFlightData(updatedData); 
     try {
@@ -50,8 +55,14 @@ function WorkspaceContent() {
       });
     } catch (error) {
       console.error("Failed to update flight data", error);
+    } finally {
+      // 🌟 給雲端資料庫 1.5 秒時間完全寫入，然後才解鎖 Live Sync
+      setTimeout(() => {
+        isUpdatingRef.current = false;
+      }, 1500);
     }
   };
+
 
   const navButtons = [
     { id: "DASH", label: "DASHBOARD" },
