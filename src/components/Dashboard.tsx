@@ -102,6 +102,11 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   const selectedAltn = flightData?.selected_altn || altnOptions[0] || 'N/A';
   const currAltnOfp = altnList.find((a: any) => a.icao === selectedAltn)?.burn || baseAltnOfp;
   
+  // 👇 加入呢兩行，計返 autoTotal 出嚟
+  const autoReqdBase = autoTaxi + autoTrip + autoCont + currAltnOfp + ofpRes;
+  const autoTotal = autoReqdBase;
+  // 👆
+
   const mf = flightData?.manual_fuel || {};
   const currTaxi = isManual ? (mf.taxi ?? autoTaxi) : autoTaxi;
   const currTrip = isManual ? (mf.trip ?? autoTrip) : autoTrip;
