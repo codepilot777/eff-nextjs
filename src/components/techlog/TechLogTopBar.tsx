@@ -3,13 +3,14 @@
 export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMode, setActiveTask, setShowInFlightMenu, isTrainee }: any) {
   const reg = flightData?.aircraft_reg || "B-HNQ";
   
-  const currDep = flightData?.raw_simbrief?.origin?.iata_code || flightData?.dep_icao || "HKG";
-  const currArr = flightData?.raw_simbrief?.destination?.iata_code || flightData?.arr_icao || "KIX";
-  const currFlt = flightData?.flight_no || "CPA 564";
+  const currFlt = tlData?.tl_prep_flt || flightData?.flight_no || "CPA 564";
+  const currDep = tlData?.tl_prep_dep || flightData?.dep_icao || "HKG";
+  const currArr = tlData?.tl_prep_arr || flightData?.arr_icao || "KIX";
   
-  const lastFlt = "CX881";
-  const lastRoute = "LAX ➔ HKG";
-  const lastFob = "10.5";
+  // 🌟 動態讀取最新的 Previous Sector 資料 (剛才 Confirm 後寫入嘅)
+  const lastFlt = tlData?.tl_prev_flt || "CX881";
+  const lastRoute = `${tlData?.tl_prev_dep || "LAX"} ➔ ${tlData?.tl_prev_arr || "HKG"}`;
+  const lastFob = tlData?.tl_prev_fob || "10.5";
 
   const {
     tl_prepared: isPrepared,
@@ -20,7 +21,7 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
     tl_checks: isChecks,
     tl_defects: isDefects,
     tl_release: isReleased,
-  } = tlData;
+  } = tlData || {};
 
   const StatusPill = ({ label, isOk }: { label: string, isOk: boolean }) => (
     <div className="flex flex-col items-center">
@@ -31,7 +32,7 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
   );
 
   return (
-    <div className="bg-[#2a2a2a] border border-[#333333] rounded-xl p-4 mb-4 border-t-4 border-t-[#00E676] shrink-0 shadow-lg relative">
+    <div className="bg-[#2a2a2a] border border-[#333333] rounded-xl p-4 mb-4 border-t-4 border-t-[#00E676] shrink-0 shadow-lg relative transition-all duration-500">
       
       {!isTrainee && (
         <div className="absolute top-4 right-4 z-50">
@@ -53,23 +54,38 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
         </div>
         
         <div className="flex-[2] flex justify-center items-center gap-4">
-          <div className="flex flex-col items-center">
-            <div className="text-2xl font-black text-white">{lastFlt}</div>
-            <div className="text-sm font-bold text-[#e2e8f0] mt-1 bg-[#1a1a1a] px-4 py-1 rounded border border-[#404040]">
-              {lastRoute}
-            </div>
-          </div>
-
-          {isPrepared && (
+          
+          {/* 🌟 邏輯：起飛後，隱藏上一航班，只 Focus 現在這班 */}
+          {!isStarted ? (
             <>
-              <div className={`text-2xl font-black ${isStarted ? 'text-[#00E676]' : 'text-[#404040]'}`}>➔</div>
-              <div className={`flex flex-col items-center transition-all duration-300 ${isStarted ? 'opacity-100' : 'opacity-50'}`}>
-                <div className={`text-2xl font-black ${isStarted ? 'text-white' : 'text-[#8fa0a6]'}`}>{currFlt}</div>
-                <div className={`text-sm font-bold mt-1 bg-[#1a1a1a] px-4 py-1 rounded border ${isStarted ? 'text-[#e2e8f0] border-[#00bfa5]' : 'text-[#8fa0a6] border-[#333333]'}`}>
-                  {flightStatus === "DIVERTED" ? `${currDep} ➔ ⚠️ DIVERTED` : `${currDep} ➔ ${currArr}`}
+              {/* Previous Flight */}
+              <div className="flex flex-col items-center">
+                <div className="text-2xl font-black text-white">{lastFlt}</div>
+                <div className="text-sm font-bold text-[#e2e8f0] mt-1 bg-[#1a1a1a] px-4 py-1 rounded border border-[#404040]">
+                  {lastRoute}
                 </div>
               </div>
+
+              {isPrepared && (
+                <>
+                  <div className="text-2xl font-black text-[#404040]">➔</div>
+                  <div className="flex flex-col items-center transition-all duration-300 opacity-50">
+                    <div className="text-2xl font-black text-[#8fa0a6]">{currFlt}</div>
+                    <div className="text-sm font-bold mt-1 bg-[#1a1a1a] px-4 py-1 rounded border text-[#8fa0a6] border-[#333333]">
+                      {currDep} ➔ {currArr}
+                    </div>
+                  </div>
+                </>
+              )}
             </>
+          ) : (
+            /* Active Flight Centered */
+            <div className="flex flex-col items-center transition-all duration-500 scale-110">
+              <div className="text-2xl font-black text-[#00E676]">{currFlt}</div>
+              <div className="text-sm font-bold mt-1 bg-[#1a1a1a] px-4 py-1 rounded border text-white border-[#00E676] shadow-[0_0_10px_rgba(0,230,118,0.2)]">
+                {flightStatus === "DIVERTED" ? `${currDep} ➔ ⚠️ DIVERTED` : `${currDep} ➔ ${currArr}`}
+              </div>
+            </div>
           )}
         </div>
 
@@ -91,8 +107,6 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
           <StatusPill label="Checks" isOk={isChecks} />
           <StatusPill label="Defects" isOk={isDefects} />
           <StatusPill label="Release" isOk={isReleased} />
-          
-          {/* 🌟 修正：只有 FLIGHT CREW 模式才顯示 Acceptance */}
           {roleMode === "FLIGHT CREW" && <StatusPill label="Acceptance" isOk={isAccepted} />}
         </div>
       )}

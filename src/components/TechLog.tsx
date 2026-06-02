@@ -78,7 +78,7 @@ export default function TechLog({ flightData }: { flightData: any, updateFlightD
             updateTechLogData={updateTechLogData} 
           />
         )}
-        {activeNav === "history" && <TechLogHistory />}
+        {activeNav === "history" && <TechLogHistory tlData={tlData} />}
         {activeNav === "reporting" && (
           <TechLogReporting tlData={tlData} updateTechLogData={updateTechLogData} roleMode={roleMode} setActiveNav={setActiveNav} />
         )}
