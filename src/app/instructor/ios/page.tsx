@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import TechLog from "@/components/TechLog";
 
 function IOSPanelContent() {
   const searchParams = useSearchParams();
@@ -11,11 +10,11 @@ function IOSPanelContent() {
   
   const [flightData, setFlightData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // 🌟 狀態控制
   const [activeTab, setActiveTab] = useState("Payload");
 
   const [sbUser, setSbUser] = useState("EFFSIM");
+  const [updDep, setUpdDep] = useState("");
+  const [updArr, setUpdArr] = useState("");
   const [isFetchingUpdate, setIsFetchingUpdate] = useState(false);
   const [pendingUpdateData, setPendingUpdateData] = useState<any>(null);
 
@@ -50,6 +49,11 @@ function IOSPanelContent() {
         bulk: flightData.cargo_bulk || 0
       });
     }
+    
+    if (flightData && !updDep && !updArr) {
+      setUpdDep(flightData.dep_icao || "VHHH");
+      setUpdArr(flightData.arr_icao || "RJBB");
+    }
   }, [flightData]);
 
   useEffect(() => {
@@ -70,40 +74,6 @@ function IOSPanelContent() {
     } catch (error) {
       console.error("Failed to update flight data", error);
     }
-  };
-
-  // 🌟 Helper: 解析 LIDO HTML 特殊字元
-  const unescapeHTML = (str: string) => {
-    if (!str) return "<p>No OFP text available.</p>";
-    return str.replace(/&lt;/g, '<')
-              .replace(/&gt;/g, '>')
-              .replace(/&amp;/g, '&')
-              .replace(/&quot;/g, '"')
-              .replace(/&#39;/g, "'");
-  };
-
-  // 🌟 Helper: 穩健讀取 OFP HTML (優先使用原始 SimBrief HTML)
-  const getOfpHtml = () => {
-    const rawHtml = flightData?.raw_simbrief?.text?.plan_html || flightData?.ofp_telex_text;
-    if (!rawHtml) return "<p>No OFP text available.</p>";
-    if (rawHtml.includes('&lt;')) return unescapeHTML(rawHtml);
-    return rawHtml;
-  };
-
-  // 🌟 Helper: 解析天氣資料，如果沒有教官覆寫則顯示原始 SimBrief
-  const getWx = (overrideValue: string | undefined, rawValue: string | undefined) => {
-    if (overrideValue && overrideValue !== "NIL") return overrideValue;
-    if (rawValue && rawValue !== "NIL") return rawValue;
-    return "";
-  };
-
-  // 🌟 Helper: 解析 NOTAM 資料，還原原始陣列
-  const getNotam = (overrideValue: string | undefined, rawSbArray: any) => {
-    if (overrideValue && overrideValue !== "NIL") return overrideValue;
-    if (rawSbArray && Array.isArray(rawSbArray) && rawSbArray.length > 0) {
-      return rawSbArray.map((n: any) => n.notam_raw || n.notam_text || n.message || String(n)).join('\n\n------------------------------------------------------------\n\n');
-    }
-    return "";
   };
 
   const handleAutoPayload = () => {
@@ -135,7 +105,7 @@ function IOSPanelContent() {
     const parts = (flightData.flight_no || "CPA 564").split(" ");
     const airline = parts.length > 0 ? parts[0] : "CPA";
     const fltnum = parts.length > 1 ? parts[1] : "564";
-    return `https://www.simbrief.com/system/dispatch.php?airline=${airline}&fltnum=${fltnum}&orig=${flightData.dep_icao}&dest=${flightData.arr_icao}`;
+    return `https://www.simbrief.com/system/dispatch.php?airline=${airline}&fltnum=${fltnum}&orig=${updDep}&dest=${updArr}`;
   };
 
   const handleFetchUpdate = async () => {
@@ -170,6 +140,22 @@ function IOSPanelContent() {
 
     const stdUnix = parseInt(sb.times?.est_out || 0);
     const staUnix = parseInt(sb.times?.est_in || 0);
+    const targetPayload = parseInt(sb.weights?.est_zfw || 0) - parseInt(sb.weights?.oew || 161968);
+    
+    let paxTotal = Math.floor(targetPayload / 104);
+    if (paxTotal > 438) paxTotal = 438;
+    const paxJ = Math.min(42, Math.floor(paxTotal * 0.1));
+    const paxY = paxTotal - paxJ;
+    
+    let remCargo = targetPayload - (paxTotal * 84);
+    if (remCargo < 0) remCargo = 0;
+    
+    const h1 = Math.floor(remCargo * 0.3);
+    const h2 = Math.floor(remCargo * 0.3);
+    const h3 = Math.floor(remCargo * 0.2);
+    const h4 = Math.floor(remCargo * 0.1);
+    const bulk = Math.floor(remCargo - h1 - h2 - h3 - h4);
+
     const nextVersion = (flightData.ofp_version || 1) + 1;
 
     const rawNavlog = sb.navlog?.fix || [];
@@ -191,14 +177,16 @@ function IOSPanelContent() {
 
     const updates = {
       route_id: sb.general?.route || "DCT",
-      dep_icao: sb.origin?.icao_code || flightData.dep_icao,
-      arr_icao: sb.destination?.icao_code || flightData.arr_icao,
+      dep_icao: sb.origin?.icao_code || updDep,
+      arr_icao: sb.destination?.icao_code || updArr,
       std_z: formatTime(stdUnix) || flightData.std_z,
       sta_z: formatTime(staUnix) || flightData.sta_z,
       std_unix: stdUnix,
       sta_unix: staUnix,
       cruise_alt: sb.general?.initial_altitude || "35000",
       avg_wind: sb.general?.avg_wind_comp || "N/A",
+      
+      // 🌟 MAGIC HAPPENS HERE: 把整包 SimBrief JSON 塞入資料庫，以後更新版本也會帶著最新天氣和 NOTAM！
       raw_simbrief: sb,
       
       fuel_taxi_ofp: parseInt(sb.fuel?.taxi || 0) / 1000.0,
@@ -220,78 +208,38 @@ function IOSPanelContent() {
       
       ofp_telex_text: sb.text?.plan_html || "No briefing HTML available.",
       ofp_version: nextVersion,
+      
       cost_index: sb.general?.costindex || "CI 85",
+      
+      pax_y: paxY,
+      pax_j: paxJ,
+      pax_f: 0,
+      pax_w: 0,
+      cargo_bulk: bulk,
+      cargo_hold_1: h1,
+      cargo_hold_2: h2,
+      cargo_hold_3: h3,
+      cargo_hold_4: h4,
       
       navlog: parsedNavlog,
       alternates: parsedAlternates,
       
-      ezfw_sent: true, azf_sent: false, prelim_ls_sent: false, final_ls_sent: false,
-      fuel_receipt_sent: false, final_fuel_accepted: false,
-      pilots_signed_prelim: false, pilots_signed_final: false, pilots_signed_fuel: false,
-      prelim_ls_rejected: false, final_ls_rejected: false
+      ezfw_sent: true,
+      azf_sent: false,
+      prelim_ls_sent: false,
+      final_ls_sent: false,
+      fuel_receipt_sent: false,
+      final_fuel_accepted: false,
+      pilots_signed_prelim: false,
+      pilots_signed_final: false,
+      pilots_signed_fuel: false,
+      prelim_ls_rejected: false,
+      final_ls_rejected: false
     };
 
     await updateFlightData(updates);
     setPendingUpdateData(null);
-    alert(`✅ Successfully updated to OFP V${nextVersion}!`);
-  };
-
-  const handleTransmitLoadsheet = (docType: string) => {
-    const updates: any = {
-      pax_j: localPayload.j, pax_y: localPayload.y,
-      cargo_hold_1: localPayload.h1, cargo_hold_2: localPayload.h2,
-      cargo_hold_3: localPayload.h3, cargo_hold_4: localPayload.h4,
-      cargo_bulk: localPayload.bulk
-    };
-    
-    if (docType === "EZFW") updates.ezfw_sent = true;
-    if (docType === "AZF") updates.azf_sent = true;
-    if (docType === "PRELIM") updates.prelim_ls_sent = true;
-    if (docType === "FINAL") updates.final_ls_sent = true;
-    
-    updateFlightData(updates);
-    alert(`${docType} transmitted to EFB successfully!`);
-  };
-
-  // 🌟 動態生成 Alternates
-  const rawSb = flightData?.raw_simbrief || {};
-  const rawAlternates = rawSb.alternate ? (Array.isArray(rawSb.alternate) ? rawSb.alternate : [rawSb.alternate]) : (flightData?.alternates || []);
-
-  const handleSaveWx = () => {
-    const newAlternates = rawAlternates.map((a: any, i: number) => {
-      const existingAlt = (flightData.alternates || [])[i] || { icao: a.icao_code || a.icao, burn: (parseFloat(a.burn) || 0) / 1000.0, time: Math.floor((parseInt(a.time) || 0) / 60) };
-      return {
-        ...existingAlt,
-        metar: (document.getElementById(`wx_maltn_${i}`) as HTMLTextAreaElement)?.value || "NIL",
-        taf: (document.getElementById(`wx_taltn_${i}`) as HTMLTextAreaElement)?.value || "NIL"
-      };
-    });
-    
-    updateFlightData({
-      metar_dep: (document.getElementById('wx_mdep') as HTMLTextAreaElement).value || "NIL",
-      taf_dep: (document.getElementById('wx_tdep') as HTMLTextAreaElement).value || "NIL",
-      metar_arr: (document.getElementById('wx_marr') as HTMLTextAreaElement).value || "NIL",
-      taf_arr: (document.getElementById('wx_tarr') as HTMLTextAreaElement).value || "NIL",
-      alternates: newAlternates
-    });
-    alert("Weather saved and published to EFB!");
-  };
-
-  const handleSaveNotam = () => {
-    const newAlternates = rawAlternates.map((a: any, i: number) => {
-      const existingAlt = (flightData.alternates || [])[i] || { icao: a.icao_code || a.icao, burn: (parseFloat(a.burn) || 0) / 1000.0, time: Math.floor((parseInt(a.time) || 0) / 60) };
-      return {
-        ...existingAlt,
-        notam: (document.getElementById(`notam_altn_${i}`) as HTMLTextAreaElement)?.value || "NIL"
-      };
-    });
-
-    updateFlightData({
-      notam_dep: (document.getElementById('notam_dep') as HTMLTextAreaElement).value || "NIL",
-      notam_arr: (document.getElementById('notam_arr') as HTMLTextAreaElement).value || "NIL",
-      alternates: newAlternates
-    });
-    alert("NOTAMs saved and published to EFB!");
+    alert(`✅ Successfully generated OFP V${nextVersion}! Loadsheet and fuel progress have been reset.`);
   };
 
   if (!flightId) return <div className="p-8 text-red-500">Error: Missing flight ID</div>;
@@ -303,14 +251,12 @@ function IOSPanelContent() {
   const calcCgoWt = localPayload.h1 + localPayload.h2 + localPayload.h3 + localPayload.h4 + localPayload.bulk;
   const calcZfw = flightData ? (flightData.dow + calcPaxWt + calcCgoWt) / 1000.0 : 0;
 
-  // 🌟 加入了被遺忘的 Fuel Tab
   const tabs = [
     { id: "Config", icon: "✈️", label: "1. Config" },
     { id: "Payload", icon: "⚖️", label: "2. Payload" },
-    { id: "WX", icon: "🌦️", label: "3. WX" },
-    { id: "NOTAMs", icon: "📢", label: "4. NOTAMs" },
-    { id: "eTechLog", icon: "🔧", label: "5. eTechLog" },
-    { id: "Fuel", icon: "⛽", label: "6. Fuel" }
+    { id: "WX", icon: "🌦️", label: "3. WX & NOTAMs" },
+    { id: "eTechLog", icon: "🔧", label: "4. eTechLog" },
+    { id: "Fuel", icon: "⛽", label: "5. Fuel" }
   ];
 
   return (
@@ -375,6 +321,7 @@ function IOSPanelContent() {
             </div>
           </div>
 
+          {/* 🌟 修正：PDC REQUEST 寫入 payload */}
           {(flightData.pdc_requests || []).filter((r:any) => r.status === "PENDING CLEARANCE").map((req:any, idx:number) => (
             <div key={`pdc-${idx}`} className="bg-[#11161d] border border-[#FF9100] rounded-xl p-4 shadow-[0_0_10px_rgba(255,145,0,0.15)]">
               <div className="text-[#FF9100] font-bold mb-1">⚠️ PDC REQUEST RECEIVED</div>
@@ -391,7 +338,7 @@ function IOSPanelContent() {
                   const realIndex = flightData.pdc_requests.findIndex((r:any) => r.time === req.time);
                   if(realIndex >= 0) {
                     updatedPdc[realIndex].status = "APPROVED";
-                    updatedPdc[realIndex].clearance_payload = input.value; 
+                    updatedPdc[realIndex].clearance_payload = input.value; // 真正寫入資料庫！
                     updateFlightData({ pdc_requests: updatedPdc });
                   }
                 }}
@@ -402,6 +349,7 @@ function IOSPanelContent() {
             </div>
           ))}
 
+          {/* 🌟 修正：ATIS REQUEST 寫入 response */}
           {(flightData.atis_requests || []).filter((r:any) => r.status === "PENDING RESPONSE").map((req:any, idx:number) => (
             <div key={`atis-${idx}`} className="bg-[#11161d] border border-[#00bfa5] rounded-xl p-4 shadow-[0_0_10px_rgba(0,191,165,0.15)]">
               <div className="text-[#00bfa5] font-bold mb-1">⚠️ ATIS REQUEST</div>
@@ -409,7 +357,7 @@ function IOSPanelContent() {
               <textarea 
                 id={`ios_atis_input_${idx}`}
                 className="w-full bg-[#080a0d] border border-[#34495e] rounded-lg p-3 text-[#00bfa5] font-mono text-sm h-24 outline-none focus:border-[#00bfa5] resize-none"
-                defaultValue={req.type === "DEPARTURE" ? getWx(flightData.metar_dep, rawSb.origin?.metar) : getWx(flightData.metar_arr, rawSb.destination?.metar)}
+                defaultValue={req.type === "DEPARTURE" ? (flightData.metar_dep || 'NIL') : (flightData.metar_arr || 'NIL')}
               ></textarea>
               <button 
                 onClick={() => {
@@ -418,7 +366,7 @@ function IOSPanelContent() {
                   const realIndex = flightData.atis_requests.findIndex((r:any) => r.time === req.time);
                   if(realIndex >= 0) {
                     updatedAtis[realIndex].status = "DELIVERED";
-                    updatedAtis[realIndex].response = input.value;
+                    updatedAtis[realIndex].response = input.value; // 真正寫入資料庫！
                     updateFlightData({ atis_requests: updatedAtis });
                   }
                 }}
@@ -479,12 +427,12 @@ function IOSPanelContent() {
         <div className="flex-[2.6] bg-[#11161d] border border-[#242f3d] rounded-xl p-6 flex flex-col h-full overflow-hidden">
           <h4 className="text-[#00bfa5] font-bold text-lg mb-6">⏱️ WORKFLOW TIMELINE</h4>
           
-          <div className="flex border-b border-[#242f3d] mb-6 overflow-x-auto shrink-0">
+          <div className="flex border-b border-[#242f3d] mb-6">
             {tabs.map(t => (
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
-                className={`px-4 py-3 font-bold transition-colors whitespace-nowrap ${
+                className={`px-6 py-3 font-bold transition-colors ${
                   activeTab === t.id ? "border-b-2 border-[#00bfa5] text-[#00bfa5]" : "text-[#8fa0a6] hover:text-white"
                 }`}
               >
@@ -502,12 +450,13 @@ function IOSPanelContent() {
                   <h5 className="text-white font-bold mb-2">📡 Active Flight Plan</h5>
                   <p className="text-[#8fa0a6] text-sm mb-4">Current OFP Version: <strong className="text-white">V{flightData.ofp_version || 1}</strong></p>
                   
-                  {/* 🌟 完整還原：提取 SimBrief 原始 HTML */}
-                  <div 
-                    className="bg-[#0a0a0a] text-[#e2e8f0] p-4 rounded-lg overflow-y-auto max-h-[400px] border border-[#34495e]"
-                    style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: "13px", lineHeight: "1.3" }}
-                    dangerouslySetInnerHTML={{ __html: getOfpHtml() }}
-                  />
+                  <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#34495e]">
+                    <pre 
+                      className="text-xs text-[#e2e8f0] overflow-y-auto max-h-[400px]" 
+                      style={{ fontFamily: "'Courier New', Courier, monospace", lineHeight: "1.3" }}
+                      dangerouslySetInnerHTML={{ __html: flightData.ofp_telex_text || "No OFP text available." }}
+                    />
+                  </div>
                 </div>
 
                 <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-6">
@@ -519,10 +468,20 @@ function IOSPanelContent() {
                       <label className="block text-xs font-bold text-[#8fa0a6] uppercase mb-1">SimBrief Username</label>
                       <input type="text" value={sbUser} onChange={(e) => setSbUser(e.target.value)} className="w-full bg-[#080a0d] border border-[#34495e] rounded-md p-2 text-white outline-none focus:border-[#00bfa5]" />
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-[#8fa0a6] uppercase mb-1">Departure</label>
+                        <input type="text" value={updDep} onChange={(e) => setUpdDep(e.target.value.toUpperCase())} className="w-full bg-[#080a0d] border border-[#34495e] rounded-md p-2 text-white outline-none focus:border-[#00bfa5] uppercase" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-[#8fa0a6] uppercase mb-1">Arrival</label>
+                        <input type="text" value={updArr} onChange={(e) => setUpdArr(e.target.value.toUpperCase())} className="w-full bg-[#080a0d] border border-[#34495e] rounded-md p-2 text-white outline-none focus:border-[#00bfa5] uppercase" />
+                      </div>
+                    </div>
                     
                     <a href={getSimbriefUrl()} target="_blank" rel="noreferrer" className="w-full mt-2">
                       <button className="w-full bg-[#17202a] text-white border border-[#34495e] py-3 rounded-lg font-bold hover:bg-[#34495e] transition-colors">
-                        1️⃣ EDIT ON SIMBRIEF
+                        1️⃣ ADJUST PARAMETERS & GENERATE ON SIMBRIEF
                       </button>
                     </a>
                     
@@ -535,7 +494,7 @@ function IOSPanelContent() {
                           : "bg-[#00bfa5]/20 border-2 border-[#00bfa5] text-[#00bfa5] hover:bg-[#00bfa5] hover:text-black"
                       }`}
                     >
-                      {isFetchingUpdate ? "⏳ FETCHING FROM SIMBRIEF..." : "2️⃣ FETCH UPDATED FLIGHT PLAN"}
+                      {isFetchingUpdate ? "⏳ FETCHING FROM SIMBRIEF..." : "2️⃣ FETCH FLIGHT PLAN"}
                     </button>
                   </div>
                 </div>
@@ -548,7 +507,7 @@ function IOSPanelContent() {
                     <div 
                       className="bg-[#0a0a0a] text-[#e2e8f0] p-4 rounded-lg overflow-y-auto max-h-[400px] border border-[#34495e]"
                       style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: "13px", lineHeight: "1.3" }}
-                      dangerouslySetInnerHTML={{ __html: pendingUpdateData?.text?.plan_html ? (pendingUpdateData.text.plan_html.includes('&lt;') ? unescapeHTML(pendingUpdateData.text.plan_html) : pendingUpdateData.text.plan_html) : "<p>No OFP text available.</p>" }}
+                      dangerouslySetInnerHTML={{ __html: pendingUpdateData.text?.plan_html || "<p>No briefing HTML available.</p>" }}
                     />
 
                     <div className="flex gap-4 mt-6">
@@ -560,7 +519,7 @@ function IOSPanelContent() {
                       </button>
                       <button 
                         onClick={handleConfirmUpdate}
-                        className="flex-1 py-4 bg-[#00bfa5] text-black font-black rounded-lg hover:bg-[#00E676] shadow-[0_4px_15px_rgba(0,230,118,0.4)] transition-all"
+                        className="flex-1 py-4 bg-[#00bfa5] text-black font-black rounded-lg hover:bg-[#00E676] shadow-[0_0_15px_rgba(0,230,118,0.4)] transition-all"
                       >
                         📤 SEND V{(flightData.ofp_version || 1) + 1}
                       </button>
@@ -628,8 +587,16 @@ function IOSPanelContent() {
                       ))}
                     </div>
                   </div>
-                  
-                  <div className="text-xl font-bold text-[#00E676] mt-4 text-right">Calculated ZFW: {calcZfw.toFixed(1)} T</div>
+
+                  <div className="flex justify-between items-center mt-4">
+                    <div className="text-xl font-bold text-[#00E676]">Calculated ZFW: {calcZfw.toFixed(1)} T</div>
+                    <button 
+                      onClick={() => updateFlightData({ pax_j: localPayload.j, pax_y: localPayload.y, cargo_hold_1: localPayload.h1, cargo_hold_2: localPayload.h2, cargo_hold_3: localPayload.h3, cargo_hold_4: localPayload.h4, cargo_bulk: localPayload.bulk })}
+                      className="bg-[#17202a] border border-[#34495e] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#34495e] transition-colors"
+                    >
+                      💾 UPDATE PAYLOAD
+                    </button>
+                  </div>
                 </div>
 
                 <hr className="border-[#242f3d]" />
@@ -637,16 +604,16 @@ function IOSPanelContent() {
                 <div>
                   <h5 className="text-white font-bold mb-4">📤 Document Dispatch</h5>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <button onClick={() => handleTransmitLoadsheet("EZFW")} className="bg-[#17202a] border border-[#34495e] text-white py-3 rounded-lg font-bold hover:bg-[#00bfa5] hover:border-[#00bfa5] hover:text-black transition-colors">
+                    <button onClick={() => updateFlightData({ ezfw_sent: true })} className="bg-[#17202a] border border-[#34495e] text-white py-3 rounded-lg font-bold hover:bg-[#00bfa5] hover:border-[#00bfa5] hover:text-black transition-colors">
                       {flightData.ezfw_sent ? "✅ EZFW SENT" : "TRANSMIT EZFW"}
                     </button>
-                    <button onClick={() => handleTransmitLoadsheet("AZF")} className="bg-[#17202a] border border-[#34495e] text-white py-3 rounded-lg font-bold hover:bg-[#00bfa5] hover:border-[#00bfa5] hover:text-black transition-colors">
+                    <button onClick={() => updateFlightData({ azf_sent: true })} className="bg-[#17202a] border border-[#34495e] text-white py-3 rounded-lg font-bold hover:bg-[#00bfa5] hover:border-[#00bfa5] hover:text-black transition-colors">
                       {flightData.azf_sent ? "✅ AZF SENT" : "TRANSMIT AZF"}
                     </button>
-                    <button onClick={() => handleTransmitLoadsheet("PRELIM")} className="bg-[#17202a] border border-[#FF9100] text-[#FF9100] py-3 rounded-lg font-bold hover:bg-[#FF9100] hover:text-black transition-colors">
+                    <button onClick={() => updateFlightData({ prelim_ls_sent: true })} className="bg-[#17202a] border border-[#FF9100] text-[#FF9100] py-3 rounded-lg font-bold hover:bg-[#FF9100] hover:text-black transition-colors">
                       {flightData.prelim_ls_sent ? "✅ PRELIM SENT" : "TRANSMIT PRELIM"}
                     </button>
-                    <button onClick={() => handleTransmitLoadsheet("FINAL")} className="bg-[#17202a] border border-[#2979FF] text-[#2979FF] py-3 rounded-lg font-bold hover:bg-[#2979FF] hover:text-white transition-colors">
+                    <button onClick={() => updateFlightData({ final_ls_sent: true })} className="bg-[#17202a] border border-[#2979FF] text-[#2979FF] py-3 rounded-lg font-bold hover:bg-[#2979FF] hover:text-white transition-colors">
                       {flightData.final_ls_sent ? "✅ FINAL SENT" : "TRANSMIT FINAL"}
                     </button>
                   </div>
@@ -654,88 +621,154 @@ function IOSPanelContent() {
               </div>
             )}
 
-            {/* 🌟 TAB 3: WX (由上至下垂直排版，帶有預填邏輯) */}
+            {/* TAB 3: WX & NOTAMs */}
             {activeTab === "WX" && (
-              <div className="animate-fade-in flex flex-col gap-4">
-                <h5 className="text-white font-bold mb-2">🌦️ Meteorological Information</h5>
-                
-                <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#242f3d]">
-                  <h6 className="text-[#8fa0a6] text-xs font-bold mb-2 uppercase">Departure: {flightData.dep_icao}</h6>
-                  <textarea id="wx_mdep" defaultValue={getWx(flightData.metar_dep, rawSb.origin?.metar)} className="w-full bg-[#11161d] border border-[#34495e] rounded p-2 text-xs text-[#e2e8f0] h-20 outline-none focus:border-[#00bfa5] font-mono mb-2" placeholder="METAR..." />
-                  <textarea id="wx_tdep" defaultValue={getWx(flightData.taf_dep, rawSb.origin?.taf)} className="w-full bg-[#11161d] border border-[#34495e] rounded p-2 text-xs text-[#e2e8f0] h-24 outline-none focus:border-[#00bfa5] font-mono" placeholder="TAF..." />
-                </div>
-                
-                <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#242f3d]">
-                  <h6 className="text-[#8fa0a6] text-xs font-bold mb-2 uppercase">Arrival: {flightData.arr_icao}</h6>
-                  <textarea id="wx_marr" defaultValue={getWx(flightData.metar_arr, rawSb.destination?.metar)} className="w-full bg-[#11161d] border border-[#34495e] rounded p-2 text-xs text-[#e2e8f0] h-20 outline-none focus:border-[#00bfa5] font-mono mb-2" placeholder="METAR..." />
-                  <textarea id="wx_tarr" defaultValue={getWx(flightData.taf_arr, rawSb.destination?.taf)} className="w-full bg-[#11161d] border border-[#34495e] rounded p-2 text-xs text-[#e2e8f0] h-24 outline-none focus:border-[#00bfa5] font-mono" placeholder="TAF..." />
-                </div>
-                
-                {rawAlternates.map((a: any, i: number) => {
-                  const icao = a.icao_code || a.icao;
-                  const overrideMetar = (flightData.alternates || [])[i]?.metar;
-                  const overrideTaf = (flightData.alternates || [])[i]?.taf;
-                  return (
-                    <div key={i} className="bg-[#0a0a0a] p-4 rounded-lg border border-[#242f3d]">
-                      <h6 className="text-[#8fa0a6] text-xs font-bold mb-2 uppercase">Alternate: {icao}</h6>
-                      <textarea id={`wx_maltn_${i}`} defaultValue={getWx(overrideMetar, a.metar)} className="w-full bg-[#11161d] border border-[#34495e] rounded p-2 text-xs text-[#e2e8f0] h-20 outline-none focus:border-[#00bfa5] font-mono mb-2" placeholder="METAR..." />
-                      <textarea id={`wx_taltn_${i}`} defaultValue={getWx(overrideTaf, a.taf)} className="w-full bg-[#11161d] border border-[#34495e] rounded p-2 text-xs text-[#e2e8f0] h-24 outline-none focus:border-[#00bfa5] font-mono" placeholder="TAF..." />
+              <div className="animate-fade-in flex flex-col gap-6">
+                <div>
+                  <h5 className="text-white font-bold mb-2">🌦️ Active METAR & TAF</h5>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#242f3d]">
+                      <h6 className="text-[#8fa0a6] text-xs font-bold mb-2">DEP: {flightData.dep_icao}</h6>
+                      <textarea id="wx_mdep" defaultValue={flightData.metar_dep} className="w-full bg-[#11161d] border border-[#34495e] rounded p-2 text-xs text-[#e2e8f0] h-20 outline-none focus:border-[#00bfa5]" />
+                      <textarea id="wx_tdep" defaultValue={flightData.taf_dep} className="w-full bg-[#11161d] border border-[#34495e] rounded p-2 text-xs text-[#e2e8f0] h-24 outline-none focus:border-[#00bfa5] mt-2" />
                     </div>
-                  )
-                })}
+                    <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#242f3d]">
+                      <h6 className="text-[#8fa0a6] text-xs font-bold mb-2">ARR: {flightData.arr_icao}</h6>
+                      <textarea id="wx_marr" defaultValue={flightData.metar_arr} className="w-full bg-[#11161d] border border-[#34495e] rounded p-2 text-xs text-[#e2e8f0] h-20 outline-none focus:border-[#00bfa5]" />
+                      <textarea id="wx_tarr" defaultValue={flightData.taf_arr} className="w-full bg-[#11161d] border border-[#34495e] rounded p-2 text-xs text-[#e2e8f0] h-24 outline-none focus:border-[#00bfa5] mt-2" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h5 className="text-white font-bold mb-2">📢 Active NOTAMs</h5>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#242f3d]">
+                      <h6 className="text-[#8fa0a6] text-xs font-bold mb-2">DEP NOTAM: {flightData.dep_icao}</h6>
+                      <textarea id="notam_dep" defaultValue={flightData.notam_dep} className="w-full bg-[#11161d] border border-[#34495e] rounded p-2 text-xs text-[#e2e8f0] h-32 outline-none focus:border-[#00bfa5]" />
+                    </div>
+                    <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#242f3d]">
+                      <h6 className="text-[#8fa0a6] text-xs font-bold mb-2">ARR NOTAM: {flightData.arr_icao}</h6>
+                      <textarea id="notam_arr" defaultValue={flightData.notam_arr} className="w-full bg-[#11161d] border border-[#34495e] rounded p-2 text-xs text-[#e2e8f0] h-32 outline-none focus:border-[#00bfa5]" />
+                    </div>
+                  </div>
+                </div>
 
                 <button 
-                  onClick={handleSaveWx}
-                  className="w-full bg-[#00bfa5]/20 border-2 border-[#00bfa5] text-[#00bfa5] py-4 rounded-lg font-bold hover:bg-[#00bfa5] hover:text-black transition-all mt-4"
+                  onClick={() => {
+                    updateFlightData({
+                      metar_dep: (document.getElementById('wx_mdep') as HTMLTextAreaElement).value,
+                      taf_dep: (document.getElementById('wx_tdep') as HTMLTextAreaElement).value,
+                      metar_arr: (document.getElementById('wx_marr') as HTMLTextAreaElement).value,
+                      taf_arr: (document.getElementById('wx_tarr') as HTMLTextAreaElement).value,
+                      notam_dep: (document.getElementById('notam_dep') as HTMLTextAreaElement).value,
+                      notam_arr: (document.getElementById('notam_arr') as HTMLTextAreaElement).value,
+                    });
+                    alert("Weather and NOTAMs saved to EFB!");
+                  }}
+                  className="w-full bg-[#00bfa5]/20 border-2 border-[#00bfa5] text-[#00bfa5] py-3 rounded-lg font-bold hover:bg-[#00bfa5] hover:text-black transition-all"
                 >
-                  💾 SAVE & PUBLISH WX TO EFB
+                  💾 SAVE & PUBLISH TO EFB
                 </button>
               </div>
             )}
 
-            {/* 🌟 TAB 4: NOTAMs (由上至下垂直排版，帶有預填邏輯) */}
-            {activeTab === "NOTAMs" && (
-              <div className="animate-fade-in flex flex-col gap-4">
-                <h5 className="text-white font-bold mb-2">📢 Active NOTAMs</h5>
-                
-                <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#242f3d]">
-                  <h6 className="text-[#8fa0a6] text-xs font-bold mb-2 uppercase">Departure: {flightData.dep_icao}</h6>
-                  <textarea id="notam_dep" defaultValue={getNotam(flightData.notam_dep, rawSb.origin?.notam)} className="w-full bg-[#11161d] border border-[#34495e] rounded p-3 text-xs text-[#e2e8f0] h-32 outline-none focus:border-[#00bfa5] font-mono whitespace-pre-wrap" />
-                </div>
-                
-                <div className="bg-[#0a0a0a] p-4 rounded-lg border border-[#242f3d]">
-                  <h6 className="text-[#8fa0a6] text-xs font-bold mb-2 uppercase">Arrival: {flightData.arr_icao}</h6>
-                  <textarea id="notam_arr" defaultValue={getNotam(flightData.notam_arr, rawSb.destination?.notam)} className="w-full bg-[#11161d] border border-[#34495e] rounded p-3 text-xs text-[#e2e8f0] h-32 outline-none focus:border-[#00bfa5] font-mono whitespace-pre-wrap" />
-                </div>
-
-                {rawAlternates.map((a: any, i: number) => {
-                  const icao = a.icao_code || a.icao;
-                  const overrideNotam = (flightData.alternates || [])[i]?.notam;
-                  return (
-                    <div key={i} className="bg-[#0a0a0a] p-4 rounded-lg border border-[#242f3d]">
-                      <h6 className="text-[#8fa0a6] text-xs font-bold mb-2 uppercase">Alternate: {icao}</h6>
-                      <textarea id={`notam_altn_${i}`} defaultValue={getNotam(overrideNotam, a.notam)} className="w-full bg-[#11161d] border border-[#34495e] rounded p-3 text-xs text-[#e2e8f0] h-32 outline-none focus:border-[#00bfa5] font-mono whitespace-pre-wrap" />
-                    </div>
-                  )
-                })}
-
-                <button 
-                  onClick={handleSaveNotam}
-                  className="w-full bg-[#00bfa5]/20 border-2 border-[#00bfa5] text-[#00bfa5] py-4 rounded-lg font-bold hover:bg-[#00bfa5] hover:text-black transition-all mt-4"
-                >
-                  💾 SAVE & PUBLISH NOTAMs TO EFB
-                </button>
-              </div>
-            )}
-
-            {/* 🌟 TAB 5: eTechLog (強制引入工程師模式組件) */}
+            {/* TAB 4: eTechLog */}
             {activeTab === "eTechLog" && (
-              <div className="animate-fade-in h-[85vh]">
-                 <TechLog flightData={flightData} updateFlightData={updateFlightData} forcedRole="ENGINEER" />
+              <div className="animate-fade-in flex flex-col gap-6">
+                <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-6">
+                  <h5 className="text-white font-bold mb-4 flex items-center gap-2">🔧 Maintenance Release Control</h5>
+                  
+                  <div className="flex items-center justify-between bg-[#0a0a0a] p-4 rounded border border-[#34495e] mb-4">
+                    <div>
+                      <div className="text-[#8fa0a6] text-xs font-bold uppercase">Aircraft Status</div>
+                      <div className={`text-xl font-black ${flightData.tl_release ? 'text-[#00E676]' : 'text-[#FF1744]'}`}>
+                        {flightData.tl_release ? "RELEASED FOR FLIGHT" : "GROUNDED (UNRELEASED)"}
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => updateFlightData({ tl_release: !flightData.tl_release })}
+                      className={`px-6 py-3 font-black rounded-lg transition-colors ${
+                        flightData.tl_release 
+                          ? "bg-[#17202a] text-[#8fa0a6] border border-[#34495e] hover:bg-[#FF1744] hover:text-white" 
+                          : "bg-[#00E676] text-black hover:bg-[#00c853] shadow-[0_4px_10px_rgba(0,230,118,0.4)]"
+                      }`}
+                    >
+                      {flightData.tl_release ? "REVOKE RELEASE" : "✅ SIGN RELEASE"}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex justify-between bg-[#17202a] p-3 rounded">
+                      <span className="text-[#8fa0a6]">Crew Acceptance:</span>
+                      {flightData.tl_accept ? <span className="text-[#00E676] font-bold">ACCEPTED</span> : <span className="text-[#FF9100] font-bold">WAITING</span>}
+                    </div>
+                    <div className="flex justify-between bg-[#17202a] p-3 rounded">
+                      <span className="text-[#8fa0a6]">Flight Sector:</span>
+                      {flightData.tl_flight_started ? <span className="text-[#00bfa5] font-bold">STARTED</span> : <span className="text-[#8fa0a6] font-bold">NOT STARTED</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#11161d] border border-[#242f3d] rounded-xl p-6">
+                  <h5 className="text-[#FF9100] font-bold mb-4">⚠️ Inject Defects (ADD/PMA)</h5>
+                  
+                  <div className="flex gap-2 mb-6">
+                    <input 
+                      type="text" 
+                      id="ios_defect_input"
+                      placeholder="e.g., ENG 1 BLEED FAULT..." 
+                      className="flex-1 bg-[#0a0a0a] border border-[#34495e] rounded-lg p-3 text-white outline-none focus:border-[#FF9100] font-mono text-sm"
+                    />
+                    <button 
+                      onClick={() => {
+                        const input = document.getElementById('ios_defect_input') as HTMLInputElement;
+                        if (input.value.trim()) {
+                          const newDefect = {
+                            id: `ADD-${Math.floor(Math.random() * 10000)}`,
+                            description: input.value.trim(),
+                            status: "OPEN",
+                            time: new Date().toISOString().substring(11, 16) + "Z"
+                          };
+                          updateFlightData({ defects: [...(flightData.defects || []), newDefect] });
+                          input.value = "";
+                        }
+                      }}
+                      className="bg-[#FF9100] text-black font-black px-6 py-3 rounded-lg hover:bg-[#ffA000] transition-colors"
+                    >
+                      INJECT
+                    </button>
+                  </div>
+
+                  <h6 className="text-[#8fa0a6] text-xs font-bold uppercase mb-2">Active Defects</h6>
+                  <div className="flex flex-col gap-2">
+                    {(!flightData.defects || flightData.defects.length === 0) ? (
+                      <div className="text-center text-[#8fa0a6] text-sm italic py-4 bg-[#0a0a0a] rounded border border-[#34495e]">No active defects.</div>
+                    ) : (
+                      flightData.defects.map((d: any, i: number) => (
+                        <div key={i} className="flex justify-between items-center bg-[#0a0a0a] border border-[#FF9100] rounded p-3">
+                          <div>
+                            <div className="text-[#FF9100] text-xs font-bold">{d.id} • {d.time}</div>
+                            <div className="text-[#e2e8f0] font-mono text-sm">{d.description}</div>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              const newDefects = flightData.defects.filter((_:any, index:number) => index !== i);
+                              updateFlightData({ defects: newDefects });
+                            }}
+                            className="bg-[#17202a] text-[#FF1744] border border-[#FF1744] px-3 py-1 rounded text-xs font-bold hover:bg-[#FF1744] hover:text-white transition-colors"
+                          >
+                            CLEAR
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* TAB 6: Fuel */}
+            {/* TAB 5: Fuel */}
             {activeTab === "Fuel" && (
               <div className="animate-fade-in">
                 <h5 className="text-white font-bold mb-4">⛽ Fuel Supplier Interface</h5>
