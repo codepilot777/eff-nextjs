@@ -1,40 +1,71 @@
 "use client";
 import { useState } from "react";
+// 🌟 1. 引入你啱啱寫好嘅物理引擎同飛機數據
+import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
+import { B773_BHNQ } from "@/lib/loadsheet/MockAHM"; 
 
 export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveModal }: any) {
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
 
+  // 日期與航班基本資料
   const stdUnix = flightData?.std_unix || 0;
   const fpDateObj = stdUnix > 0 ? new Date(stdUnix * 1000) : new Date();
   const date_str_ls = fpDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, '').toUpperCase();
   const date_str_ezfw = fpDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).replace(/ /g, '').toUpperCase();
 
-  const zfw_act = Math.round((calc.actualZfw > 0 ? calc.actualZfw : calc.ofpZfw) * 1000);
-  const tow_act = Math.round(calc.currTow * 1000);
-  const law_act = Math.round(calc.currLw * 1000);
-  const trip_act = Math.round(calc.currTrip * 1000);
-  const takeoff_fuel_kg = tow_act - zfw_act; 
-
-  const dow_kg = flightData?.dow || 161968;
   const dispatcher = flightData?.dispatcher || 'SYSTEM';
   const flight_num_clean = flightData?.flight_no?.replace(" ", "") || 'CPA564';
   const reg_clean = calc.reg.replace("-", "");
-  
-  const pax_j = flightData?.pax_j || 0;
-  const pax_y = flightData?.pax_y || 0;
-  const pax_f = flightData?.pax_f || 0;
-  const pax_w = flightData?.pax_w || 0;
   const crew_fd = flightData?.crew_fd || 2;
   const crew_cc = flightData?.crew_cc || 14;
-  const pax_wt_total = calc.paxTot * (flightData?.pax_weight_std || 84);
+
+  // ==========================================
+  // 🌟 2. 構建 Payload 掟入 Engine
+  // ==========================================
+  // 假設 flightData 裡面有存呢啲數據，無就用預設值 (或者對應返你現有嘅 calc 邏輯)
+  const payload = {
+    pax: { 
+      zoneOA: flightData?.pax_f || 0, // 假設 F class 對應 Zone OA
+      zoneOB: flightData?.pax_j || 0, // 假設 J class 對應 Zone OB
+      zoneOC: flightData?.pax_w || 0, // 假設 W class 對應 Zone OC
+      zoneOD: flightData?.pax_y || 0  // 假設 Y class 對應 Zone OD
+    },
+    paxWeights: { J: 85, Y: 81 }, // 跟據 Image 2
+    cargo: {
+      hold1: flightData?.cargo_hold_1 || 0,
+      hold2: flightData?.cargo_hold_2 || 0,
+      hold3: flightData?.cargo_hold_3 || 0,
+      hold4: flightData?.cargo_hold_4 || 0,
+      bulk: flightData?.cargo_bulk || 0
+    },
+    waterFraction: flightData?.water_fraction ?? 15, // 🚰 動態食水 (預設 15/16)
+    fuel: {
+      takeoff: Math.round((flightData?.final_fuel_request || calc.currTow - calc.actualZfw) * 1000),
+      trip: Math.round(calc.currTrip * 1000),
+      isStandard: flightData?.fuel_is_standard ?? true, // ⛽ Non-Standard 燃油邏輯
+      tanks: {
+        leftMain: flightData?.fuel_left_main || 0,
+        rightMain: flightData?.fuel_right_main || 0,
+        center: flightData?.fuel_center || 0
+      }
+    }
+  };
+
+  // 🚀 開動引擎！
+  const engine = new LoadsheetEngine(B773_BHNQ, payload);
+  const w = engine.calculateWeights();
+  const cg = engine.calculateCG();
+
+  // ==========================================
+  // 🌟 3. 動態 Margin 及 L (Limiting) 計算邏輯 (全面改用 Engine 數據)
+  // ==========================================
+  const maxZFW = B773_BHNQ.limits.MZFW;
+  const maxTOW = B773_BHNQ.limits.MTOW;
+  const maxLAW = B773_BHNQ.limits.MLAW;
   
-  // 🌟 動態 Margin 及 L (Limiting) 計算邏輯
-  const maxZFW = 224528;
-  const maxTOW = 263083;
-  const maxLAW = 237682;
-  const marginZFW = maxZFW - zfw_act;
-  const marginTOW = maxTOW - tow_act;
-  const marginLAW = maxLAW - law_act;
+  const marginZFW = maxZFW - w.ZFW;
+  const marginTOW = maxTOW - w.TOW;
+  const marginLAW = maxLAW - w.LAW;
   
   const minMargin = Math.min(marginZFW, marginTOW, marginLAW);
   const underload = marginZFW; 
@@ -43,10 +74,15 @@ export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveMo
   const lTow = marginTOW === minMargin ? "L" : " ";
   const lLaw = marginLAW === minMargin ? "L" : " ";
 
+  // 產生 Loadsheet 電報 (全面替換為動態變數)
   const getLsText = (isFinal: boolean) => {
     const lsType = isFinal ? "FINAL" : "PRELIM";
     const lsVer = isFinal ? (flightData?.final_ls_version || 1) : (flightData?.prelim_ls_version || 1);
     const lsVerStr = lsVer.toString().padStart(2, '0');
+    
+    // 計算總人數
+    const pax_j = payload.pax.zoneOA + payload.pax.zoneOB; // 模擬合併
+    const pax_y = payload.pax.zoneOC + payload.pax.zoneOD; 
     
     return `LDS/${reg_clean}/${flight_num_clean}
 LOADSHEET                   ${lsType}  ${lsVerStr}
@@ -54,25 +90,25 @@ ${flight_num_clean}/${date_str_ls}
 ${calc.depIata}  ${calc.arrIata}  ${flight_num_clean}/20                ${reg_clean}
 J${pax_j.toString().padEnd(2)}Y${pax_y.toString().padEnd(3)}      ${crew_fd}/${crew_cc}                ${date_str_ls}
 
-ZFW ACT ${zfw_act.toString().padEnd(8)}  MAX ${maxZFW}  ${lZfw}   ${marginZFW}
-TO FUEL ${takeoff_fuel_kg.toString().padEnd(8)}
-TOW ACT ${tow_act.toString().padEnd(8)}  MAX ${maxTOW}  ${lTow}   ${marginTOW}
-TRIP FUEL ${trip_act.toString().padEnd(8)}
-LAW ACT ${law_act.toString().padEnd(8)}  MAX ${maxLAW}  ${lLaw}   ${marginLAW}
+ZFW ACT ${w.ZFW.toString().padEnd(8)}  MAX ${maxZFW}  ${lZfw}   ${marginZFW}
+TO FUEL ${payload.fuel.takeoff.toString().padEnd(8)}
+TOW ACT ${w.TOW.toString().padEnd(8)}  MAX ${maxTOW}  ${lTow}   ${marginTOW}
+TRIP FUEL ${payload.fuel.trip.toString().padEnd(8)}
+LAW ACT ${w.LAW.toString().padEnd(8)}  MAX ${maxLAW}  ${lLaw}   ${marginLAW}
 
 BALANCE AND SEATING
-BW  155582      DOW ${dow_kg}
-BI  715.00      DOI 741.09
-LIZFW   678.16  MACZFW  22.75
-LITOW   683.36  MATOW   23.77
-LILAW   675.30  MACLAW  23.33
+BW  ${B773_BHNQ.basicData.BW}      DOW ${w.DOW}
+BI  ${B773_BHNQ.basicData.BI.toFixed(2)}      DOI 741.09
+LIZFW   ${cg.LIZFW.toFixed(2)}  MACZFW  ${cg.MACZFW.toFixed(2)}
+LITOW   ${cg.LITOW.toFixed(2)}  MATOW   ${cg.MACTOW.toFixed(2)}
+LILAW   ${cg.LILAW.toFixed(2)}  MACLAW  ${cg.MACLAW.toFixed(2)}
 
-STAB TO 5.5
-0A/${pax_f.toString().padEnd(3)} 0B/${pax_j.toString().padEnd(3)} 0C/${pax_w.toString().padEnd(3)} 0D/${pax_y.toString().padEnd(3)}
-T${calc.cgo_total.toString().padEnd(5)} .1/${(flightData?.cargo_hold_1||0).toString().padEnd(4)} .2/${(flightData?.cargo_hold_2||0).toString().padEnd(4)} .3/${(flightData?.cargo_hold_3||0).toString().padEnd(4)} .4/${(flightData?.cargo_hold_4||0).toString().padEnd(4)} .5/${(flightData?.cargo_bulk||0).toString().padEnd(4)}
+STAB TO ${cg.stabTrim}
+0A/${payload.pax.zoneOA.toString().padEnd(3)} 0B/${payload.pax.zoneOB.toString().padEnd(3)} 0C/${payload.pax.zoneOC.toString().padEnd(3)} 0D/${payload.pax.zoneOD.toString().padEnd(3)}
+T${(w.totalCargoWeight).toString().padEnd(5)} .1/${payload.cargo.hold1.toString().padEnd(4)} .2/${payload.cargo.hold2.toString().padEnd(4)} .3/${payload.cargo.hold3.toString().padEnd(4)} .4/${payload.cargo.hold4.toString().padEnd(4)} .5/${payload.cargo.bulk.toString().padEnd(4)}
 
 ${calc.arrIata}  J${pax_j.toString().padStart(3, '0')}    Y${pax_y.toString().padStart(3, '0')}
-TTL PAX ${calc.paxTot.toString().padEnd(5)}  UNDERLOAD   ${underload}
+TTL PAX ${w.paxCount.toString().padEnd(5)}  UNDERLOAD   ${underload}
 
 CMDR NAME
 SIGN
@@ -82,7 +118,7 @@ NOTOC:
 PANTRY CODE:        77P-A
 PANTRY EFFECT       4285/11-
 SERVICE WEIGHT ADJUSTMENT/INDEX ADD
-${calc.arrIata}    POTABLE WATER       15/16   94  PCT
+${calc.arrIata}    POTABLE WATER       ${payload.waterFraction}/16   ${Math.round((payload.waterFraction/16)*100)}  PCT
 805 53
 
 NORMAL MACTOW LIMITS:
@@ -92,31 +128,35 @@ LOADSHEETER/${dispatcher}/HKG1576`;
   };
 
   const getAzfText = () => {
-    const tow_reqd = Math.round(zfw_act + (calc.ofpReqdBase * 1000));
-    return `AZF/${reg_clean}/${flight_num_clean}\n- PAX/ ${calc.paxTot}\n- CGO/ ${calc.cgo_total}\n- ZFW/ ${zfw_act}\n- CRW/ ${crew_fd}/${crew_cc}\n- TOW/ ${tow_reqd}\n- DEP/ ${(flightData?.std_z || '0000').replace('Z', '')}\n- SEC/ ${calc.depIata}-${calc.arrIata}\n\nFLT STATUS: closed\nLCO: ${dispatcher}\n\nSI`;
+    const tow_reqd = Math.round(w.ZFW + (calc.ofpReqdBase * 1000));
+    return `AZF/${reg_clean}/${flight_num_clean}\n- PAX/ ${w.paxCount}\n- CGO/ ${w.totalCargoWeight}\n- ZFW/ ${w.ZFW}\n- CRW/ ${crew_fd}/${crew_cc}\n- TOW/ ${tow_reqd}\n- DEP/ ${(flightData?.std_z || '0000').replace('Z', '')}\n- SEC/ ${calc.depIata}-${calc.arrIata}\n\nFLT STATUS: closed\nLCO: ${dispatcher}\n\nSI`;
   };
 
   const getEzfwText = () => {
-    const ttlLoad = pax_wt_total + calc.cgo_total;
+    const ttlLoad = w.totalPaxWeight + w.totalCargoWeight;
     const estZfwKg = Math.round((flightData?.weight_zfw_ofp || 0.0) * 1000);
-    return `EZFW ${flight_num_clean}/${date_str_ezfw} ${reg_clean} J${pax_j}Y${pax_y}\n${crew_fd}/${crew_cc} ${calc.depIata}${calc.arrIata}\n\nPASSENGER           ${pax_wt_total.toString().padEnd(6)} KG\nCARGO               ${calc.cgo_total.toString().padEnd(6)} KG\nTTL TRAFFIC LOAD    ${ttlLoad.toString().padEnd(6)} KG\n\nJ${pax_j}  Y${pax_y}\nDOW                 ${dow_kg.toString().padEnd(6)} KG\nEST ZFW             ${estZfwKg.toString().padEnd(6)} KG\n\nLCO: ${dispatcher}\nSI\nLATEST EZFW`;
+    const pax_j = payload.pax.zoneOA + payload.pax.zoneOB;
+    const pax_y = payload.pax.zoneOC + payload.pax.zoneOD;
+    
+    return `EZFW ${flight_num_clean}/${date_str_ezfw} ${reg_clean} J${pax_j}Y${pax_y}\n${crew_fd}/${crew_cc} ${calc.depIata}${calc.arrIata}\n\nPASSENGER           ${w.totalPaxWeight.toString().padEnd(6)} KG\nCARGO               ${w.totalCargoWeight.toString().padEnd(6)} KG\nTTL TRAFFIC LOAD    ${ttlLoad.toString().padEnd(6)} KG\n\nJ${pax_j}  Y${pax_y}\nDOW                 ${w.DOW.toString().padEnd(6)} KG\nEST ZFW             ${estZfwKg.toString().padEnd(6)} KG\n\nLCO: ${dispatcher}\nSI\nLATEST EZFW`;
   };
 
   return (
     <div className="flex flex-row h-full w-full overflow-hidden relative">
+      {/* 👈 左側 Weights & Fuel 表格：全自動從 Engine 獲取 */}
       <div className="w-[340px] shrink-0 flex flex-col h-full border-r border-[#333333] pr-6">
         <div className="text-xl font-bold text-status-teal border-b border-[#333333] pb-2 mb-4 uppercase shrink-0">Weights & Fuel</div>
         <div className="overflow-y-auto pr-2 flex-1 min-h-0">
           <table className="w-full text-sm">
             <tbody>
-              <tr><td className="text-text-muted py-1">Trip Fuel</td><td className="text-right font-bold text-[#e2e8f0]">{calc.currTrip.toFixed(1)} T</td></tr>
+              <tr><td className="text-text-muted py-1">Trip Fuel</td><td className="text-right font-bold text-[#e2e8f0]">{(payload.fuel.trip/1000).toFixed(1)} T</td></tr>
               <tr><td className="text-text-muted py-1">Contingency</td><td className="text-right font-bold text-[#e2e8f0]">{calc.currCont.toFixed(1)} T</td></tr>
               <tr><td className="text-text-muted py-1">Alternate</td><td className="text-right font-bold text-[#e2e8f0]">{calc.currAltnOfp.toFixed(1)} T</td></tr>
               <tr><td className="text-text-muted py-1">Reserve</td><td className="text-right font-bold text-[#e2e8f0]">{calc.ofpRes.toFixed(1)} T</td></tr>
               <tr className="border-b border-[#333]"><td className="text-[#00E676] py-1 font-bold">Fuel Reqd</td><td className="text-right font-bold text-[#00E676]">{calc.currReqdBase.toFixed(1)} T</td></tr>
-              <tr><td className="text-text-muted py-1 pt-3">Zero Fuel Wt</td><td className="text-right font-bold pt-3 text-[#e2e8f0]">{(calc.actualZfw > 0 ? calc.actualZfw : calc.ofpZfw).toFixed(1)} T</td></tr>
-              <tr><td className="text-text-muted py-1">Takeoff Wt</td><td className="text-right font-bold text-[#e2e8f0]">{calc.currTow.toFixed(1)} T</td></tr>
-              <tr><td className="text-text-muted py-1">Landing Wt</td><td className="text-right font-bold text-[#e2e8f0]">{calc.currLw.toFixed(1)} T</td></tr>
+              <tr><td className="text-text-muted py-1 pt-3">Zero Fuel Wt</td><td className="text-right font-bold pt-3 text-[#e2e8f0]">{(w.ZFW/1000).toFixed(1)} T</td></tr>
+              <tr><td className="text-text-muted py-1">Takeoff Wt</td><td className="text-right font-bold text-[#e2e8f0]">{(w.TOW/1000).toFixed(1)} T</td></tr>
+              <tr><td className="text-text-muted py-1">Landing Wt</td><td className="text-right font-bold text-[#e2e8f0]">{(w.LAW/1000).toFixed(1)} T</td></tr>
             </tbody>
           </table>
         </div>
@@ -188,7 +228,6 @@ LOADSHEETER/${dispatcher}/HKG1576`;
         <div className="absolute inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in rounded-xl">
           <div className="bg-[#1a1a1a] border border-[#00bfa5] rounded-xl w-[320px] p-6 shadow-[0_0_40px_rgba(0,191,165,0.2)] flex flex-col relative">
             
-            {/* 🌟 統一用右上角的細 X 作為返回 */}
             <button 
               onClick={() => setShowFinalConfirm(false)} 
               className="absolute top-3 right-4 text-[#8fa0a6] hover:text-[#FF1744] font-black text-xl transition-colors"
