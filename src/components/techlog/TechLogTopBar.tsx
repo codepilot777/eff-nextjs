@@ -7,7 +7,6 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
   const currDep = tlData?.tl_prep_dep || flightData?.dep_icao || "HKG";
   const currArr = tlData?.tl_prep_arr || flightData?.arr_icao || "KIX";
   
-  // 🌟 動態讀取最新的 Previous Sector 資料 (剛才 Confirm 後寫入嘅)
   const lastFlt = tlData?.tl_prev_flt || "CX881";
   const lastRoute = `${tlData?.tl_prev_dep || "LAX"} ➔ ${tlData?.tl_prev_arr || "HKG"}`;
   const lastFob = tlData?.tl_prev_fob || "10.5";
@@ -53,23 +52,25 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
           <div className="text-xs text-[#8fa0a6] font-bold tracking-widest mt-1">{roleMode} MODE</div>
         </div>
         
-        <div className="flex-[2] flex justify-center items-center gap-4">
-          
-          {/* 🌟 邏輯：起飛後，隱藏上一航班，只 Focus 現在這班 */}
+        <div className="flex-[3] flex justify-start md:justify-center items-center gap-4">
           {!isStarted ? (
             <>
-              {/* Previous Flight */}
               <div className="flex flex-col items-center">
                 <div className="text-2xl font-black text-white">{lastFlt}</div>
                 <div className="text-sm font-bold text-[#e2e8f0] mt-1 bg-[#1a1a1a] px-4 py-1 rounded border border-[#404040]">
                   {lastRoute}
                 </div>
               </div>
+              
+              {/* 🌟 FOB 搬到 Sector 右邊，緊貼著上一個 Sector */}
+              <div className="text-sm text-[#FF9100] font-black tracking-widest bg-[#FF9100]/10 px-3 py-1.5 rounded border border-[#FF9100]/30 shadow-sm ml-2">
+                FOB {lastFob} T
+              </div>
 
               {isPrepared && (
                 <>
-                  <div className="text-2xl font-black text-[#404040]">➔</div>
-                  <div className="flex flex-col items-center transition-all duration-300 opacity-50">
+                  <div className="text-2xl font-black text-[#404040] ml-2">➔</div>
+                  <div className="flex flex-col items-center transition-all duration-300 opacity-50 ml-2">
                     <div className="text-2xl font-black text-[#8fa0a6]">{currFlt}</div>
                     <div className="text-sm font-bold mt-1 bg-[#1a1a1a] px-4 py-1 rounded border text-[#8fa0a6] border-[#333333]">
                       {currDep} ➔ {currArr}
@@ -79,20 +80,23 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
               )}
             </>
           ) : (
-            /* Active Flight Centered */
-            <div className="flex flex-col items-center transition-all duration-500 scale-110">
-              <div className="text-2xl font-black text-[#00E676]">{currFlt}</div>
-              <div className="text-sm font-bold mt-1 bg-[#1a1a1a] px-4 py-1 rounded border text-white border-[#00E676] shadow-[0_0_10px_rgba(0,230,118,0.2)]">
-                {flightStatus === "DIVERTED" ? `${currDep} ➔ ⚠️ DIVERTED` : `${currDep} ➔ ${currArr}`}
+            <div className="flex items-center gap-4">
+              <div className="flex flex-col items-center transition-all duration-500 scale-110">
+                <div className="text-2xl font-black text-[#00E676]">{currFlt}</div>
+                <div className="text-sm font-bold mt-1 bg-[#1a1a1a] px-4 py-1 rounded border text-white border-[#00E676] shadow-[0_0_10px_rgba(0,230,118,0.2)]">
+                  {flightStatus === "DIVERTED" ? `${currDep} ➔ ⚠️ DIVERTED` : `${currDep} ➔ ${currArr}`}
+                </div>
+              </div>
+              {/* 🌟 FOB 搬到 Sector 右邊，緊貼著當前 Sector */}
+              <div className="text-sm text-[#FF9100] font-black tracking-widest bg-[#FF9100]/10 px-3 py-1.5 rounded border border-[#FF9100]/30 shadow-sm ml-2">
+                FOB {lastFob} T
               </div>
             </div>
           )}
         </div>
 
-        <div className="flex-1 flex flex-col items-end">
-          <div className="text-xl text-[#FF9100] font-black tracking-widest">ARR FOB {lastFob} T</div>
-          <div className="mt-2 text-[0.65rem] font-bold text-[#8fa0a6] tracking-widest uppercase">
-            STATUS: <span className="text-white bg-[#404040] px-2 py-0.5 rounded ml-1">{flightStatus}</span>
+        <div className="flex-1 flex flex-col items-end justify-center">
+          <div className="text-[0.65rem] font-bold text-[#8fa0a6] tracking-widest uppercase">
           </div>
         </div>
       </div>

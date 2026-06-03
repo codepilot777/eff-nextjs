@@ -1,24 +1,45 @@
 "use client";
-
-import { TaskPrepareFlight, TaskFuelRecord, TaskAcceptance, TaskNormalClose, TaskGroundReturn, TaskAirReturn, TaskDiversion, TaskDidNotDepart } from "./TechLogForms";
+import { 
+  TaskPrepareFlight, TaskFuelRecord, TaskAcceptance, 
+  TaskNormalClose, TaskGroundReturn, TaskAirReturn, 
+  TaskDiversion, TaskDidNotDepart 
+} from "./forms";
 
 export default function TechLogRightPanel({ tlData, flightData, roleMode, activeTask, setActiveTask, selectedEntry, showInFlightMenu, setShowInFlightMenu, updateTechLogData, defects }: any) {
   
   const { tl_flight_started: isStarted, tl_total_departure_fuel: totalDepFuel } = tlData;
 
+  // Engineer 處理 Defects 嘅邏輯 (因為好短，保留喺度)
   const handleClearDefect = (id: string, actionDesc: string) => {
     updateTechLogData({ defects: defects.map((d: any) => d.id === id ? { ...d, status: "CLEARED", action_desc: actionDesc } : d) });
     setActiveTask(null);
   };
 
   const handleDeferDefect = (id: string, type: string, mel: string, reason: string) => {
-    updateTechLogData({ defects: defects.map((d: any) => d.id === id ? { ...d, status: "DEFERRED", deferral_type: type, mel_ref: mel, deferral_reason: reason } : d) });
+    // 🌟 擷取原本的數字部分，例如 "TL001" -> "001"
+    const numMatch = id.match(/\d+/);
+    const num = numMatch ? numMatch[0] : Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    
+    // 🌟 根據 ADD 種類分配新前綴
+    const prefix = type === "PADD" ? "P" : type === "SADD" ? "S" : "A";
+    const newId = `${prefix}${num}`;
+
+    updateTechLogData({ 
+      defects: defects.map((d: any) => d.id === id ? { 
+        ...d, 
+        id: newId, // 賦予全新的 Serial Number
+        status: "DEFERRED", 
+        deferral_type: type, 
+        mel_ref: mel, 
+        deferral_reason: reason 
+      } : d) 
+    });
     setActiveTask(null);
   };
-
   return (
     <div className="flex-[6] bg-[#2a2a2a] border border-[#333333] rounded-xl p-6 shadow-lg overflow-y-auto relative">
-      {/* 右上角 In-Flight Dropdown */}
+      
+      {/* ✈️ 右上角 In-Flight Dropdown */}
       {isStarted && roleMode === "FLIGHT CREW" && (
         <div className="absolute top-6 right-6 z-50">
           <button onClick={() => setShowInFlightMenu(!showInFlightMenu)} className="bg-[#00E676]/15 border border-[#00E676] text-[#00E676] text-[0.65rem] font-black px-4 py-2.5 rounded hover:bg-[#00E676] hover:text-black transition-all shadow-lg tracking-widest uppercase flex items-center gap-2">
@@ -36,7 +57,7 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
         </div>
       )}
 
-      {/* 無選擇任何 Task 的空狀態 */}
+      {/* 👈 無選擇任何 Task 的空狀態 */}
       {!activeTask ? (
         <div className="h-full flex flex-col items-center justify-center text-[#8fa0a6] italic">
           {isStarted && roleMode === "FLIGHT CREW" ? (
@@ -48,19 +69,17 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
       ) : (
         <div className="animate-fade-in h-full flex flex-col">
           
-          {/* 🌟 抽離出來的大型模組化表單 */}
+          {/* 🌟 Flight Crew: 8 大模組化表單 (極致清爽！) */}
           {activeTask === "prepare" && <TaskPrepareFlight flightData={flightData} tlData={tlData} updateTechLogData={updateTechLogData} setActiveTask={setActiveTask} />}
           {activeTask === "fuel_record" && <TaskFuelRecord flightData={flightData} tlData={tlData} updateTechLogData={updateTechLogData} setActiveTask={setActiveTask} />}
           {activeTask === "acceptance" && <TaskAcceptance tlData={tlData} updateTechLogData={updateTechLogData} setActiveTask={setActiveTask} />}
           {activeTask === "op_normal_close" && <TaskNormalClose tlData={tlData} defects={defects} updateTechLogData={updateTechLogData} setActiveTask={setActiveTask} />}
-
-          {/* 小型 Operations 表單 (因為短，直接保留) */}
-          {activeTask === "op_diversion" && <TaskDiversion tlData={tlData} defects={defects} updateTechLogData={updateTechLogData} setActiveTask={setActiveTask} />}
           {activeTask === "op_ground_return" && <TaskGroundReturn tlData={tlData} defects={defects} updateTechLogData={updateTechLogData} setActiveTask={setActiveTask} />}
           {activeTask === "op_air_return" && <TaskAirReturn tlData={tlData} defects={defects} updateTechLogData={updateTechLogData} setActiveTask={setActiveTask} />}
+          {activeTask === "op_diversion" && <TaskDiversion tlData={tlData} defects={defects} updateTechLogData={updateTechLogData} setActiveTask={setActiveTask} />}
           {activeTask === "op_cancel_gate" && <TaskDidNotDepart tlData={tlData} defects={defects} updateTechLogData={updateTechLogData} setActiveTask={setActiveTask} />}
 
-          {/* Engineer 表單 */}
+          {/* 🔧 Engineer 表單 (短邏輯，直接保留) */}
           {activeTask === "maint_check" && (
             <div className="flex flex-col gap-4"><h3 className="text-2xl font-black text-[#00E676] border-b border-[#333333] pb-3 mb-6">Maintenance Check</h3><button onClick={() => {updateTechLogData({tl_checks: true}); setActiveTask(null);}} className="w-full py-4 bg-[#00E676] text-black font-black rounded-lg mt-auto">CONFIRM SIGN-OFF</button></div>
           )}
@@ -71,7 +90,7 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
             <div className="flex flex-col gap-4 h-full"><h3 className="text-2xl font-black text-[#00E676] border-b border-[#333333] pb-3">Release Aircraft</h3><button onClick={() => {updateTechLogData({tl_release: true}); setActiveTask(null);}} className="w-full py-4 bg-[#00E676] text-black font-black rounded-lg mt-auto">SIGN RELEASING STATEMENT</button></div>
           )}
 
-          {/* 查看/處理 Defects 詳情 */}
+          {/* 📋 查看/處理 Defects 詳情 */}
           {activeTask === "view_entry" && selectedEntry && (
             defects.filter((d:any)=>d.id === selectedEntry).map((sel:any) => (
               <div key={sel.id} className="flex flex-col h-full">
@@ -97,14 +116,16 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
             ))
           )}
 
+          {/* ℹ️ Flight Info */}
           {activeTask === "info" && (
             <div className="text-[#e2e8f0] text-sm leading-loose">
               <h3 className="text-2xl font-black text-[#00bfa5] border-b border-[#333333] pb-3 mb-6 pr-48">Flight Info</h3>
-              <div><strong className="text-[#8fa0a6]">Flight Number:</strong> {flightData?.flight_no || 'CPA 564'}</div>
+              <div><strong className="text-[#8fa0a6]">Flight Number:</strong> {tlData?.tl_prep_flt || flightData?.flight_no || 'CPA 564'}</div>
               <div><strong className="text-[#8fa0a6]">Route:</strong> {tlData?.tl_prep_dep || flightData?.dep_icao} ➔ {tlData?.tl_prep_arr || flightData?.arr_icao}</div>
               <div><strong className="text-[#8fa0a6]">Total Fuel Loaded:</strong> {totalDepFuel || 0} T</div>
             </div>
           )}
+
         </div>
       )}
     </div>
