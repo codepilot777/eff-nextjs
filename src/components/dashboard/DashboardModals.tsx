@@ -1,9 +1,10 @@
 "use client";
 
 // 從 index.ts 一次過引入所有模組
-import { ModalLoadsheet, ModalReject, ModalFMS, ModalAirports, ModalDOCS, ModalRefuelling, ModalSNN } from "./modals"; 
+import { ModalLoadsheet, ModalReject, ModalFMS, ModalAirports, ModalDOCS, ModalRefuelling, ModalSNN, ModalAcceptFuel } from "./modals"; 
 
-export default function DashboardModals({ flightData, updateFlightData, activeModal, setActiveModal, calc }: any) {
+// 🌟 修正：記得喺呢度加返 handlers 入去！
+export default function DashboardModals({ flightData, updateFlightData, activeModal, setActiveModal, calc, handlers }: any) {
   if (!activeModal) return null;
 
   // 判定 Modal Title
@@ -17,6 +18,7 @@ export default function DashboardModals({ flightData, updateFlightData, activeMo
     case 'Refuelling': modalTitle = 'Refuelling Order & Receipt'; break;
     case 'SNN': modalTitle = 'Special Navigation Note'; break;
     case 'DOCS': modalTitle = 'Operational Flight Plan'; break;
+    case 'AcceptFuel': modalTitle = 'Accept Final Fuel Figures'; break;
   }
 
   return (
@@ -53,6 +55,8 @@ export default function DashboardModals({ flightData, updateFlightData, activeMo
           { activeModal === 'Refuelling' && <ModalRefuelling flightData={flightData} updateFlightData={updateFlightData} setActiveModal={setActiveModal} />}
           { activeModal === 'SNN' && <ModalSNN flightData={flightData} />}
           { activeModal === 'DOCS' && <ModalDOCS flightData={flightData} />}
+          {/* 🌟 這裡使用 handlers，上面已經補返接收 */}
+          { activeModal === 'AcceptFuel' && <ModalAcceptFuel flightData={flightData} calc={calc} handlers={handlers} setActiveModal={setActiveModal} />}
         </div>
       </div>
     </div>

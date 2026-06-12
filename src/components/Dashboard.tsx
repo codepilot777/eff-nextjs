@@ -175,10 +175,10 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   return (
     <div className="relative flex gap-2 h-full w-full">
       <FmcCrewColumn flightData={flightData} calc={calc} setActiveModal={setActiveModal} />
-      <FuelWeightColumn flightData={flightData} updateFlightData={updateFlightData} calc={calc} handlers={handlers} />
+      <FuelWeightColumn flightData={flightData} updateFlightData={updateFlightData} calc={calc} handlers={handlers} setActiveModal={setActiveModal}/>
       <LoadsheetAirportColumn flightData={flightData} calc={calc} setActiveModal={setActiveModal} />
       <RefuelAircraftColumn flightData={flightData} updateFlightData={updateFlightData} calc={calc} setActiveModal={setActiveModal} />
-      <DashboardModals flightData={flightData} updateFlightData={updateFlightData} activeModal={activeModal} setActiveModal={setActiveModal} calc={calc} />
+      <DashboardModals flightData={flightData} updateFlightData={updateFlightData} activeModal={activeModal} setActiveModal={setActiveModal} calc={calc} handlers={handlers} />
     </div>
   );
 }
