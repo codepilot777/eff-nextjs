@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-// 🌟 1. 引入你啱啱寫好嘅物理引擎同飛機數據
 import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
 import { B773_BHNQ } from "@/lib/loadsheet/MockAHM"; 
 
@@ -15,38 +14,37 @@ export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveMo
 
   const dispatcher = flightData?.dispatcher || 'SYSTEM';
   const flight_num_clean = flightData?.flight_no?.replace(" ", "") || 'CPA564';
-  const reg_clean = calc.reg.replace("-", "");
+  const reg_clean = calc?.reg?.replace("-", "") || "BHNQ";
   const crew_fd = flightData?.crew_fd || 2;
   const crew_cc = flightData?.crew_cc || 14;
 
   // ==========================================
-  // 🌟 2. 構建 Payload 掟入 Engine
+  // 🌟 1. 構建 Payload 掟入 Engine (加入防 NaN 裝甲)
   // ==========================================
-  // 假設 flightData 裡面有存呢啲數據，無就用預設值 (或者對應返你現有嘅 calc 邏輯)
   const payload = {
     pax: { 
-      zoneOA: flightData?.pax_f || 0, // 假設 F class 對應 Zone OA
-      zoneOB: flightData?.pax_j || 0, // 假設 J class 對應 Zone OB
-      zoneOC: flightData?.pax_w || 0, // 假設 W class 對應 Zone OC
-      zoneOD: flightData?.pax_y || 0  // 假設 Y class 對應 Zone OD
+      zone0A: Number(flightData?.pax_f) || 0, zoneOA: Number(flightData?.pax_f) || 0,
+      zone0B: Number(flightData?.pax_j) || 0, zoneOB: Number(flightData?.pax_j) || 0,
+      zone0C: Number(flightData?.pax_w) || 0, zoneOC: Number(flightData?.pax_w) || 0,
+      zone0D: Number(flightData?.pax_y) || 0, zoneOD: Number(flightData?.pax_y) || 0
     },
-    paxWeights: { J: 85, Y: 81 }, // 跟據 Image 2
+    paxWeights: { J: 85, Y: 81 }, 
     cargo: {
-      hold1: flightData?.cargo_hold_1 || 0,
-      hold2: flightData?.cargo_hold_2 || 0,
-      hold3: flightData?.cargo_hold_3 || 0,
-      hold4: flightData?.cargo_hold_4 || 0,
-      bulk: flightData?.cargo_bulk || 0
+      hold1: Number(flightData?.cargo_hold_1) || 0,
+      hold2: Number(flightData?.cargo_hold_2) || 0,
+      hold3: Number(flightData?.cargo_hold_3) || 0,
+      hold4: Number(flightData?.cargo_hold_4) || 0,
+      bulk: Number(flightData?.cargo_bulk) || 0
     },
-    waterFraction: flightData?.water_fraction ?? 15, // 🚰 動態食水 (預設 15/16)
+    waterFraction: Number(flightData?.water_fraction) || 15, 
     fuel: {
-      takeoff: Math.round((flightData?.final_fuel_request || calc.currTow - calc.actualZfw) * 1000),
-      trip: Math.round(calc.currTrip * 1000),
-      isStandard: flightData?.fuel_is_standard ?? true, // ⛽ Non-Standard 燃油邏輯
+      takeoff: (Number(flightData?.fuel_left_main) || 0) + (Number(flightData?.fuel_center) || 0) + (Number(flightData?.fuel_right_main) || 0),
+      trip: flightData?.trip_fuel ? Number(flightData.trip_fuel) * 1000 : 18500,
+      isStandard: flightData?.fuel_is_standard ?? false, // 確保跟 Instructor 同步為 Non-standard
       tanks: {
-        leftMain: flightData?.fuel_left_main || 0,
-        rightMain: flightData?.fuel_right_main || 0,
-        center: flightData?.fuel_center || 0
+        leftMain: Number(flightData?.fuel_left_main) || 0,
+        rightMain: Number(flightData?.fuel_right_main) || 0,
+        center: Number(flightData?.fuel_center) || 0
       }
     }
   };
@@ -57,7 +55,7 @@ export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveMo
   const cg = engine.calculateCG();
 
   // ==========================================
-  // 🌟 3. 動態 Margin 及 L (Limiting) 計算邏輯 (全面改用 Engine 數據)
+  // 🌟 2. 安全數據轉換 (確保 UI 唔會出現 NaN)
   // ==========================================
   const maxZFW = B773_BHNQ.limits.MZFW;
   const maxTOW = B773_BHNQ.limits.MTOW;
@@ -74,20 +72,20 @@ export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveMo
   const lTow = marginTOW === minMargin ? "L" : " ";
   const lLaw = marginLAW === minMargin ? "L" : " ";
 
-  // 產生 Loadsheet 電報 (全面替換為動態變數)
+  // 產生 Loadsheet 電報
   const getLsText = (isFinal: boolean) => {
     const lsType = isFinal ? "FINAL" : "PRELIM";
     const lsVer = isFinal ? (flightData?.final_ls_version || 1) : (flightData?.prelim_ls_version || 1);
     const lsVerStr = lsVer.toString().padStart(2, '0');
     
     // 計算總人數
-    const pax_j = payload.pax.zoneOA + payload.pax.zoneOB; // 模擬合併
+    const pax_j = payload.pax.zoneOA + payload.pax.zoneOB;
     const pax_y = payload.pax.zoneOC + payload.pax.zoneOD; 
     
     return `LDS/${reg_clean}/${flight_num_clean}
 LOADSHEET                   ${lsType}  ${lsVerStr}
 ${flight_num_clean}/${date_str_ls}
-${calc.depIata}  ${calc.arrIata}  ${flight_num_clean}/20                ${reg_clean}
+${calc?.depIata || 'HKG'}  ${calc?.arrIata || 'KIX'}  ${flight_num_clean}/20                ${reg_clean}
 J${pax_j.toString().padEnd(2)}Y${pax_y.toString().padEnd(3)}      ${crew_fd}/${crew_cc}                ${date_str_ls}
 
 ZFW ACT ${w.ZFW.toString().padEnd(8)}  MAX ${maxZFW}  ${lZfw}   ${marginZFW}
@@ -107,7 +105,7 @@ STAB TO ${cg.stabTrim}
 0A/${payload.pax.zoneOA.toString().padEnd(3)} 0B/${payload.pax.zoneOB.toString().padEnd(3)} 0C/${payload.pax.zoneOC.toString().padEnd(3)} 0D/${payload.pax.zoneOD.toString().padEnd(3)}
 T${(w.totalCargoWeight).toString().padEnd(5)} .1/${payload.cargo.hold1.toString().padEnd(4)} .2/${payload.cargo.hold2.toString().padEnd(4)} .3/${payload.cargo.hold3.toString().padEnd(4)} .4/${payload.cargo.hold4.toString().padEnd(4)} .5/${payload.cargo.bulk.toString().padEnd(4)}
 
-${calc.arrIata}  J${pax_j.toString().padStart(3, '0')}    Y${pax_y.toString().padStart(3, '0')}
+${calc?.arrIata || 'KIX'}  J${pax_j.toString().padStart(3, '0')}    Y${pax_y.toString().padStart(3, '0')}
 TTL PAX ${w.paxCount.toString().padEnd(5)}  UNDERLOAD   ${underload}
 
 CMDR NAME
@@ -118,7 +116,7 @@ NOTOC:
 PANTRY CODE:        77P-A
 PANTRY EFFECT       4285/11-
 SERVICE WEIGHT ADJUSTMENT/INDEX ADD
-${calc.arrIata}    POTABLE WATER       ${payload.waterFraction}/16   ${Math.round((payload.waterFraction/16)*100)}  PCT
+${calc?.arrIata || 'KIX'}    POTABLE WATER       ${payload.waterFraction}/16   ${Math.round((payload.waterFraction/16)*100)}  PCT
 805 53
 
 NORMAL MACTOW LIMITS:
@@ -128,8 +126,8 @@ LOADSHEETER/${dispatcher}/HKG1576`;
   };
 
   const getAzfText = () => {
-    const tow_reqd = Math.round(w.ZFW + (calc.ofpReqdBase * 1000));
-    return `AZF/${reg_clean}/${flight_num_clean}\n- PAX/ ${w.paxCount}\n- CGO/ ${w.totalCargoWeight}\n- ZFW/ ${w.ZFW}\n- CRW/ ${crew_fd}/${crew_cc}\n- TOW/ ${tow_reqd}\n- DEP/ ${(flightData?.std_z || '0000').replace('Z', '')}\n- SEC/ ${calc.depIata}-${calc.arrIata}\n\nFLT STATUS: closed\nLCO: ${dispatcher}\n\nSI`;
+    const tow_reqd = Math.round(w.ZFW + (calc?.ofpReqdBase || 0) * 1000);
+    return `AZF/${reg_clean}/${flight_num_clean}\n- PAX/ ${w.paxCount}\n- CGO/ ${w.totalCargoWeight}\n- ZFW/ ${w.ZFW}\n- CRW/ ${crew_fd}/${crew_cc}\n- TOW/ ${tow_reqd}\n- DEP/ ${(flightData?.std_z || '0000').replace('Z', '')}\n- SEC/ ${calc?.depIata || 'HKG'}-${calc?.arrIata || 'KIX'}\n\nFLT STATUS: closed\nLCO: ${dispatcher}\n\nSI`;
   };
 
   const getEzfwText = () => {
@@ -138,7 +136,7 @@ LOADSHEETER/${dispatcher}/HKG1576`;
     const pax_j = payload.pax.zoneOA + payload.pax.zoneOB;
     const pax_y = payload.pax.zoneOC + payload.pax.zoneOD;
     
-    return `EZFW ${flight_num_clean}/${date_str_ezfw} ${reg_clean} J${pax_j}Y${pax_y}\n${crew_fd}/${crew_cc} ${calc.depIata}${calc.arrIata}\n\nPASSENGER           ${w.totalPaxWeight.toString().padEnd(6)} KG\nCARGO               ${w.totalCargoWeight.toString().padEnd(6)} KG\nTTL TRAFFIC LOAD    ${ttlLoad.toString().padEnd(6)} KG\n\nJ${pax_j}  Y${pax_y}\nDOW                 ${w.DOW.toString().padEnd(6)} KG\nEST ZFW             ${estZfwKg.toString().padEnd(6)} KG\n\nLCO: ${dispatcher}\nSI\nLATEST EZFW`;
+    return `EZFW ${flight_num_clean}/${date_str_ezfw} ${reg_clean} J${pax_j}Y${pax_y}\n${crew_fd}/${crew_cc} ${calc?.depIata || 'HKG'}${calc?.arrIata || 'KIX'}\n\nPASSENGER           ${w.totalPaxWeight.toString().padEnd(6)} KG\nCARGO               ${w.totalCargoWeight.toString().padEnd(6)} KG\nTTL TRAFFIC LOAD    ${ttlLoad.toString().padEnd(6)} KG\n\nJ${pax_j}  Y${pax_y}\nDOW                 ${w.DOW.toString().padEnd(6)} KG\nEST ZFW             ${estZfwKg.toString().padEnd(6)} KG\n\nLCO: ${dispatcher}\nSI\nLATEST EZFW`;
   };
 
   return (
@@ -150,10 +148,10 @@ LOADSHEETER/${dispatcher}/HKG1576`;
           <table className="w-full text-sm">
             <tbody>
               <tr><td className="text-text-muted py-1">Trip Fuel</td><td className="text-right font-bold text-[#e2e8f0]">{(payload.fuel.trip/1000).toFixed(1)} T</td></tr>
-              <tr><td className="text-text-muted py-1">Contingency</td><td className="text-right font-bold text-[#e2e8f0]">{calc.currCont.toFixed(1)} T</td></tr>
-              <tr><td className="text-text-muted py-1">Alternate</td><td className="text-right font-bold text-[#e2e8f0]">{calc.currAltnOfp.toFixed(1)} T</td></tr>
-              <tr><td className="text-text-muted py-1">Reserve</td><td className="text-right font-bold text-[#e2e8f0]">{calc.ofpRes.toFixed(1)} T</td></tr>
-              <tr className="border-b border-[#333]"><td className="text-[#00E676] py-1 font-bold">Fuel Reqd</td><td className="text-right font-bold text-[#00E676]">{calc.currReqdBase.toFixed(1)} T</td></tr>
+              <tr><td className="text-text-muted py-1">Contingency</td><td className="text-right font-bold text-[#e2e8f0]">{(calc?.currCont || 0).toFixed(1)} T</td></tr>
+              <tr><td className="text-text-muted py-1">Alternate</td><td className="text-right font-bold text-[#e2e8f0]">{(calc?.currAltnOfp || 0).toFixed(1)} T</td></tr>
+              <tr><td className="text-text-muted py-1">Reserve</td><td className="text-right font-bold text-[#e2e8f0]">{(calc?.ofpRes || 0).toFixed(1)} T</td></tr>
+              <tr className="border-b border-[#333]"><td className="text-[#00E676] py-1 font-bold">Fuel Reqd</td><td className="text-right font-bold text-[#00E676]">{(calc?.currReqdBase || 0).toFixed(1)} T</td></tr>
               <tr><td className="text-text-muted py-1 pt-3">Zero Fuel Wt</td><td className="text-right font-bold pt-3 text-[#e2e8f0]">{(w.ZFW/1000).toFixed(1)} T</td></tr>
               <tr><td className="text-text-muted py-1">Takeoff Wt</td><td className="text-right font-bold text-[#e2e8f0]">{(w.TOW/1000).toFixed(1)} T</td></tr>
               <tr><td className="text-text-muted py-1">Landing Wt</td><td className="text-right font-bold text-[#e2e8f0]">{(w.LAW/1000).toFixed(1)} T</td></tr>
@@ -169,6 +167,7 @@ LOADSHEETER/${dispatcher}/HKG1576`;
             <div className="text-text-muted p-8 text-center italic w-full flex items-center justify-center">No load documents dispatched yet.</div>
           )}
 
+          {/* 🌟 FINAL LOADSHEET */}
           {flightData?.final_ls_sent && (
             <div className="bg-[#0a0a0a] border border-[#333333] rounded-lg p-5 w-[480px] shadow-[0_4px_15px_rgba(0,0,0,0.5)] flex-shrink-0 flex flex-col h-full min-h-0">
               <h4 className="text-[#2979FF] border-b-2 border-dashed border-[#404040] pb-2 mt-0 font-mono text-[1.2rem] font-black tracking-widest shrink-0">FINAL {(flightData?.final_ls_version || 1).toString().padStart(2, '0')}</h4>
@@ -191,6 +190,7 @@ LOADSHEETER/${dispatcher}/HKG1576`;
             </div>
           )}
 
+          {/* 🌟 PRELIM LOADSHEET */}
           {flightData?.prelim_ls_sent && (
             <div className="bg-[#0a0a0a] border border-[#333333] rounded-lg p-5 w-[480px] shadow-[0_4px_15px_rgba(0,0,0,0.5)] flex-shrink-0 flex flex-col h-full min-h-0">
               <h4 className="text-[#FF9100] border-b-2 border-dashed border-[#404040] pb-2 mt-0 font-mono text-[1.2rem] font-black tracking-widest shrink-0">PRELIM {(flightData?.prelim_ls_version || 1).toString().padStart(2, '0')}</h4>
@@ -213,6 +213,7 @@ LOADSHEETER/${dispatcher}/HKG1576`;
               <pre className="flex-1 overflow-y-auto mt-2 text-text-main font-mono text-[0.9rem] font-bold leading-[1.4] tracking-[0.05em] whitespace-pre-wrap">{getAzfText()}</pre>
             </div>
           )}
+          
           {flightData?.ezfw_sent && (
             <div className="bg-[#0a0a0a] border border-[#333333] rounded-lg p-5 w-[480px] flex-shrink-0 flex flex-col h-full min-h-0">
               <h4 className="text-status-teal border-b-2 border-dashed border-[#404040] pb-2 mt-0 font-mono text-[1.2rem] font-black tracking-widest">EZFW DATASHEET</h4>

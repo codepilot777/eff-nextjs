@@ -1,97 +1,349 @@
 "use client";
 import { useState, useEffect } from "react";
+import { LoadsheetEngine, AutoLoader } from "@/lib/loadsheet/LoadsheetEngine";
+import { B773_BHNQ } from "@/lib/loadsheet/MockAHM";
 
 export default function PayloadTab({ flightData, updateFlightData }: { flightData: any, updateFlightData: any }) {
-  const [localPayload, setLocalPayload] = useState({ j: 0, y: 0, h1: 0, h2: 0, h3: 0, h4: 0, bulk: 0 });
-
-  useEffect(() => {
-    if (flightData && localPayload.j === 0 && localPayload.y === 0) {
-      setLocalPayload({
-        j: flightData.pax_j || 0, y: flightData.pax_y || 0,
-        h1: flightData.cargo_hold_1 || 0, h2: flightData.cargo_hold_2 || 0,
-        h3: flightData.cargo_hold_3 || 0, h4: flightData.cargo_hold_4 || 0, bulk: flightData.cargo_bulk || 0
-      });
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  // 🌟 核心狀態管理 (包含獨立的 Fuel Order 與 Fuel Uplift)
+  const [payload, setPayload] = useState({
+    pax: { OA: 0, OB: 0, OC: 0, OD: 0 },
+    cargo: { h1: 0, h2: 0, h3: 0, h4: 0, bulk: 0 },
+    fuel: {
+      finalOrder: 0, // 機長要求的總燃油量 (Total Block Fuel)
+      uplift: 0,     // 加油車實際加進去的油量 (Actual Uplift)
+      left: 0, center: 0, right: 0 // 個別油箱實際分布
     }
-  }, [flightData]);
+  });
 
-  const targetPayload = flightData ? ((flightData.weight_zfw_ofp * 1000) - flightData.dow) : 0;
-  const calcPaxWt = (localPayload.j + localPayload.y) * 84;
-  const calcCgoWt = localPayload.h1 + localPayload.h2 + localPayload.h3 + localPayload.h4 + localPayload.bulk;
-  const calcZfw = flightData ? (flightData.dow + calcPaxWt + calcCgoWt) / 1000.0 : 0;
+  // 目標 OFP 數據
+  const targetZFW = flightData?.weight_zfw_ofp ? (flightData.weight_zfw_ofp * 1000) : 205000;
+  const ofpReqdFuel = flightData?.weight_fuel_reqd_ofp ? (flightData.weight_fuel_reqd_ofp * 1000) : 42000;
+  
+  // Standby Fuel 預設為 OFP Total - 5 噸 (5000 kg)
+  const standbyFuelKg = Math.max(0, ofpReqdFuel - 5000);
 
-  const handleAutoPayload = () => {
-    let paxTotal = Math.floor(targetPayload / 104);
-    if (paxTotal > 438) paxTotal = 438;
-    const j = Math.min(42, Math.floor(paxTotal * 0.1));
-    const y = paxTotal - j;
-    
-    let remCargo = targetPayload - (paxTotal * 84);
-    if (remCargo < 0) remCargo = 0;
-    
-    const h1 = Math.floor(remCargo * 0.3);
-    const h2 = Math.floor(remCargo * 0.3);
-    const h3 = Math.floor(remCargo * 0.2);
-    const h4 = Math.floor(remCargo * 0.1);
-    const bulk = Math.floor(remCargo - h1 - h2 - h3 - h4);
-    
-    setLocalPayload({ j, y, h1, h2, h3, h4, bulk });
-    updateFlightData({ pax_j: j, pax_y: y, cargo_hold_1: h1, cargo_hold_2: h2, cargo_hold_3: h3, cargo_hold_4: h4, cargo_bulk: bulk });
+  // ⛽ Helper: B777 燃油自動分配邏輯 (Left / Center / Right)
+  const distributeFuel = (val: number) => {
+    const maxMain = 29600;
+    if (val <= maxMain * 2) {
+      const half = Math.round(val / 2);
+      return { left: half, center: 0, right: val - half };
+    } else {
+      return { left: maxMain, center: val - (maxMain * 2), right: maxMain };
+    }
   };
 
-  const handleTransmitLoadsheet = (docType: string) => {
-    const updates: any = {
-      pax_j: localPayload.j, pax_y: localPayload.y,
-      cargo_hold_1: localPayload.h1, cargo_hold_2: localPayload.h2,
-      cargo_hold_3: localPayload.h3, cargo_hold_4: localPayload.h4, cargo_bulk: localPayload.bulk
-    };
+  // ==========================================
+  // 🌟 1. 系統自動 Preload 邏輯
+  // ==========================================
+  useEffect(() => {
+    if (!flightData || isInitialized) return;
+
+    const hasSavedPayload = flightData.pax_y > 0 || flightData.cargo_hold_1 > 0;
+
+    if (hasSavedPayload) {
+      setPayload({
+        pax: { 
+          OA: flightData.pax_f || 0, OB: flightData.pax_j || 0, 
+          OC: flightData.pax_w || 0, OD: flightData.pax_y || 0 
+        },
+        cargo: {
+          h1: flightData.cargo_hold_1 || 0, h2: flightData.cargo_hold_2 || 0,
+          h3: flightData.cargo_hold_3 || 0, h4: flightData.cargo_hold_4 || 0, bulk: flightData.cargo_bulk || 0
+        },
+        fuel: {
+          // 如果 Trainee 已經傳送了 Final Fuel Figure，就預填該數值，否則用 Standby Fuel
+          finalOrder: flightData.final_fuel_request ? flightData.final_fuel_request * 1000 : standbyFuelKg,
+          uplift: flightData.actual_uplift ? flightData.actual_uplift * 1000 : 0,
+          left: flightData.fuel_left_main || 0, 
+          center: flightData.fuel_center || 0, 
+          right: flightData.fuel_right_main || 0
+        }
+      });
+    } else {
+      const generated = AutoLoader.generatePayload(targetZFW, B773_BHNQ);
+      // 一開局自動 assume 進入 standby 狀態 (預設為 Planned Fuel 計算)
+      const initialFuel = distributeFuel(standbyFuelKg);
+      
+      setPayload({
+        pax: { 
+          OA: generated.pax.zone0A || 0, OB: generated.pax.zone0B || 0, 
+          OC: generated.pax.zone0C || 0, OD: generated.pax.zone0D || 0 
+        },
+        cargo: { 
+          h1: generated.cargo.hold1 || 0, h2: generated.cargo.hold2 || 0, 
+          h3: generated.cargo.hold3 || 0, h4: generated.cargo.hold4 || 0, bulk: generated.cargo.bulk || 0 
+        },
+        fuel: { 
+          finalOrder: standbyFuelKg, 
+          uplift: 0, // 一開始未加油
+          left: initialFuel.left, center: initialFuel.center, right: initialFuel.right 
+        }
+      });
+    }
+    
+    setIsInitialized(true);
+  }, [flightData, isInitialized, targetZFW, standbyFuelKg]);
+
+  // 監聽 Trainee 端發過來的 Final Fuel Request 實時更新
+  useEffect(() => {
+    if (flightData?.final_fuel_request && isInitialized) {
+      const traineeOrderKg = flightData.final_fuel_request * 1000;
+      // 當 Trainee 發送最終確認油量時，自動幫 Instructor 填入 Final Order 並且重新分配油箱
+      if (traineeOrderKg !== payload.fuel.finalOrder) {
+        const dist = distributeFuel(traineeOrderKg);
+        setPayload(prev => ({
+          ...prev,
+          fuel: {
+            ...prev.fuel,
+            finalOrder: traineeOrderKg,
+            left: dist.left,
+            center: dist.center,
+            right: dist.right
+          }
+        }));
+      }
+    }
+  }, [flightData?.final_fuel_request, isInitialized]);
+
+  // ==========================================
+  // 🌟 2. 實時接駁物理引擎
+  // ==========================================
+  const enginePayload = {
+    pax: { 
+      zoneOA: Number(payload.pax.OA) || 0, zoneOB: Number(payload.pax.OB) || 0,
+      zoneOC: Number(payload.pax.OC) || 0, zoneOD: Number(payload.pax.OD) || 0
+    },
+    paxWeights: { J: 85, Y: 81 },
+    cargo: { 
+      hold1: Number(payload.cargo.h1) || 0, hold2: Number(payload.cargo.h2) || 0, 
+      hold3: Number(payload.cargo.h3) || 0, hold4: Number(payload.cargo.h4) || 0, bulk: Number(payload.cargo.bulk) || 0 
+    },
+    waterFraction: Number(flightData?.water_fraction) || 15,
+    fuel: { 
+      // 實際起飛油量 = 左右翼 + 中央油箱
+      takeoff: (Number(payload.fuel.left) || 0) + (Number(payload.fuel.center) || 0) + (Number(payload.fuel.right) || 0), 
+      trip: flightData?.trip_fuel ? Number(flightData.trip_fuel) * 1000 : 18500,
+      isStandard: false, 
+      tanks: { leftMain: Number(payload.fuel.left) || 0, center: Number(payload.fuel.center) || 0, rightMain: Number(payload.fuel.right) || 0 }
+    }
+  };
+
+  const engine = new LoadsheetEngine(B773_BHNQ, enginePayload);
+  const weights = engine.calculateWeights();
+  const cg = engine.calculateCG();
+  const limits = engine.checkLimits();
+
+  const safeZFW = weights?.ZFW ? (weights.ZFW / 1000).toFixed(1) : "0.0";
+  const safeLIZFW = cg?.LIZFW ? cg.LIZFW.toFixed(0) : "0";
+  const safeMACZFW = cg?.MACZFW ? cg.MACZFW.toFixed(1) : "0.0";
+  const safeMACTOW = cg?.MACTOW ? cg.MACTOW.toFixed(1) : "0.0";
+
+  // ==========================================
+  // 🌟 3. 發送快照去 EFB
+  // ==========================================
+  const handleTransmit = (docType: string) => {
+    const updates: any = {};
+
+    if (docType === "EZFW" || docType === "AZF" || docType === "PRELIM" || docType === "FINAL") {
+      updates.pax_f = payload.pax.OA; updates.pax_j = payload.pax.OB; 
+      updates.pax_w = payload.pax.OC; updates.pax_y = payload.pax.OD;
+      updates.cargo_hold_1 = payload.cargo.h1; updates.cargo_hold_2 = payload.cargo.h2; 
+      updates.cargo_hold_3 = payload.cargo.h3; updates.cargo_hold_4 = payload.cargo.h4; updates.cargo_bulk = payload.cargo.bulk;
+    }
+
     if (docType === "EZFW") updates.ezfw_sent = true;
     if (docType === "AZF") updates.azf_sent = true;
+    
+    // 🌟 允許 PRELIM 隨時發送 (因為 PRELIM 使用計畫油量 Planned Fuel 分布)
     if (docType === "PRELIM") updates.prelim_ls_sent = true;
     if (docType === "FINAL") updates.final_ls_sent = true;
+    
+    // 🌟 發送 Fuel Receipt 流程
+    if (docType === "FUEL_RECEIPT") {
+      updates.fuel_receipt_sent = true;
+      updates.actual_uplift = payload.fuel.uplift / 1000;
+      updates.fuel_left_main = payload.fuel.left;
+      updates.fuel_center = payload.fuel.center;
+      updates.fuel_right_main = payload.fuel.right;
+      updates.final_fuel_request = payload.fuel.finalOrder / 1000; // 同步更新最終總燃油數
+      updates.fuel_is_standard = false; 
+    }
+
     updateFlightData(updates);
-    alert(`${docType} transmitted!`);
+    alert(`${docType} snapshot transmitted to EFB!`);
   };
 
   return (
-    <div className="animate-fade-in flex flex-col gap-6">
+    <div className="animate-fade-in flex flex-col gap-6 font-sans text-white">
+      
+      {/* Rejection Alerts */}
       {flightData.prelim_ls_rejected && (
-        <div className="bg-[#FF1744]/15 border border-[#FF1744] rounded-lg p-4">
-          <h5 className="text-[#FF1744] font-bold m-0">🚨 PRELIM REJECTED BY COMMANDER!</h5>
-          <p className="text-text-main text-sm mt-1">"{flightData.prelim_ls_reject_reason}"</p>
-          <button onClick={() => updateFlightData({ prelim_ls_rejected: false, prelim_ls_sent: false })} className="mt-3 bg-[#FF1744] text-white px-4 py-2 rounded font-bold text-sm">🔄 CLEAR REJECTION</button>
+        <div className="bg-[#FF1744]/15 border border-[#FF1744] rounded-lg p-4 flex justify-between items-center">
+          <div><h5 className="text-[#FF1744] font-black tracking-widest uppercase m-0">🚨 PRELIM REJECTED!</h5><p className="text-white text-sm mt-1">"{flightData.prelim_ls_reject_reason}"</p></div>
+          <button onClick={() => updateFlightData({ prelim_ls_rejected: false, prelim_ls_sent: false })} className="bg-[#FF1744] text-white px-4 py-2 rounded font-black tracking-widest text-xs">ACKNOWLEDGE</button>
+        </div>
+      )}
+      {flightData.final_ls_rejected && (
+        <div className="bg-[#FF1744]/15 border border-[#FF1744] rounded-lg p-4 shadow-[0_0_15px_rgba(255,23,68,0.2)] flex justify-between items-center">
+          <div><h5 className="text-[#FF1744] font-black tracking-widest uppercase m-0">🚨 FINAL REJECTED!</h5><p className="text-white text-sm mt-1">"{flightData.final_ls_reject_reason}"</p></div>
+          <button onClick={() => updateFlightData({ final_ls_rejected: false, final_ls_sent: false })} className="bg-[#FF1744] text-white px-4 py-2 rounded font-black tracking-widest text-xs">ACKNOWLEDGE</button>
         </div>
       )}
 
-      <div>
-        <div className="flex items-center justify-between bg-lido-800 p-4 rounded-lg border border-[#333333] mb-4">
-          <div><div className="text-text-muted text-xs font-bold uppercase mb-1">Target Payload</div><div className="text-2xl font-black text-white">{(targetPayload / 1000).toFixed(1)} T</div></div>
-          <button onClick={handleAutoPayload} className="bg-[#00bfa5]/20 border border-[#00bfa5] text-status-teal px-6 py-3 rounded-lg font-bold">🎲 AUTO-GENERATE</button>
-        </div>
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1.4fr] gap-6 items-start">
+        
+        {/* 👈 左側：飛機全局視覺監控 (Live Status) */}
+        <div className="sticky top-6 flex flex-col gap-4">
+          <div className="bg-[#0a0a0a] border border-[#333333] rounded-xl p-6 flex flex-col items-center shadow-inner relative">
+            <h4 className="text-[#00bfa5] font-black tracking-widest uppercase w-full text-center border-b border-[#333333] pb-3 mb-6">Aircraft Global State</h4>
+            
+            <div className="absolute top-4 left-4 text-[0.65rem] font-bold text-[#8fa0a6]">OFP TARGET ZFW<br/><span className="text-white text-lg">{(targetZFW / 1000).toFixed(1)} T</span></div>
 
-        <div className="grid grid-cols-2 gap-6 bg-[#0a0a0a] p-5 rounded-lg border border-[#333333]">
-          <div className="flex flex-col gap-4">
-            <div><label className="flex justify-between text-xs text-text-muted mb-1"><span>Zone J Pax (Max 42)</span> <span>{localPayload.j}</span></label><input type="range" min="0" max="42" value={localPayload.j} onChange={(e) => setLocalPayload({...localPayload, j: parseInt(e.target.value)})} className="w-full accent-[#00bfa5]" /></div>
-            <div><label className="flex justify-between text-xs text-text-muted mb-1"><span>Zone Y Pax (Max 396)</span> <span>{localPayload.y}</span></label><input type="range" min="0" max="396" value={localPayload.y} onChange={(e) => setLocalPayload({...localPayload, y: parseInt(e.target.value)})} className="w-full accent-[#00bfa5]" /></div>
-          </div>
-          <div className="flex flex-col gap-3">
-            {['h1', 'h2', 'h3', 'h4', 'bulk'].map((h, i) => (
-              <div key={h} className="flex items-center justify-between bg-lido-800 px-3 py-1 rounded border border-[#333333]">
-                <span className="text-xs text-text-muted">{h === 'bulk' ? 'Bulk' : `Hold ${i+1}`} (kg)</span>
-                <input type="number" value={(localPayload as any)[h]} onChange={(e) => setLocalPayload({...localPayload, [h]: parseInt(e.target.value) || 0})} className="bg-transparent border-none text-right text-white w-20 outline-none text-sm" />
+            <div className="relative w-48 bg-[#1a1a1a] border-4 border-[#404040] rounded-t-full rounded-b-[50px] flex flex-col items-center py-6 shadow-2xl mt-4">
+              <div className="w-16 h-8 border-b-2 border-dashed border-[#555] mb-6 flex justify-center items-center text-[0.6rem] text-[#8fa0a6] font-bold tracking-widest">COCKPIT</div>
+
+              <div className="w-full px-4 flex flex-col gap-2 mb-8">
+                {['OA', 'OB', 'OC', 'OD'].map(zone => (
+                  <div key={zone} className="bg-[#00E676]/10 border border-[#00E676]/50 rounded p-2 text-center shadow-inner">
+                    <div className="text-[0.6rem] text-[#00E676] font-bold tracking-widest mb-1">ZONE {zone}</div>
+                    <div className="text-white font-black">{(payload.pax as any)[zone]} <span className="text-[#8fa0a6] text-xs font-normal">PAX</span></div>
+                  </div>
+                ))}
               </div>
-            ))}
+
+              {/* 藍色油箱：實時反映 Actual Fuel On Board 狀態 */}
+              <div className="relative w-full my-4 flex justify-center items-center z-10">
+                <div className="absolute right-[100%] w-24 h-12 bg-[#2979FF]/20 border-y-2 border-l-2 border-[#2979FF] rounded-l-full flex flex-col justify-center items-center">
+                  <span className="text-[0.6rem] text-[#2979FF] font-black tracking-widest">L MAIN</span><span className="text-white font-mono text-xs">{(payload.fuel.left/1000).toFixed(1)}T</span>
+                </div>
+                <div className="w-[90%] bg-[#2979FF]/30 border-2 border-[#2979FF] rounded p-2 text-center shadow-[0_0_15px_rgba(41,121,255,0.3)]">
+                  <div className="text-[0.6rem] text-[#2979FF] font-black tracking-widest">CTR TANK</div><div className="text-white font-mono text-sm">{(payload.fuel.center/1000).toFixed(1)}T</div>
+                </div>
+                <div className="absolute left-[100%] w-24 h-12 bg-[#2979FF]/20 border-y-2 border-r-2 border-[#2979FF] rounded-r-full flex flex-col justify-center items-center">
+                  <span className="text-[0.6rem] text-[#2979FF] font-black tracking-widest">R MAIN</span><span className="text-white font-mono text-xs">{(payload.fuel.right/1000).toFixed(1)}T</span>
+                </div>
+              </div>
+
+              <div className="w-full px-4 flex flex-col gap-2 mt-4">
+                <div className="bg-[#FF9100]/10 border border-[#FF9100]/50 rounded p-2 text-center shadow-inner"><div className="text-[0.6rem] text-[#FF9100] font-bold tracking-widest mb-1">HOLD 1 / 2</div><div className="text-white font-mono text-xs">{(payload.cargo.h1 + payload.cargo.h2).toLocaleString()} KG</div></div>
+                <div className="bg-[#FF9100]/10 border border-[#FF9100]/50 rounded p-2 text-center shadow-inner"><div className="text-[0.6rem] text-[#FF9100] font-bold tracking-widest mb-1">HOLD 3 / 4</div><div className="text-white font-mono text-xs">{(payload.cargo.h3 + payload.cargo.h4).toLocaleString()} KG</div></div>
+                <div className="bg-[#FF9100]/10 border border-[#FF9100]/50 rounded p-2 text-center shadow-inner"><div className="text-[0.6rem] text-[#FF9100] font-bold tracking-widest mb-1">BULK</div><div className="text-white font-mono text-xs">{payload.cargo.bulk.toLocaleString()} KG</div></div>
+              </div>
+            </div>
+          </div>
+
+          {/* 引擎實時推算面版 (Live Calculation) */}
+          <div className={`p-4 rounded-xl border ${limits.isValid ? 'bg-[#00E676]/10 border-[#00E676]' : 'bg-[#FF1744]/15 border-[#FF1744]'} grid grid-cols-2 gap-4 shadow-lg transition-colors`}>
+            <div><div className="text-[0.65rem] text-[#8fa0a6] uppercase tracking-widest font-bold">Act ZFW</div><div className="text-xl font-black text-white">{safeZFW} T</div></div>
+            <div className="text-right"><div className="text-[0.65rem] text-[#8fa0a6] uppercase tracking-widest font-bold">LIZFW</div><div className="text-xl font-mono font-black text-[#00bfa5]">{safeLIZFW}</div></div>
+            <div><div className="text-[0.65rem] text-[#8fa0a6] uppercase tracking-widest font-bold">MAC ZFW</div><div className="text-xl font-mono font-black text-white">{safeMACZFW} %</div></div>
+            <div className="text-right"><div className="text-[0.65rem] text-[#8fa0a6] uppercase tracking-widest font-bold">MAC TOW</div><div className="text-xl font-mono font-black text-[#2979FF]">{safeMACTOW} %</div></div>
           </div>
         </div>
-        <div className="text-xl font-bold text-[#00E676] mt-4 text-right">Calculated ZFW: {calcZfw.toFixed(1)} T</div>
-      </div>
 
-      <div>
-        <h5 className="text-white font-bold mb-4">📤 Document Dispatch</h5>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <button onClick={() => handleTransmitLoadsheet("EZFW")} className="bg-lido-800 border border-[#404040] text-white py-3 rounded-lg font-bold">TRANSMIT EZFW</button>
-          <button onClick={() => handleTransmitLoadsheet("AZF")} className="bg-lido-800 border border-[#404040] text-white py-3 rounded-lg font-bold">TRANSMIT AZF</button>
-          <button onClick={() => handleTransmitLoadsheet("PRELIM")} className="bg-lido-800 border border-[#FF9100] text-[#FF9100] py-3 rounded-lg font-bold">TRANSMIT PRELIM</button>
-          <button onClick={() => handleTransmitLoadsheet("FINAL")} className="bg-lido-800 border border-[#2979FF] text-[#2979FF] py-3 rounded-lg font-bold">TRANSMIT FINAL</button>
+        {/* 👉 右側：三大操作卡片 (W&B Control Center Timeline) */}
+        <div className="flex flex-col gap-6">
+          
+          {/* [卡片 1] Payload & ZFW */}
+          <div className="bg-lido-800 p-6 rounded-xl border border-[#333333] shadow-lg">
+            <div className="flex justify-between items-center border-b border-[#333333] pb-3 mb-4">
+              <h4 className="text-white font-black uppercase tracking-widest text-lg flex items-center gap-2"><span className="text-[#00E676]">1.</span> Payload & ZFW</h4>
+              <button onClick={() => {const g = AutoLoader.generatePayload(targetZFW, B773_BHNQ); setPayload({...payload, pax: { OA: g.pax.zone0A, OB: g.pax.zone0B, OC: g.pax.zone0C, OD: g.pax.zone0D }, cargo: { h1: g.cargo.hold1, h2: g.cargo.hold2, h3: g.cargo.hold3, h4: g.cargo.hold4, bulk: g.cargo.bulk }});}} className="bg-[#00E676]/20 border border-[#00E676] text-[#00E676] px-4 py-1.5 rounded font-bold text-xs tracking-widest hover:bg-[#00E676] hover:text-black transition-colors">🔄 RE-LOAD</button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 mb-6">
+              <div className="col-span-2 text-[#00E676] text-xs font-black tracking-widest uppercase">Passengers</div>
+              {['OA', 'OB', 'OC', 'OD'].map((z, i) => (
+                <div key={z}><label className="flex justify-between text-xs text-[#8fa0a6] mb-1"><span>Zone {z}</span> <span>{(payload.pax as any)[z]}</span></label><input type="range" max={i===0?42:i===1?60:i===2?150:186} value={(payload.pax as any)[z]} onChange={(e) => setPayload({...payload, pax: {...payload.pax, [z]: parseInt(e.target.value) || 0}})} className="w-full accent-[#00E676]" /></div>
+              ))}
+              
+              <div className="col-span-2 text-[#FF9100] text-xs font-black tracking-widest uppercase mt-2">Cargo (KG)</div>
+              {['h1', 'h2', 'h3', 'h4', 'bulk'].map((h, i) => (
+                <div key={h} className="flex items-center justify-between bg-[#1a1a1a] px-3 py-2 rounded border border-[#404040]">
+                  <span className="text-xs text-[#8fa0a6] uppercase">{h === 'bulk' ? 'Bulk' : `Hold ${i+1}`}</span>
+                  <input type="number" value={(payload.cargo as any)[h]} onChange={(e) => setPayload({...payload, cargo: {...payload.cargo, [h]: parseInt(e.target.value) || 0}})} className="bg-transparent border-none text-right text-white w-20 outline-none font-mono text-sm" />
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 border-t border-[#333333] pt-4">
+              <button onClick={() => handleTransmit("EZFW")} className="bg-[#404040] text-white py-3 rounded-lg font-black tracking-widest text-xs hover:bg-[#555] transition-colors">TRANSMIT EZFW</button>
+              <button onClick={() => handleTransmit("AZF")} className="bg-[#404040] text-white py-3 rounded-lg font-black tracking-widest text-xs hover:bg-[#555] transition-colors">TRANSMIT AZF</button>
+            </div>
+          </div>
+
+          {/* [卡片 2] Fuel Management (🌟 全新升級 Workflow 介面) */}
+          <div className="bg-lido-800 p-6 rounded-xl border border-[#333333] shadow-lg">
+            <h4 className="text-white font-black uppercase tracking-widest text-lg flex items-center gap-2 border-b border-[#333333] pb-3 mb-4"><span className="text-status-teal">2.</span> Fuel Control</h4>
+            
+            {/* 頂部燃油狀態面板 */}
+            <div className="grid grid-cols-2 gap-4 bg-[#1a1a1a] border border-[#404040] p-4 rounded-lg mb-4">
+              <div>
+                <div className="text-[0.6rem] text-[#8fa0a6] font-bold uppercase tracking-widest">OFP Block Fuel</div>
+                <div className="text-md font-mono font-black text-white">{(ofpReqdFuel / 1000).toFixed(1)} T</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[0.6rem] text-[#8fa0a6] font-bold uppercase tracking-widest">Standby Prefill (-5T)</div>
+                <div className="text-md font-mono font-black text-[#2979FF]">{(standbyFuelKg / 1000).toFixed(1)} T</div>
+              </div>
+            </div>
+
+            {/* Step 1: Fuel Order 面版 */}
+            <div className="mb-4 bg-[#111] p-3 rounded-lg border border-[#222]">
+              <div className="flex justify-between items-center text-xs font-bold text-[#8fa0a6] uppercase tracking-widest mb-2">
+                <span>Total Fuel Qty (Block Fuel) (KG)</span>
+                {flightData?.final_fuel_request && <span className="text-[#00E676] text-[0.65rem] animate-pulse">● Trainee Sent Order</span>}
+              </div>
+              <input 
+                type="number" 
+                value={payload.fuel.finalOrder} 
+                onChange={(e) => { 
+                  const val = parseInt(e.target.value) || 0; 
+                  const dist = distributeFuel(val); 
+                  setPayload({ ...payload, fuel: { ...payload.fuel, finalOrder: val, left: dist.left, center: dist.center, right: dist.right }});
+                }} 
+                className="w-full bg-[#1a1a1a] border border-status-teal rounded p-3 text-white outline-none font-mono font-bold text-sm" 
+              />
+            </div>
+
+            {/* Step 2: Fuel Uplift 面版 (獨立項目) */}
+            <div className="mb-4 bg-[#111] p-3 rounded-lg border border-[#222]">
+              <div className="text-xs font-bold text-[#8fa0a6] uppercase tracking-widest mb-2">Actual Fuel Uplift (From Bowser) (KG)</div>
+              <input 
+                type="number" 
+                value={payload.fuel.uplift} 
+                onChange={(e) => setPayload({ ...payload, fuel: { ...payload.fuel, uplift: parseInt(e.target.value) || 0 }})} 
+                className="w-full bg-[#1a1a1a] border border-[#FF9100] rounded p-3 text-white outline-none font-mono text-sm" 
+                placeholder="Enter exact fuel loaded by bowser"
+              />
+            </div>
+
+            {/* Individual Tanks */}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="bg-[#1a1a1a] px-3 py-2 rounded border border-[#404040]"><div className="text-[0.6rem] text-[#8fa0a6] uppercase mb-1">L Main</div><input type="number" value={payload.fuel.left} onChange={(e) => setPayload({...payload, fuel: {...payload.fuel, left: parseInt(e.target.value) || 0}})} className="bg-transparent text-[#2979FF] w-full outline-none font-mono text-sm font-bold" /></div>
+              <div className="bg-[#1a1a1a] px-3 py-2 rounded border border-[#404040]"><div className="text-[0.6rem] text-[#8fa0a6] uppercase mb-1">Center</div><input type="number" value={payload.fuel.center} onChange={(e) => setPayload({...payload, fuel: {...payload.fuel, center: parseInt(e.target.value) || 0}})} className="bg-transparent text-[#2979FF] w-full outline-none font-mono text-sm font-bold" /></div>
+              <div className="bg-[#1a1a1a] px-3 py-2 rounded border border-[#404040]"><div className="text-[0.6rem] text-[#8fa0a6] uppercase mb-1">R Main</div><input type="number" value={payload.fuel.right} onChange={(e) => setPayload({...payload, fuel: {...payload.fuel, right: parseInt(e.target.value) || 0}})} className="bg-transparent text-[#2979FF] w-full outline-none font-mono text-sm font-bold" /></div>
+            </div>
+
+            <button onClick={() => handleTransmit("FUEL_RECEIPT")} className={`w-full py-3 rounded-lg font-black tracking-widest text-xs transition-colors ${flightData?.fuel_receipt_sent ? 'bg-[#2979FF]/20 border border-[#2979FF] text-[#2979FF] cursor-not-allowed' : 'bg-[#2979FF] text-white hover:bg-blue-600 shadow-md'}`}>{flightData?.fuel_receipt_sent ? '✅ FUEL RECEIPT DISPATCHED' : 'DISPATCH FUEL RECEIPT'}</button>
+          </div>
+
+          {/* [卡片 3] Loadsheet Dispatch (🌟 完美分工：PRELIM 可提早出板) */}
+          <div className="bg-lido-800 p-6 rounded-xl border border-[#333333] shadow-lg">
+            <h4 className="text-white font-black uppercase tracking-widest text-lg flex items-center gap-2 border-b border-[#333333] pb-3 mb-4"><span className="text-[#FF9100]">3.</span> Document Dispatch</h4>
+            <div className="grid grid-cols-2 gap-4">
+              {/* ✅ PRELIM 隨時可以發送，不被 Fuel Receipt 鎖死 */}
+              <button onClick={() => handleTransmit("PRELIM")} className="bg-[#FF9100]/20 border border-[#FF9100] text-[#FF9100] py-4 rounded-lg font-black tracking-widest text-xs hover:bg-[#FF9100] hover:text-black shadow-[0_0_15px_rgba(255,145,0,0.2)] transition-all">TRANSMIT PRELIM</button>
+              
+              {/* 🔒 FINAL 必須等 Fuel Receipt 出了才能解鎖 */}
+              <button onClick={() => handleTransmit("FINAL")} disabled={!flightData?.fuel_receipt_sent} className={`border py-4 rounded-lg font-black tracking-widest text-xs transition-all ${flightData?.fuel_receipt_sent ? 'bg-[#00E676]/20 border-[#00E676] text-[#00E676] hover:bg-[#00E676] hover:text-black shadow-[0_0_15px_rgba(0,230,118,0.2)]' : 'bg-[#333] border-[#444] text-[#666] cursor-not-allowed'}`}>TRANSMIT FINAL</button>
+            </div>
+            {!flightData?.fuel_receipt_sent && <div className="text-[0.65rem] text-[#8fa0a6] text-center mt-3 italic">⚠️ Fuel Receipt must be dispatched before Final Loadsheet lock opens</div>}
+          </div>
+
         </div>
       </div>
     </div>
