@@ -19,11 +19,11 @@ function WorkspaceContent() {
   const [flightData, setFlightData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
- // 🌟 加入更新鎖定標記
+  // 🌟 加入更新鎖定標記
   const isUpdatingRef = useRef(false);
+  const [isSyncing, setIsSyncing] = useState(false); // 用作顯示 Sync Icon 動畫
 
   const fetchFlightData = async () => {
-    // 🌟 如果更新緊，暫停獲取舊資料，防止畫面閃爍倒退
     if (!flightId || isUpdatingRef.current) return;
     try {
       const res = await fetch(`/api/flight?id=${encodeURIComponent(flightId)}`);
@@ -44,7 +44,8 @@ function WorkspaceContent() {
   }, [flightId]);
 
   const updateFlightData = async (updates: any) => {
-    isUpdatingRef.current = true; // 🌟 鎖上更新鎖
+    isUpdatingRef.current = true;
+    setIsSyncing(true);
     const updatedData = { ...flightData, ...updates };
     setFlightData(updatedData); 
     try {
@@ -56,13 +57,12 @@ function WorkspaceContent() {
     } catch (error) {
       console.error("Failed to update flight data", error);
     } finally {
-      // 🌟 給雲端資料庫 1.5 秒時間完全寫入，然後才解鎖 Live Sync
       setTimeout(() => {
         isUpdatingRef.current = false;
+        setIsSyncing(false);
       }, 1500);
     }
   };
-
 
   const navButtons = [
     { id: "DASH", label: "DASHBOARD" },
@@ -75,81 +75,145 @@ function WorkspaceContent() {
 
   if (!flightId) return <div className="p-8 text-[#FF1744]">Error: Missing flight ID.</div>;
 
+  // --- 數據格式化 (對應 Cathay EFB 佈局) ---
   const isActivated = flightData?.activated_version > 0;
-  const versionStr = isActivated ? `V${flightData.activated_version} ACTIVATED` : `V${flightData?.ofp_version || 1} PENDING`;
-  
+  const versionNum = isActivated ? flightData.activated_version : (flightData?.ofp_version || 1);
+  const statusText = isActivated ? "Activated" : "Submitted"; // 模擬圖中 "Submitted" 狀態
+
   const dateObj = flightData?.std_unix ? new Date(flightData.std_unix * 1000) : new Date();
-  const dateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase();
+  const dayStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit' });
+  const weekdayStr = dateObj.toLocaleDateString('en-GB', { weekday: 'short' });
 
   const depIcao = flightData?.dep_icao || "----";
   const arrIcao = flightData?.arr_icao || "----";
-  
   const depIata = flightData?.raw_simbrief?.origin?.iata_code || "---";
   const arrIata = flightData?.raw_simbrief?.destination?.iata_code || "---";
+
+  const stdZ = flightData?.std_z?.replace('Z', 'z') || "--z";
+  const staZ = flightData?.sta_z?.replace('Z', 'z') || "--z";
 
   const eetMins = Math.floor((flightData?.eet_seconds || 0) / 60);
   const fltH = Math.floor(eetMins / 60).toString().padStart(2, '0');
   const fltM = (eetMins % 60).toString().padStart(2, '0');
   
-  const blkMins = eetMins + 30;
+  const blkMins = eetMins + 40; // 模擬圖中 Block time 多 Flight time 40 分鐘
   const blkH = Math.floor(blkMins / 60).toString().padStart(2, '0');
   const blkM = (blkMins % 60).toString().padStart(2, '0');
 
   return (
+    // 🌟 底色改為極深的 #0A0A0A (純黑)
     <div className="flex flex-col h-screen overflow-hidden bg-[#0a0a0a] text-[#e2e8f0] font-sans">
       
       {isLoading && !flightData && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center bg-[#0a0a0a]">
-          <div className="text-2xl font-bold text-[#00bfa5] animate-pulse">Loading Flight {flightId}...</div>
+          <div className="text-xl font-bold text-white animate-pulse">Loading Flight...</div>
         </div>
       )}
 
-      <header className="flex-none flex items-center justify-between h-[70px] bg-[#1a1a1a] border-b-[3px] border-[#00bfa5] px-6 shadow-md z-50">
+      {/* 🌟 頂部 Header：完美還原 Cathay EFB Top Bar */}
+      <header className="flex-none flex items-center justify-between h-[54px] bg-[#1E1E1E] px-4 shadow-md z-50 border-b border-[#333]">
+        
+        {/* 左側：Flight No & Version Badge */}
         <div className="flex items-center gap-4">
-          <div className="text-[1.25rem] font-black text-[#00bfa5] cursor-pointer hover:text-white transition-colors" onClick={() => router.push(`/flight-select?role=${role}`)}>
-            {flightData?.flight_no || flightId}
+          {/* Logo 替代：一個簡單的發光飛翼圖案 */}
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(`/flight-select?role=${role}`)}>
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-[#8fa0a6]">
+              <path d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+            </svg>
+            <span className="text-[1.1rem] font-bold text-white tracking-wide">{flightData?.flight_no || flightId}</span>
           </div>
-          <div className={`text-[0.65rem] px-2 py-1 rounded font-bold border ${isActivated ? 'bg-[#00E676]/15 text-[#00E676] border-[#00E676]' : 'bg-[#FF9100]/15 text-[#FF9100] border-[#FF9100]'}`}>
-            {versionStr}
-          </div>
-          <div className="text-[0.95rem] text-[#8fa0a6] font-bold tracking-widest">
-            {dateStr}
+
+          {/* 🌟 Version Badge (黑白膠囊設計) */}
+          <div className="flex items-center bg-[#333] rounded-full overflow-hidden text-[0.7rem] font-bold h-6 ml-2">
+            <div className="bg-[#333] text-white px-3 flex items-center h-full">V{versionNum}</div>
+            <div className={`${isActivated ? 'bg-[#00E676] text-black' : 'bg-white text-black'} px-3 flex items-center h-full`}>
+              {statusText}
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col items-center justify-center leading-none">
-            <span className="text-[#00bfa5] font-bold text-lg">{depIcao}</span>
-            <span className="text-[#8fa0a6] text-[0.65rem] font-bold mt-0.5">{depIata}</span>
+        {/* 中間：Route & Times */}
+        <div className="flex items-center gap-6 text-sm font-bold ml-6 flex-1">
+          {/* 日期 */}
+          <div className="flex flex-col items-center leading-none pr-4 border-r border-[#444]">
+            <span className="text-[1.1rem] text-white">{dayStr}</span>
+            <span className="text-[0.6rem] text-[#8fa0a6]">{weekdayStr}</span>
           </div>
-          <div className="text-[#333333] text-xl font-light">➔</div>
-          <div className="flex flex-col items-center justify-center leading-none">
-            <span className="text-[#00bfa5] font-bold text-lg">{arrIcao}</span>
-            <span className="text-[#8fa0a6] text-[0.65rem] font-bold mt-0.5">{arrIata}</span>
+
+          {/* 航線：出發 */}
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col items-start leading-none gap-0.5">
+              <div className="flex items-baseline gap-2">
+                <span className="text-white text-[0.95rem]">{depIcao}</span>
+                <span className="text-white text-xs">{stdZ}</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[#8fa0a6] text-[0.7rem]">{depIata}</span>
+                <span className="text-[#8fa0a6] text-[0.7rem]">----L</span> {/* Placeholder for Local Time */}
+              </div>
+            </div>
+
+            <span className="text-[#8fa0a6] text-lg mx-1">✈️</span>
+
+            {/* 航線：到達 */}
+            <div className="flex flex-col items-start leading-none gap-0.5">
+              <div className="flex items-baseline gap-2">
+                <span className="text-white text-[0.95rem]">{arrIcao}</span>
+                <span className="text-white text-xs">{staZ}</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[#8fa0a6] text-[0.7rem]">{arrIata}</span>
+                <span className="text-[#8fa0a6] text-[0.7rem]">----L</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Flight / Block Time */}
+          <div className="flex gap-4 ml-4">
+            <div className="flex flex-col leading-none gap-0.5">
+              <span className="text-[#8fa0a6] text-[0.6rem] uppercase tracking-wide">Flight time</span>
+              <span className="text-white text-sm">{fltH}{fltM}</span>
+            </div>
+            <div className="flex flex-col leading-none gap-0.5">
+              <span className="text-[#8fa0a6] text-[0.6rem] uppercase tracking-wide">Block time</span>
+              <span className="text-white text-sm">{blkH}{blkM}</span>
+            </div>
           </div>
         </div>
-        
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4 text-sm font-mono font-bold">
-            <div className="flex flex-col items-end leading-tight">
-              <span className="text-[#8fa0a6] text-[0.65rem]">FLIGHT TIME</span>
-              <span className="text-[#e2e8f0]">{fltH}:{fltM}</span>
+
+        {/* 右側：Notepad & Icons */}
+        <div className="flex items-center gap-4">
+          <input 
+            type="text" 
+            placeholder="Notepad" 
+            className="bg-[#2A2A2A] text-white px-3 py-1.5 rounded-md text-[0.8rem] border-none outline-none w-48 placeholder:text-[#555]"
+          />
+          
+          <div className="flex items-center gap-3">
+            {/* Cloud Sync Icon */}
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${isSyncing ? 'text-[#00E676]' : 'text-[#8fa0a6]'}`}>
+              <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+              </svg>
             </div>
-            <div className="border-l border-[#333333] h-6"></div>
-            <div className="flex flex-col items-start leading-tight">
-              <span className="text-[#8fa0a6] text-[0.65rem]">BLOCK TIME</span>
-              <span className="text-[#e2e8f0]">{blkH}:{blkM}</span>
+            {/* User Icon (Green) */}
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[#C6FF00] text-black">
+              <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
             </div>
-          </div>
-          <div className="border-l border-[#333333] h-8 mx-2"></div>
-          <div className="flex items-center text-[#00E676] text-xs font-bold tracking-wider">
-            <span className="inline-block w-2 h-2 bg-[#00E676] rounded-full mr-2 animate-pulse shadow-[0_0_8px_#00E676]"></span>
-            LIVE SYNC
+            {/* Chat Icon */}
+            <div className="flex items-center justify-center w-8 h-8 rounded-full text-white bg-[#333]">
+              <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+              </svg>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden relative p-2 bg-[#0a0a0a]">
+      {/* 🌟 主內容區 (移除原有的 p-2 padding，讓 Dashboard 可以用盡空間) */}
+      <main className="flex-1 overflow-hidden relative bg-[#0a0a0a]">
         {currentTab === "DASH" && flightData && <Dashboard flightData={flightData} updateFlightData={updateFlightData} />}
         {currentTab === "NAVLOG" && flightData && <Navlog flightData={flightData} updateFlightData={updateFlightData} />}
         {currentTab === "WEATHER" && flightData && <Weather flightData={flightData} />}
@@ -158,7 +222,8 @@ function WorkspaceContent() {
         {currentTab === "TECHLOG" && flightData && <TechLog flightData={flightData} updateFlightData={updateFlightData} />}
       </main>
 
-      <footer className="flex-none flex items-center justify-around gap-2 bg-[#1a1a1a] border-t-2 border-[#00bfa5] px-2 py-2 pb-[max(10px,env(safe-area-inset-bottom))] shadow-[0_-5px_25px_rgba(0,0,0,0.8)] z-50">
+      {/* 🌟 底部 Tabs：改為更扁平沉穩的設計 */}
+      <footer className="flex-none flex items-center justify-around gap-1 bg-[#121212] border-t border-[#333] px-2 py-1.5 pb-[max(8px,env(safe-area-inset-bottom))] z-50">
         {navButtons.map((btn) => {
           const isActive = currentTab === btn.id;
           return (
@@ -166,11 +231,11 @@ function WorkspaceContent() {
               key={btn.id}
               onClick={() => setCurrentTab(btn.id)}
               className={`
-                flex-1 h-[50px] flex items-center justify-center rounded-lg border transition-all duration-200
-                ${isActive ? "bg-[#00bfa5]/15 border-[#00bfa5] text-[#00bfa5]" : "bg-transparent border-transparent text-[#8fa0a6] hover:bg-[#2a2a2a] hover:text-white"}
+                flex-1 h-[42px] flex items-center justify-center rounded transition-all duration-200
+                ${isActive ? "bg-[#333333] text-white" : "bg-transparent text-[#8fa0a6] hover:bg-[#1E1E1E] hover:text-white"}
               `}
             >
-              <span className="text-sm font-black tracking-widest uppercase">
+              <span className="text-xs font-bold tracking-wider uppercase">
                 {btn.label}
               </span>
             </button>

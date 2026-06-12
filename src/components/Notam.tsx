@@ -1,78 +1,144 @@
 "use client";
-
 import { useState } from "react";
 
 export default function Notam({ flightData }: { flightData: any }) {
   const [expanded, setExpanded] = useState<string | null>('dep');
   
-  // 🌟 直接提取整包 SimBrief 原始數據
+  // 提取整包 SimBrief 原始數據
   const rawSb = flightData?.raw_simbrief || {};
+  const alternates = flightData?.alternates || [];
 
-  // 解析並清理 NOTAM 顯示
-  const cleanNotam = (overrideValue: string | undefined, rawSbArray: any) => {
-    // 1. 如果教官手動輸入了覆寫值，優先顯示教官的
+  // 🌟 解析並回傳 Array (方便前端做靚排版，唔用 --- 隔開)
+  const parseNotams = (overrideValue: string | undefined, rawSbArray: any): string[] => {
     if (overrideValue && overrideValue !== "NIL") {
-      return overrideValue;
+      return [overrideValue];
     }
-
-    // 2. 如果沒有覆寫，從 SimBrief Raw JSON 的陣列中解析出原汁原味的 NOTAM
     if (rawSbArray && Array.isArray(rawSbArray) && rawSbArray.length > 0) {
-      return rawSbArray.map((n: any) => {
-        // SimBrief JSON 中，真正的電報文字藏在 notam_raw 裡面
-        return n.notam_raw || n.notam_text || n.message || String(n);
-      }).join('\n\n------------------------------------------------------------\n\n');
+      return rawSbArray.map((n: any) => n.notam_raw || n.notam_text || n.message || String(n));
     }
-
-    return "No active NOTAMs available.";
+    return ["No active NOTAMs available."];
   };
 
-  const Accordion = ({ id, title, content }: { id: string, title: string, content: string }) => {
+  // 🌟 Cathay EFB 風格的 Accordion 組件
+  const Accordion = ({ id, type, icao, notams }: { id: string, type: string, icao: string, notams: string[] }) => {
     const isOpen = expanded === id;
+    
+    // 根據 Type 設定 Badge 顏色
+    let badgeStyle = "";
+    let typeLabel = "";
+    if (type === "DEP") {
+      badgeStyle = "bg-[#2979FF]/15 text-[#2979FF] border-[#2979FF]/30";
+      typeLabel = "DEPARTURE";
+    } else if (type === "ARR") {
+      badgeStyle = "bg-[#00E676]/15 text-[#00E676] border-[#00E676]/30";
+      typeLabel = "ARRIVAL";
+    } else {
+      badgeStyle = "bg-[#FF9100]/15 text-[#FF9100] border-[#FF9100]/30";
+      typeLabel = "ALTERNATE";
+    }
+
     return (
-      <div className="border border-[#333333] rounded-lg mb-3 bg-lido-800 overflow-hidden transition-all">
+      <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl mb-5 shrink-0 shadow-lg flex flex-col font-sans overflow-hidden transition-all">
+        {/* Clickable Header */}
         <button 
           onClick={() => setExpanded(isOpen ? null : id)}
-          className="w-full px-5 py-4 flex justify-between items-center bg-lido-800 hover:bg-[#1e2a38] transition-colors"
+          className="w-full px-5 py-4 flex justify-between items-center bg-[#1E1E1E] hover:bg-[#252525] transition-colors outline-none"
         >
-          <span className="font-bold text-status-teal text-lg">{title}</span>
-          <span className="text-text-muted">{isOpen ? '▲' : '▼'}</span>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-black text-white tracking-widest">{icao}</h2>
+            <div className={`px-2 py-0.5 rounded text-[0.65rem] font-black uppercase tracking-wider border ${badgeStyle}`}>
+              {typeLabel}
+            </div>
+          </div>
+          <span className={`text-[#8fa0a6] text-2xl font-light transform transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}>
+            ›
+          </span>
         </button>
+        
+        {/* Expanded Content Area */}
         {isOpen && (
-          <div className="p-5 bg-[#0a0a0a] text-text-main font-mono text-sm whitespace-pre-wrap leading-relaxed max-h-[60vh] overflow-y-auto">
-            {content}
+          <div className="bg-[#0a0a0a] border-t border-[#333333] p-5 max-h-[60vh] overflow-y-auto flex flex-col gap-4">
+            {notams.map((notamText, idx) => (
+              <div 
+                key={idx} 
+                className="text-[#e2e8f0] font-mono text-[0.85rem] whitespace-pre-wrap leading-relaxed pb-4 border-b border-[#2a2a2a] last:border-0 last:pb-0"
+              >
+                {notamText}
+              </div>
+            ))}
           </div>
         )}
       </div>
     );
   };
 
+  // 🌟 過濾重複機場的邏輯 (Deduplication Logic)
+  const renderList = [];
+  const seenIcaos = new Set<string>();
+
+  // 1. 處理出發地
+  if (flightData?.dep_icao) {
+    renderList.push({
+      id: `dep`,
+      type: "DEP",
+      icao: flightData.dep_icao,
+      notams: parseNotams(flightData?.notam_dep, rawSb.origin?.notam)
+    });
+    seenIcaos.add(flightData.dep_icao);
+  }
+
+  // 2. 處理目的地 (如果與出發地不同)
+  if (flightData?.arr_icao && !seenIcaos.has(flightData.arr_icao)) {
+    renderList.push({
+      id: `arr`,
+      type: "ARR",
+      icao: flightData.arr_icao,
+      notams: parseNotams(flightData?.notam_arr, rawSb.destination?.notam)
+    });
+    seenIcaos.add(flightData.arr_icao);
+  }
+
+  // 3. 處理備降場 (如果與起降地都不同)
+  const rawAltn = rawSb.alternate;
+  const altnArray = Array.isArray(rawAltn) ? rawAltn : (rawAltn ? [rawAltn] : alternates);
+
+  altnArray.forEach((altn: any, idx: number) => {
+    const icao = altn.icao_code || altn.icao;
+    if (icao && !seenIcaos.has(icao)) {
+      renderList.push({
+        id: `altn-${idx}`,
+        type: "ALTN",
+        icao: icao,
+        notams: parseNotams(undefined, altn.notam)
+      });
+      seenIcaos.add(icao);
+    }
+  });
+
   return (
-    <div className="h-full w-full overflow-y-auto pr-2 pb-10">
-      <h2 className="text-2xl font-black text-white mb-6">📢 FLIGHT OPERATIONAL NOTAM BRIEFINGS</h2>
+    <div className="h-full w-full overflow-y-auto pr-2 pb-10 animate-fade-in">
       
-      <Accordion 
-        id="dep" 
-        title={`🛫 DEPARTURE: ${flightData?.dep_icao || 'N/A'}`} 
-        content={cleanNotam(flightData?.notam_dep, rawSb.origin?.notam)} 
-      />
-      <Accordion 
-        id="arr" 
-        title={`🛬 ARRIVAL: ${flightData?.arr_icao || 'N/A'}`} 
-        content={cleanNotam(flightData?.notam_arr, rawSb.destination?.notam)} 
-      />
+      {/* 標題與 Icon (與 Weather.tsx 統一風格) */}
+      <div className="flex items-center gap-3 mb-6 mt-2 ml-1">
+         <div className="w-8 h-8 rounded-full bg-[#1E1E1E] border border-[#333] flex items-center justify-center text-white">
+           <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+           </svg>
+         </div>
+         <h2 className="text-lg font-bold text-white tracking-wide">NOTAM Briefing</h2>
+      </div>
       
-      {/* 備降機場 NOTAM：直接從 raw_simbrief.alternate 陣列中讀取 */}
-      {(rawSb.alternate || flightData?.alternates || []).map((altn: any, idx: number) => {
-        const icao = altn.icao_code || altn.icao;
-        return (
-          <Accordion 
-            key={idx}
-            id={`altn_${idx}`} 
-            title={`🔄 ALTERNATE: ${icao}`} 
-            content={cleanNotam(undefined, altn.notam)} 
-          />
-        );
-      })}
+      {/* 依序渲染去重後的 NOTAM Accordions */}
+      {renderList.map((item) => (
+        <Accordion 
+          key={item.id}
+          id={item.id}
+          type={item.type}
+          icao={item.icao}
+          notams={item.notams}
+        />
+      ))}
+      
     </div>
   );
 }
