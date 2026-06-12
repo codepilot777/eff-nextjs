@@ -24,20 +24,6 @@ export async function POST(request: Request) {
     const weights = sbData.weights || {};
     const times = sbData.times || {};
 
-    const targetPayload = parseInt(weights.est_zfw || 0) - parseInt(weights.oew || 161968);
-    let paxTotal = Math.floor(targetPayload / 104);
-    if (paxTotal > 438) paxTotal = 438;
-    const paxJ = Math.min(42, Math.floor(paxTotal * 0.1));
-    const paxY = paxTotal - paxJ;
-
-    let remCargo = targetPayload - (paxTotal * 84);
-    if (remCargo < 0) remCargo = 0;
-    const h1 = Math.floor(remCargo * 0.3);
-    const h2 = Math.floor(remCargo * 0.3);
-    const h3 = Math.floor(remCargo * 0.2);
-    const h4 = Math.floor(remCargo * 0.1);
-    const blk = Math.floor(remCargo - h1 - h2 - h3 - h4);
-
     const stdUnix = parseInt(times.est_out || 0);
     const staUnix = parseInt(times.est_in || 0);
     const formatTime = (unix: number) => {
@@ -64,6 +50,7 @@ export async function POST(request: Request) {
 
     const finalFlightNo = flightNo || `${gen.icao_airline} ${gen.flight_number}`;
     
+    // 🌟 完美重構的 Flight Data Schema (支援 V1, V2, V3 歷史)
     const flightData = {
       flight_no: finalFlightNo,
       aircraft_reg: gen.aircraft_reg || "B-HNQ",
@@ -78,52 +65,67 @@ export async function POST(request: Request) {
       sta_unix: staUnix,
       cruise_alt: gen.initial_altitude || "35000",
       avg_wind: gen.avg_wind_comp || "N/A",
+      
       fuel_taxi_ofp: parseInt(fuel.taxi || 0) / 1000.0,
       fuel_trip_ofp: parseInt(fuel.enroute_burn || 0) / 1000.0,
       fuel_cont_ofp: parseInt(fuel.contingency || 0) / 1000.0,
       fuel_altn_ofp: parseInt(fuel.alternate_burn || 0) / 1000.0,
       fuel_reserve_ofp: parseInt(fuel.reserve || 0) / 1000.0,
+      plan_fuel_total: parseInt(fuel.plan_ramp || 0) / 1000.0,
+      weight_fuel_reqd_ofp: parseInt(fuel.plan_takeoff || 0) / 1000.0, 
+
       weight_zfw_ofp: parseInt(weights.est_zfw || 0) / 1000.0,
       weight_tow_ofp: parseInt(weights.est_tow || 0) / 1000.0,
       weight_lw_ofp: parseInt(weights.est_ldw || 0) / 1000.0,
       dow: parseInt(weights.oew || 161968),
       eet_seconds: parseInt(times.est_time_enroute || 0),
       ofp_version: 1,
+      
       captain: "INSTRUCTOR",
       dispatcher: "SYSTEM AUTO",
-      pax_y: paxY,
-      pax_j: paxJ,
-      pax_f: 0,
-      pax_w: 0,
-      cargo_bulk: blk,
-      cargo_hold_1: h1,
-      cargo_hold_2: h2,
-      cargo_hold_3: h3,
-      cargo_hold_4: h4,
-      
+      crew_fd: 2,
+      crew_cc: 14,
+      water_fraction: 15,
+
+      pax_f: 0, pax_j: 0, pax_w: 0, pax_y: 0,
+      cargo_bulk: 0, cargo_hold_1: 0, cargo_hold_2: 0, cargo_hold_3: 0, cargo_hold_4: 0,
+      final_fuel_request: 0, actual_uplift: 0, fuel_left_main: 0, fuel_center: 0, fuel_right_main: 0,
+      fuel_is_standard: false, fuel_on_board: 0,
+
       navlog: parsedNavlog,
       alternates: parsedAlternates,
-
       raw_simbrief: sbData,
 
-      ezfw_sent: true,
+      ezfw_sent: false,
       azf_sent: false,
       prelim_ls_sent: false,
       final_ls_sent: false,
+      
+      standby_fuel_sent: false,
       fuel_receipt_sent: false,
       final_fuel_accepted: false,
+      
       pilots_signed_prelim: false,
       pilots_signed_final: false,
-      pilots_signed_fuel: false
+      pilots_signed_fuel: false,
+
+      // 🌟 新增歷史數組
+      prelim_history: [],
+      final_history: [],
+      prelim_ls_version: 1,
+      final_ls_version: 1,
+
+      prelim_ls_rejected: false,
+      prelim_ls_reject_reason: "",
+      final_ls_rejected: false,
+      final_ls_reject_reason: ""
     };
 
-    // 🌟 連接 Turso 雲端資料庫
     const db = createClient({
       url: process.env.TURSO_DATABASE_URL || "file:eff_database.db",
       authToken: process.env.TURSO_AUTH_TOKEN,
     });
     
-    // 🌟 非同步執行：如果 Table 不存在就建立
     await db.execute(`
       CREATE TABLE IF NOT EXISTS flights (
         flight_no TEXT PRIMARY KEY,
@@ -131,7 +133,6 @@ export async function POST(request: Request) {
       )
     `);
 
-    // 🌟 非同步執行：寫入或覆蓋航班資料
     await db.execute({
       sql: 'REPLACE INTO flights (flight_no, data) VALUES (?, ?)',
       args: [finalFlightNo, JSON.stringify(flightData)]
