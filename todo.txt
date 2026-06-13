@@ -1,0 +1,11 @@
+Trainee View:
+
+  select flight page style realign with company style /
+  Loadsheet modal
+  
+  Aircraft section
+
+  Airport section
+
+E-tech Log restyle?
+

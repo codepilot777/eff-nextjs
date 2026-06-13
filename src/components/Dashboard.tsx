@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import FmcCrewColumn from "./dashboard/FmcCrewColumn";
 import FuelWeightColumn from "./dashboard/FuelWeightColumn";
 import LoadsheetAirportColumn from "./dashboard/LoadsheetAirportColumn";
@@ -9,6 +9,9 @@ import DashboardModals from "./dashboard/DashboardModals";
 
 export default function Dashboard({ flightData, updateFlightData }: { flightData?: any, updateFlightData?: any }) {
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  
+  // 🌟 1. 新增 Techlog 專用 State (undefined 代表 Loading 中)
+  const [techlogData, setTechlogData] = useState<any>(undefined);
 
   const rawSb = flightData?.raw_simbrief || {};
   const gen = rawSb.general || {};
@@ -18,6 +21,28 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
 
   const acType = flightData?.aircraft_type || gen.icao_aircraft || 'B773';
   const reg = flightData?.aircraft_reg || gen.aircraft_reg || 'B-HNQ';
+
+  // 🌟 2. 使用 useEffect 獨立去 Call 第二個 API 讀取 Techlog
+  useEffect(() => {
+    const fetchTechlog = async () => {
+      if (!reg) return; // 🌟 認機唔認 Flight
+      
+      try {
+        const res = await fetch(`/api/techlog?reg=${reg}`); // 🌟 用 reg 去查
+        if (res.ok) {
+          const data = await res.json();
+          setTechlogData(data);
+        } else {
+          setTechlogData({ defects: [] }); 
+        }
+      } catch (error) {
+        setTechlogData({ defects: [] });
+      }
+    };
+
+    fetchTechlog();
+  }, [reg]); // 🌟 Dependency 係架飛機
+
   const routeStr = flightData?.route_id || gen.route || 'DCT';
   const shortRoute = routeStr.split(" ").length > 5 ? routeStr.split(" ").slice(0, 5).join(" ") + " ..." : routeStr;
   const costIndex = flightData?.cost_index || (gen.costindex ? `CI ${gen.costindex}` : 'CI 85');
@@ -86,9 +111,7 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   const altnOptions = altnList.map((a: any) => a.icao);
   const selectedAltn = flightData?.selected_altn || altnOptions[0] || 'N/A';
   
-  // 🌟 重點修改：將 baseAltnOfp 動態綁定為所選 Alternate 的油量
   const baseAltnOfp = altnList.find((a: any) => a.icao === selectedAltn)?.burn || flightData?.fuel_altn_ofp || 0.0;
-  // 🌟 因為修改的是 OFP 基準，Revised (currAltnOfp) 直接等於 base，這樣 Diff 就是 0
   const currAltnOfp = baseAltnOfp;
 
   const ofpZfw = flightData?.weight_zfw_ofp || 0.0;
@@ -177,7 +200,8 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
       <FmcCrewColumn flightData={flightData} calc={calc} setActiveModal={setActiveModal} />
       <FuelWeightColumn flightData={flightData} updateFlightData={updateFlightData} calc={calc} handlers={handlers} setActiveModal={setActiveModal}/>
       <LoadsheetAirportColumn flightData={flightData} calc={calc} setActiveModal={setActiveModal} />
-      <RefuelAircraftColumn flightData={flightData} updateFlightData={updateFlightData} calc={calc} setActiveModal={setActiveModal} />
+      {/* 🌟 3. 將 techlogData 當做 prop 傳畀 RefuelAircraftColumn */}
+      <RefuelAircraftColumn flightData={flightData} techlogData={techlogData} updateFlightData={updateFlightData} calc={calc} setActiveModal={setActiveModal} />
       <DashboardModals flightData={flightData} updateFlightData={updateFlightData} activeModal={activeModal} setActiveModal={setActiveModal} calc={calc} handlers={handlers} />
     </div>
   );
