@@ -21,54 +21,153 @@ export function TaskNormalClose({ tlData, defects, updateTechLogData, setActiveT
   const isValid = (!hasOpenDefects ? ncNilDefects : true) && ncBlocksOff !== "" && ncTakeOff !== "" && ncLanding !== "" && ncBlocksOn !== "" && ncArrivalFuel !== "" && ncCmdr !== "" && ncGalaxyId !== "";
 
   return (
-    <div className="flex flex-col h-full relative">
-      <div className="border-b border-[#333333] pb-3 mb-6 shrink-0 pr-48">
-        <h3 className="text-2xl font-black text-[#00E676]">Normal Close Flight</h3>
-      </div>
-      <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-5 pb-4">
+    <div className="flex flex-col h-full relative font-sans">
+      
+      {/* 🌟 Header */}
+      <h3 className="text-xl font-bold uppercase tracking-widest text-[#00E676] border-b border-[#333] pb-4 mb-6 flex items-center gap-3 shrink-0">
+        <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Normal Close Flight
+      </h3>
+
+      <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-6 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent pb-4">
+        
+        {/* Confirm Nil Defects Toggle */}
         {!hasOpenDefects && (
-          <div className="flex items-center justify-between bg-[#1a1a1a] border border-[#404040] p-4 rounded-lg">
-            <div><div className="text-white font-bold">Confirm Nil Defects</div><div className="text-[#8fa0a6] text-xs mt-0.5">No defects were reported during this sector.</div></div>
-            <div onClick={() => setNcNilDefects(!ncNilDefects)} className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer shadow-inner ${ncNilDefects ? 'bg-[#00E676]' : 'bg-[#404040]'}`}><div className={`bg-white w-4 h-4 rounded-full transform transition-transform ${ncNilDefects ? 'translate-x-6' : 'translate-x-0'}`}></div></div>
+          <div 
+            onClick={() => setNcNilDefects(!ncNilDefects)} 
+            className={`flex items-center justify-between bg-[#0a0a0a] border p-5 rounded-xl cursor-pointer transition-colors select-none shadow-inner ${ncNilDefects ? 'border-[#00E676]/50' : 'border-[#444] hover:border-[#666]'}`}
+          >
+            <div className="flex flex-col">
+              <div className={`font-bold uppercase tracking-widest text-[0.75rem] transition-colors ${ncNilDefects ? 'text-[#00E676]' : 'text-white'}`}>Confirm Nil Defects</div>
+              <div className="text-[#555] text-[0.65rem] mt-1.5 font-bold uppercase tracking-widest">No defects were reported during this sector.</div>
+            </div>
+            <div className={`w-14 h-8 flex items-center rounded-full p-1 transition-colors duration-300 shadow-inner shrink-0 ${ncNilDefects ? 'bg-[#00E676]' : 'bg-[#333]'}`}>
+              <div className={`bg-white w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 flex items-center justify-center ${ncNilDefects ? 'translate-x-6' : 'translate-x-0'}`}></div>
+            </div>
           </div>
         )}
-        <div className="grid grid-cols-4 gap-3">
-          <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">Blocks Off (Z)</label><input type="text" value={ncBlocksOff} onChange={e=>setNcBlocksOff(e.target.value)} className="w-full bg-[#1a1a1a] border border-[#404040] p-3 rounded font-bold text-white outline-none focus:border-[#00bfa5]" /></div>
-          <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">Take Off (Z)</label><input type="text" value={ncTakeOff} onChange={e=>setNcTakeOff(e.target.value)} className="w-full bg-[#1a1a1a] border border-[#404040] p-3 rounded font-bold text-white outline-none focus:border-[#00bfa5]" /></div>
-          <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">Landing (Z)</label><input type="text" value={ncLanding} onChange={e=>setNcLanding(e.target.value)} className="w-full bg-[#1a1a1a] border border-[#404040] p-3 rounded font-bold text-white outline-none focus:border-[#00bfa5]" /></div>
-          <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">Blocks On (Z)</label><input type="text" value={ncBlocksOn} onChange={e=>setNcBlocksOn(e.target.value)} className="w-full bg-[#1a1a1a] border border-[#404040] p-3 rounded font-bold text-white outline-none focus:border-[#00bfa5]" /></div>
+
+        {/* 🌟 Block Times */}
+        <div className="grid grid-cols-4 gap-4">
+          {['Blocks Off (Z)', 'Take Off (Z)', 'Landing (Z)', 'Blocks On (Z)'].map((label, i) => {
+            const state = [ncBlocksOff, ncTakeOff, ncLanding, ncBlocksOn][i];
+            const setter = [setNcBlocksOff, setNcTakeOff, setNcLanding, setNcBlocksOn][i];
+            return (
+              <div key={label}>
+                <label className="block text-[0.6rem] text-[#8fa0a6] font-bold uppercase tracking-widest mb-2">{label}</label>
+                <input 
+                  type="text" 
+                  value={state} 
+                  onChange={e => setter(e.target.value)} 
+                  className="w-full bg-[#0a0a0a] border border-[#444] p-3.5 rounded-xl font-mono font-bold text-white text-center outline-none focus:border-[#00E676] transition-colors shadow-inner placeholder:text-[#333]" 
+                  placeholder="e.g. 0345" 
+                  maxLength={4}
+                />
+              </div>
+            );
+          })}
         </div>
-        <hr className="border-dashed border-[#404040]" />
-        <div className="grid grid-cols-3 gap-4">
-          <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">Landings</label><input type="number" min="0" value={ncLandingsCount} onChange={e=>setNcLandingsCount(e.target.value)} className="w-full bg-[#1a1a1a] border border-[#404040] p-3 rounded font-bold text-white outline-none focus:border-[#00bfa5]" /></div>
-          <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">Overshoots</label><input type="number" min="0" value={ncOvershoots} onChange={e=>setNcOvershoots(e.target.value)} className="w-full bg-[#1a1a1a] border border-[#404040] p-3 rounded font-bold text-white outline-none focus:border-[#00bfa5]" /></div>
-          <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">Touch-and-gos</label><input type="number" min="0" value={ncTouchGo} onChange={e=>setNcTouchGo(e.target.value)} className="w-full bg-[#1a1a1a] border border-[#404040] p-3 rounded font-bold text-white outline-none focus:border-[#00bfa5]" /></div>
+        
+        {/* Divider */}
+        <div className="h-px bg-[#333] w-full my-1"></div>
+
+        {/* 🌟 Operations Counters */}
+        <div className="grid grid-cols-3 gap-5">
+          {[
+            { label: 'Landings', state: ncLandingsCount, setter: setNcLandingsCount },
+            { label: 'Overshoots', state: ncOvershoots, setter: setNcOvershoots },
+            { label: 'Touch-and-gos', state: ncTouchGo, setter: setNcTouchGo }
+          ].map(item => (
+            <div key={item.label}>
+              <label className="block text-[0.65rem] text-[#8fa0a6] font-bold uppercase tracking-widest mb-2">{item.label}</label>
+              <input 
+                type="number" min="0" 
+                value={item.state} 
+                onChange={e => item.setter(e.target.value)} 
+                className="w-full bg-[#0a0a0a] border border-[#444] p-3.5 rounded-xl font-mono font-bold text-white text-center outline-none focus:border-[#00E676] transition-colors shadow-inner" 
+              />
+            </div>
+          ))}
         </div>
-        <hr className="border-dashed border-[#404040]" />
-        <div className="grid grid-cols-2 gap-4">
+
+        {/* Divider */}
+        <div className="h-px bg-[#333] w-full my-1"></div>
+
+        {/* 🌟 EDTO & Autoland */}
+        <div className="grid grid-cols-2 gap-5">
           <div>
-            <label className="block text-xs text-[#8fa0a6] font-bold mb-1">EDTO</label>
-            <select value={ncEdto} onChange={e=>setNcEdto(e.target.value)} className="w-full bg-[#1a1a1a] border border-[#404040] p-3 rounded font-bold text-white outline-none focus:border-[#00bfa5]"><option>No</option><option>60 mins</option><option>120 mins</option><option>180 mins</option><option>207 mins</option><option>240 mins</option></select>
+            <label className="block text-[0.65rem] text-[#8fa0a6] font-bold uppercase tracking-widest mb-2">EDTO</label>
+            <div className="relative">
+              <select value={ncEdto} onChange={e=>setNcEdto(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#444] p-4 rounded-xl font-sans font-bold text-white text-[0.75rem] uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#00E676] shadow-inner">
+                <option>No</option><option>60 mins</option><option>120 mins</option><option>180 mins</option><option>207 mins</option><option>240 mins</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-[#8fa0a6]">
+                <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+              </div>
+            </div>
           </div>
           <div>
-            <label className="block text-xs text-[#8fa0a6] font-bold mb-1">Autoland</label>
-            <select value={ncAutoland} onChange={e=>setNcAutoland(e.target.value)} className="w-full bg-[#1a1a1a] border border-[#404040] p-3 rounded font-bold text-white outline-none focus:border-[#00bfa5]"><option>Not Attempted</option><option>Successful</option><option>Unsuccessful</option></select>
+            <label className="block text-[0.65rem] text-[#8fa0a6] font-bold uppercase tracking-widest mb-2">Autoland</label>
+            <div className="relative">
+              <select value={ncAutoland} onChange={e=>setNcAutoland(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#444] p-4 rounded-xl font-sans font-bold text-white text-[0.75rem] uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#00E676] shadow-inner">
+                <option>Not Attempted</option><option>Successful</option><option>Unsuccessful</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-[#8fa0a6]">
+                <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+              </div>
+            </div>
           </div>
         </div>
-        <hr className="border-dashed border-[#404040]" />
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">Arrival Fuel T(KGSX1000)</label><input type="number" step="0.1" value={ncArrivalFuel} onChange={e=>setNcArrivalFuel(e.target.value)} className="w-full bg-[#1a1a1a] border border-[#00bfa5] p-3 rounded font-bold text-[#00bfa5] outline-none" /></div>
-          <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">Arrival Station</label><input type="text" value={tlData?.tl_prep_arr || "KIX"} disabled className="w-full bg-[#0a0a0a] border border-[#404040] p-3 rounded font-bold text-[#8fa0a6]" /></div>
+
+        {/* Divider */}
+        <div className="h-px bg-[#333] w-full my-1"></div>
+
+        {/* 🌟 Fuel & Station */}
+        <div className="grid grid-cols-2 gap-5">
+          <div>
+            <label className="block text-[0.65rem] text-[#00E676] font-bold uppercase tracking-widest mb-2 flex justify-between">
+              <span>Arrival Fuel</span>
+              <span className="text-[#555]">T (KGS x 1000)</span>
+            </label>
+            <input type="number" step="0.1" value={ncArrivalFuel} onChange={e=>setNcArrivalFuel(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#00E676]/50 p-4 rounded-xl font-mono font-bold text-[#00E676] text-lg outline-none focus:border-[#00E676] shadow-inner" placeholder="e.g. 10.5" />
+          </div>
+          <div>
+            <label className="block text-[0.65rem] text-[#8fa0a6] font-bold uppercase tracking-widest mb-2">Arrival Station</label>
+            <input type="text" value={tlData?.tl_prep_arr || "KIX"} disabled className="w-full bg-[#1a1a1a] border border-[#333] p-4 rounded-xl font-mono font-bold text-[#8fa0a6] outline-none cursor-not-allowed text-center text-lg shadow-inner" />
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-4 mt-2">
-          <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">Commander's Name</label><input type="text" value={ncCmdr} onChange={e=>setNcCmdr(e.target.value.toUpperCase())} className="w-full bg-[#1a1a1a] border border-[#404040] p-3 rounded font-bold text-white outline-none focus:border-[#00bfa5]" /></div>
-          <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">GalaCXy ID</label><input type="text" value={ncGalaxyId} onChange={e=>setNcGalaxyId(e.target.value.toUpperCase())} className="w-full bg-[#1a1a1a] border border-[#404040] p-3 rounded font-bold text-white outline-none focus:border-[#00bfa5]" /></div>
+
+        {/* 🌟 Commander Details */}
+        <div className="grid grid-cols-2 gap-5 mt-2">
+          <div>
+            <label className="block text-[0.65rem] text-[#8fa0a6] font-bold uppercase tracking-widest mb-2">Commander's Name</label>
+            <input type="text" value={ncCmdr} onChange={e=>setNcCmdr(e.target.value.toUpperCase())} className="w-full bg-[#0a0a0a] border border-[#444] p-4 rounded-xl font-mono font-bold text-white outline-none focus:border-[#00E676] uppercase shadow-inner" />
+          </div>
+          <div>
+            <label className="block text-[0.65rem] text-[#8fa0a6] font-bold uppercase tracking-widest mb-2">GalaCXy ID</label>
+            <input type="text" value={ncGalaxyId} onChange={e=>setNcGalaxyId(e.target.value.toUpperCase())} className="w-full bg-[#0a0a0a] border border-[#444] p-4 rounded-xl font-mono font-bold text-white outline-none focus:border-[#00E676] uppercase shadow-inner" />
+          </div>
         </div>
+
       </div>
-      {isValid && (
-        <button onClick={() => finalizeSector("Normal Close", tlData?.tl_prep_arr || "KIX", ncArrivalFuel, { cmdr: ncCmdr, blocksOff: ncBlocksOff, takeOff: ncTakeOff, landing: ncLanding, blocksOn: ncBlocksOn, edto: ncEdto, autoland: ncAutoland, landingsCount: ncLandingsCount, overshoots: ncOvershoots, touchGo: ncTouchGo }, tlData, updateTechLogData, setActiveTask)} className="w-full mt-4 py-4 bg-[#00E676] text-black font-black rounded-lg hover:bg-[#00c853] shadow-[0_0_15px_rgba(0,230,118,0.3)] animate-fade-in tracking-widest shrink-0">
-          CONFIRM NORMAL CLOSE
+
+      {/* 🌟 底部 Confirm 按鈕 */}
+      {isValid ? (
+        <button 
+          onClick={() => finalizeSector("Normal Close", tlData?.tl_prep_arr || "KIX", ncArrivalFuel, { cmdr: ncCmdr, blocksOff: ncBlocksOff, takeOff: ncTakeOff, landing: ncLanding, blocksOn: ncBlocksOn, edto: ncEdto, autoland: ncAutoland, landingsCount: ncLandingsCount, overshoots: ncOvershoots, touchGo: ncTouchGo }, tlData, updateTechLogData, setActiveTask)} 
+          className="w-full py-4.5 mt-4 rounded-xl font-black text-[0.8rem] uppercase tracking-widest transition-all flex items-center justify-center gap-3 shrink-0 bg-[#00E676] text-black hover:bg-[#00c263] shadow-[0_4px_15px_rgba(0,230,118,0.3)]"
+        >
+          <svg fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+          Confirm Normal Close
         </button>
+      ) : (
+        <div className="w-full py-4.5 mt-4 rounded-xl font-black text-[0.8rem] uppercase tracking-widest flex items-center justify-center gap-3 shrink-0 bg-[#1a1a1a] text-[#444] border border-[#333] cursor-not-allowed">
+          Please fill in all required fields
+        </div>
       )}
     </div>
   );

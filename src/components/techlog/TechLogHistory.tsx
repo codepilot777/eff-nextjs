@@ -14,9 +14,11 @@ export default function TechLogHistory({ tlData }: any) {
 
   if (realHistory.length === 0) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center text-[#8fa0a6] italic bg-[#1a1a1a] rounded-xl border border-[#333333]">
-        <span className="text-4xl mb-3">📭</span>
-        No history records found for this aircraft.
+      <div className="w-full h-full flex flex-col items-center justify-center text-[#555] bg-[#1E1E1E] rounded-2xl border border-[#333] shadow-lg">
+        <svg fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-24 h-24 mb-6 text-[#333]">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <span className="text-[0.8rem] font-bold tracking-widest uppercase">No history records found for this aircraft.</span>
       </div>
     );
   }
@@ -24,127 +26,188 @@ export default function TechLogHistory({ tlData }: any) {
   const selectedDetail = realHistory.find((r: any) => r.id === selectedHist);
 
   return (
-    <div className="w-full h-full flex gap-4 overflow-hidden">
+    <div className="w-full h-full flex gap-4 overflow-hidden font-sans">
       
       {/* 👈 左側：歷史列表 */}
-      <div className="flex-[3] bg-[#2a2a2a] border border-[#333333] rounded-xl p-4 shadow-lg overflow-y-auto flex flex-col gap-2">
-        <h4 className="text-[#00bfa5] font-bold mb-2 uppercase tracking-widest text-sm">Sector Logs</h4>
-        {realHistory.map((r: any) => (
-          <button 
-            key={r.id} 
-            onClick={() => setSelectedHist(r.id)} 
-            className={`text-left p-4 rounded-lg border transition-colors ${selectedHist === r.id ? 'bg-[#1a1a1a] border-[#00bfa5] shadow-md' : 'bg-[#0a0a0a] border-[#333333] hover:border-[#8fa0a6]'}`}
-          >
-            <div className="text-xs text-[#8fa0a6] font-bold flex justify-between">
-              <span>{r.date}</span>
-              <span className={`px-1.5 rounded text-[0.6rem] uppercase font-black ${r.action === 'Normal Close' ? 'bg-[#00E676]/20 text-[#00E676]' : r.action === 'Diversion' ? 'bg-[#FF9100]/20 text-[#FF9100]' : 'bg-[#FF1744]/20 text-[#FF1744]'}`}>
-                {r.action}
-              </span>
-            </div>
-            <div className="text-[#00bfa5] font-black text-xl mt-1">{r.flt}</div>
-            <div className="text-sm font-bold text-white mt-1">{r.route}</div>
-          </button>
-        ))}
+      <div className="flex-[3] bg-[#1E1E1E] border border-[#333] rounded-2xl p-5 shadow-lg overflow-y-auto flex flex-col gap-3 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
+        <h4 className="text-[#8fa0a6] text-[0.65rem] font-bold uppercase tracking-widest mb-2 border-b border-[#333] pb-3 shrink-0 flex items-center gap-2">
+          <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 011.875 1.875v11.25a1.875 1.875 0 01-1.875 1.875H5.625a1.875 1.875 0 01-1.875-1.875V6.375c0-1.036.84-1.875 1.875-1.875z" /></svg>
+          Sector Logs
+        </h4>
+        
+        {realHistory.map((r: any) => {
+          const isSelected = selectedHist === r.id;
+          return (
+            <button 
+              key={r.id} 
+              onClick={() => setSelectedHist(r.id)} 
+              className={`text-left p-4 rounded-xl border outline-none transition-all flex flex-col gap-2 ${
+                isSelected 
+                  ? 'bg-[#0a0a0a] border-[#00E676]/50 shadow-md border-l-4 border-l-[#00E676]' 
+                  : 'bg-transparent border-[#333] hover:bg-[#252525] border-l-4 border-l-transparent'
+              }`}
+            >
+              <div className="w-full flex justify-between items-center leading-none">
+                <span className={`text-[0.65rem] font-bold tracking-widest uppercase ${isSelected ? 'text-white' : 'text-[#8fa0a6]'}`}>
+                  {r.date}
+                </span>
+                <span className={`px-2 py-0.5 rounded text-[0.6rem] uppercase tracking-widest font-black ${
+                  r.action === 'Normal Close' ? 'bg-[#00E676]/10 text-[#00E676] border border-[#00E676]/30' : 
+                  r.action === 'Diversion' ? 'bg-[#FF9100]/10 text-[#FF9100] border border-[#FF9100]/30' : 
+                  'bg-[#FF1744]/10 text-[#FF1744] border border-[#FF1744]/30'
+                }`}>
+                  {r.action}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`font-mono font-black text-xl leading-none ${isSelected ? 'text-[#00E676]' : 'text-white'}`}>
+                  {r.flt}
+                </span>
+                <span className={`text-[0.75rem] font-bold leading-none ${isSelected ? 'text-[#e2e8f0]' : 'text-[#8fa0a6]'}`}>
+                  {r.route}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* 👉 右側：歷史詳情 */}
-      <div className="flex-[7] bg-[#2a2a2a] border border-[#333333] rounded-xl p-6 shadow-lg overflow-y-auto">
+      <div className="flex-[7] bg-[#1E1E1E] border border-[#333] rounded-2xl p-7 shadow-lg overflow-y-auto scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
         {selectedDetail && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in flex flex-col h-full">
             
-            {/* 🌟 Header 區域：左邊航段資訊，右邊 Operations Times */}
-            <div className="flex justify-between items-start border-b border-[#333333] pb-4 mb-6">
+            {/* 🌟 Header 區域：左邊航段資訊，右邊 Action Pill */}
+            <div className="flex justify-between items-start border-b border-[#333] pb-5 mb-6 shrink-0">
               <div>
-                <h3 className="text-3xl font-black text-[#00E676]">Sector: {selectedDetail.flt}</h3>
-                <div className="text-[#8fa0a6] font-bold mt-1 tracking-widest">
-                  {selectedDetail.route} &nbsp;|&nbsp; {selectedDetail.date}
-                </div>
-              </div>
-              
-              {/* ⏱️ Operations Times 直接攝入 Header 右邊空位 */}
-              <div className="flex flex-col items-end gap-3">
-                <span className={`px-3 py-1 rounded text-xs font-black uppercase tracking-widest ${selectedDetail.action === 'Normal Close' ? 'bg-[#00E676] text-black' : selectedDetail.action === 'Diversion' ? 'bg-[#FF9100] text-black' : 'bg-[#FF1744] text-white'}`}>
-                  {selectedDetail.action}
-                </span>
-                
-                {/* Data-Driven Logic: 有咩 Render 咩 */}
-                <div className="flex gap-4 text-right">
-                  {selectedDetail.blocksOff && (
-                    <div><div className="text-[0.6rem] uppercase tracking-widest text-[#8fa0a6]">Blocks Off</div><div className="text-white font-mono text-sm">{selectedDetail.blocksOff} Z</div></div>
-                  )}
-                  {selectedDetail.takeOff && (
-                    <div><div className="text-[0.6rem] uppercase tracking-widest text-[#8fa0a6]">Take Off</div><div className="text-white font-mono text-sm">{selectedDetail.takeOff} Z</div></div>
-                  )}
-                  {selectedDetail.landing && (
-                    <div><div className="text-[0.6rem] uppercase tracking-widest text-[#8fa0a6]">Landing</div><div className="text-white font-mono text-sm">{selectedDetail.landing} Z</div></div>
-                  )}
-                  {selectedDetail.blocksOn && (
-                    <div><div className="text-[0.6rem] uppercase tracking-widest text-[#8fa0a6]">Blocks On</div><div className="text-white font-mono text-sm">{selectedDetail.blocksOn} Z</div></div>
-                  )}
+                <h3 className="text-4xl font-black font-mono text-white leading-none mb-3 flex items-center gap-4">
+                  {selectedDetail.flt}
+                  <span className={`px-3 py-1 rounded-lg text-[0.65rem] font-black uppercase tracking-widest font-sans leading-none ${
+                    selectedDetail.action === 'Normal Close' ? 'bg-[#00E676]/10 text-[#00E676] border border-[#00E676]/50' : 
+                    selectedDetail.action === 'Diversion' ? 'bg-[#FF9100]/10 text-[#FF9100] border border-[#FF9100]/50' : 
+                    'bg-[#FF1744]/10 text-[#FF1744] border border-[#FF1744]/50'
+                  }`}>
+                    {selectedDetail.action}
+                  </span>
+                </h3>
+                <div className="text-[#8fa0a6] text-[0.75rem] font-bold uppercase tracking-widest flex items-center gap-2">
+                  <span className="text-white">{selectedDetail.route}</span>
+                  <span className="opacity-50">|</span>
+                  <span>{selectedDetail.date}</span>
                 </div>
               </div>
             </div>
 
-            {/* 🌟 第 1 行：Defects (最重要) + Maintenance */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              <div className="bg-[#1a1a1a] p-4 rounded-lg border border-[#404040]">
-                <h4 className="text-[#FF9100] font-bold mb-3 uppercase text-xs tracking-widest border-b border-[#333333] pb-2">⚠️ Defects Logged</h4>
+            {/* ⏱️ Operations Times (專屬黑底長條卡片) */}
+            <div className="bg-[#0a0a0a] border border-[#333] rounded-xl p-4 flex justify-between items-center mb-6 shrink-0 shadow-inner">
+              <div className="flex items-center gap-2 text-[#8fa0a6] text-[0.65rem] font-bold uppercase tracking-widest">
+                <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Sector Times
+              </div>
+              <div className="flex gap-8 text-right">
+                {selectedDetail.blocksOff && (
+                  <div className="flex flex-col"><span className="text-[0.6rem] uppercase tracking-widest text-[#555] font-bold">Blocks Off</span><span className="text-[#00E676] font-mono text-sm font-bold">{selectedDetail.blocksOff} z</span></div>
+                )}
+                {selectedDetail.takeOff && (
+                  <div className="flex flex-col"><span className="text-[0.6rem] uppercase tracking-widest text-[#555] font-bold">Take Off</span><span className="text-white font-mono text-sm font-bold">{selectedDetail.takeOff} z</span></div>
+                )}
+                {selectedDetail.landing && (
+                  <div className="flex flex-col"><span className="text-[0.6rem] uppercase tracking-widest text-[#555] font-bold">Landing</span><span className="text-white font-mono text-sm font-bold">{selectedDetail.landing} z</span></div>
+                )}
+                {selectedDetail.blocksOn && (
+                  <div className="flex flex-col"><span className="text-[0.6rem] uppercase tracking-widest text-[#555] font-bold">Blocks On</span><span className="text-[#00E676] font-mono text-sm font-bold">{selectedDetail.blocksOn} z</span></div>
+                )}
+              </div>
+            </div>
+
+            {/* 🌟 第 1 行：Defects + Maintenance */}
+            <div className="grid grid-cols-2 gap-5 mb-5 shrink-0">
+              <div className="bg-[#0a0a0a] p-5 rounded-xl border border-[#333] shadow-inner">
+                <h4 className="text-[#FF9100] font-bold mb-4 uppercase text-[0.65rem] tracking-widest border-b border-[#333] pb-3 flex items-center gap-2">
+                  <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  Defects Logged
+                </h4>
                 {selectedDetail.def?.length > 0 ? (
-                  <ul className="text-sm text-white flex flex-col gap-2 list-disc list-inside pl-2">
+                  <div className="text-[0.75rem] text-[#e2e8f0] flex flex-col gap-3 font-mono">
                     {selectedDetail.def.map((d: any, i: number) => (
-                      <li key={i} className="leading-snug">
-                        <span className={`font-bold ${d.status === "OPEN" ? "text-[#FF1744]" : "text-[#FF9100]"}`}>[{d.id}]</span> {d.description}
-                      </li>
+                      <div key={i} className="leading-relaxed flex gap-2">
+                        <span className={`font-bold shrink-0 ${d.status === "OPEN" ? "text-[#FF1744]" : "text-[#FF9100]"}`}>[{d.id}]</span> 
+                        <span className="opacity-90">{d.description}</span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : (
-                  <div className="text-[#8fa0a6] text-sm italic">Nil defects reported.</div>
+                  <div className="text-[#555] text-[0.75rem] font-bold uppercase tracking-widest italic text-center py-4">Nil defects reported.</div>
                 )}
               </div>
 
-              <div className="bg-[#1a1a1a] p-4 rounded-lg border border-[#404040]">
-                <h4 className="text-[#00bfa5] font-bold mb-3 uppercase text-xs tracking-widest border-b border-[#333333] pb-2">🔧 Maintenance & Servicing</h4>
-                <ul className="text-sm text-[#e2e8f0] flex flex-col gap-1 list-disc list-inside pl-2">
-                  {selectedDetail.checks?.map((c: string, i: number) => <li key={i}>{c}</li>)}
-                  {selectedDetail.serv?.map((s: string, i: number) => <li key={i}>{s}</li>)}
-                </ul>
+              <div className="bg-[#0a0a0a] p-5 rounded-xl border border-[#333] shadow-inner">
+                <h4 className="text-[#00E676] font-bold mb-4 uppercase text-[0.65rem] tracking-widest border-b border-[#333] pb-3 flex items-center gap-2">
+                  <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.83-5.83M15.17 11.42a4.5 4.5 0 11-6.34-6.34 4.5 4.5 0 016.34 6.34zM10 14H6l-3 3v3h3l3-3v-4z" /></svg>
+                  Maintenance & Servicing
+                </h4>
+                {(!selectedDetail.checks?.length && !selectedDetail.serv?.length) ? (
+                   <div className="text-[#555] text-[0.75rem] font-bold uppercase tracking-widest italic text-center py-4">Nil records.</div>
+                ) : (
+                  <ul className="text-[0.75rem] text-[#e2e8f0] flex flex-col gap-2 list-none pl-1">
+                    {selectedDetail.checks?.map((c: string, i: number) => <li key={`c-${i}`} className="flex items-center gap-2"><span className="text-[#00E676] text-xs">✓</span> {c}</li>)}
+                    {selectedDetail.serv?.map((s: string, i: number) => <li key={`s-${i}`} className="flex items-center gap-2"><span className="text-[#00E676] text-xs">✓</span> {s}</li>)}
+                  </ul>
+                )}
               </div>
             </div>
 
-            {/* 🌟 第 2 行：Fuel + Flight Information (動態顯示) */}
-            <div className="grid grid-cols-2 gap-6">
-              <div className="bg-[#1a1a1a] p-4 rounded-lg border border-[#404040]">
-                <h4 className="text-[#00bfa5] font-bold mb-3 uppercase text-xs tracking-widest border-b border-[#333333] pb-2">⛽ Fuel Records</h4>
-                <div className="text-sm text-[#e2e8f0] mb-2"><span className="text-[#8fa0a6] inline-block w-24">Actual Uplift:</span> <strong className="text-white font-mono">{selectedDetail.fuelUp} T</strong></div>
-                <div className="text-sm text-[#e2e8f0]"><span className="text-[#8fa0a6] inline-block w-24">Arrival FOB:</span> <strong className="text-[#00E676] font-mono">{selectedDetail.fuelArr} T</strong></div>
+            {/* 🌟 第 2 行：Fuel + Flight Information */}
+            <div className="grid grid-cols-[1fr_1.5fr] gap-5 shrink-0">
+              
+              <div className="bg-[#0a0a0a] p-5 rounded-xl border border-[#333] shadow-inner">
+                <h4 className="text-white font-bold mb-4 uppercase text-[0.65rem] tracking-widest border-b border-[#333] pb-3 flex items-center gap-2">
+                  <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25z" /></svg>
+                  Fuel Records
+                </h4>
+                <div className="text-[0.75rem] text-[#e2e8f0] mb-3 flex justify-between items-center bg-[#1a1a1a] px-3 py-2 rounded-lg border border-[#333]">
+                  <span className="text-[#8fa0a6] uppercase tracking-widest font-bold">Actual Uplift</span> 
+                  <strong className="text-white font-mono text-sm">{selectedDetail.fuelUp || "0.0"} T</strong>
+                </div>
+                <div className="text-[0.75rem] text-[#e2e8f0] flex justify-between items-center bg-[#1a1a1a] px-3 py-2 rounded-lg border border-[#333]">
+                  <span className="text-[#8fa0a6] uppercase tracking-widest font-bold">Arrival FOB</span> 
+                  <strong className="text-[#00E676] font-mono text-sm">{selectedDetail.fuelArr || "0.0"} T</strong>
+                </div>
               </div>
 
-              <div className="bg-[#1a1a1a] p-4 rounded-lg border border-[#404040]">
-                <h4 className="text-[#00bfa5] font-bold mb-3 uppercase text-xs tracking-widest border-b border-[#333333] pb-2">👨‍✈️ Flight Information</h4>
+              <div className="bg-[#0a0a0a] p-5 rounded-xl border border-[#333] shadow-inner">
+                <h4 className="text-white font-bold mb-4 uppercase text-[0.65rem] tracking-widest border-b border-[#333] pb-3 flex items-center gap-2">
+                  <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                  Flight Information
+                </h4>
                 
-                {/* Data-Driven Logic: Commander 必定有，其他數據有先 Render */}
-                <div className="grid grid-cols-2 gap-y-2 text-sm text-[#e2e8f0]">
-                  <div className="col-span-2">
-                    <span className="text-[#8fa0a6] inline-block w-24">Commander:</span> <strong className="text-white">{selectedDetail.cmdr}</strong>
+                <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-[0.75rem] text-[#e2e8f0]">
+                  <div className="col-span-2 bg-[#1a1a1a] px-3 py-2 rounded-lg border border-[#333] flex justify-between items-center">
+                    <span className="text-[#8fa0a6] uppercase tracking-widest font-bold">Commander</span> 
+                    <strong className="text-white">{selectedDetail.cmdr || "N/A"}</strong>
                   </div>
                   
                   {selectedDetail.landingsCount && (
-                    <div><span className="text-[#8fa0a6] inline-block w-20">Landings:</span> <strong className="text-white">{selectedDetail.landingsCount}</strong></div>
+                    <div className="flex justify-between items-center"><span className="text-[#8fa0a6] uppercase tracking-widest font-bold text-[0.65rem]">Landings</span> <strong className="text-white font-mono">{selectedDetail.landingsCount}</strong></div>
                   )}
                   {selectedDetail.overshoots && (
-                    <div><span className="text-[#8fa0a6] inline-block w-20">Overshoots:</span> <strong className="text-white">{selectedDetail.overshoots}</strong></div>
+                    <div className="flex justify-between items-center"><span className="text-[#8fa0a6] uppercase tracking-widest font-bold text-[0.65rem]">Overshoots</span> <strong className="text-white font-mono">{selectedDetail.overshoots}</strong></div>
                   )}
                   {selectedDetail.touchGo && (
-                    <div><span className="text-[#8fa0a6] inline-block w-20">Touch & Go:</span> <strong className="text-white">{selectedDetail.touchGo}</strong></div>
+                    <div className="flex justify-between items-center"><span className="text-[#8fa0a6] uppercase tracking-widest font-bold text-[0.65rem]">Touch & Go</span> <strong className="text-white font-mono">{selectedDetail.touchGo}</strong></div>
                   )}
                   {selectedDetail.edto && selectedDetail.edto !== "No" && (
-                    <div><span className="text-[#8fa0a6] inline-block w-20">EDTO:</span> <strong className="text-[#00bfa5]">{selectedDetail.edto}</strong></div>
+                    <div className="flex justify-between items-center"><span className="text-[#8fa0a6] uppercase tracking-widest font-bold text-[0.65rem]">EDTO</span> <strong className="text-[#00E676]">{selectedDetail.edto}</strong></div>
                   )}
                   {selectedDetail.autoland && selectedDetail.autoland !== "Not Attempted" && (
-                    <div className="col-span-2"><span className="text-[#8fa0a6] inline-block w-20">Autoland:</span> <strong className="text-[#00bfa5]">{selectedDetail.autoland}</strong></div>
+                    <div className="col-span-2 flex justify-between items-center mt-1 border-t border-dashed border-[#333] pt-2">
+                      <span className="text-[#8fa0a6] uppercase tracking-widest font-bold text-[0.65rem]">Autoland</span> 
+                      <strong className="text-[#00E676]">{selectedDetail.autoland}</strong>
+                    </div>
                   )}
                 </div>
               </div>
+              
             </div>
 
           </div>

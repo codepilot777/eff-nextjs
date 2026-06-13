@@ -57,7 +57,7 @@ export default function TechLog({ flightData, updateFlightData, forcedRole }: { 
     const updated = { ...tlData, ...updates };
     setTlData(updated);
     try {
-      await fetch('/api/etechlog', {
+      await fetch('/api/techlog', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reg: currentReg, data: updated })
