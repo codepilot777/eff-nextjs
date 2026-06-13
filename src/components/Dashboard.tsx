@@ -23,25 +23,36 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   const reg = flightData?.aircraft_reg || gen.aircraft_reg || 'B-HNQ';
 
   // 🌟 2. 使用 useEffect 獨立去 Call 第二個 API 讀取 Techlog
+  // 🌟 獨立去 Call API 讀取 Techlog (加強版：加入實時同步)
   useEffect(() => {
     const fetchTechlog = async () => {
-      if (!reg) return; // 🌟 認機唔認 Flight
+      if (!reg) return;
       
       try {
-        const res = await fetch(`/api/techlog?reg=${reg}`); // 🌟 用 reg 去查
+        const res = await fetch(`/api/techlog?reg=${reg}`);
+        
         if (res.ok) {
           const data = await res.json();
           setTechlogData(data);
         } else {
-          setTechlogData({ defects: [] }); 
+          setTechlogData({ defects: flightData?.defects || [] }); 
         }
       } catch (error) {
-        setTechlogData({ defects: [] });
+        console.error("Failed to fetch techlog data", error);
+        setTechlogData({ defects: flightData?.defects || [] });
       }
     };
 
+    // 1. 初次載入時即刻 Fetch 一次
     fetchTechlog();
-  }, [reg]); // 🌟 Dependency 係架飛機
+
+    // 🌟 2. 加入「心跳機制」：每 3 秒去 Database 攞一次最新 Defect 狀態
+    const interval = setInterval(fetchTechlog, 3000);
+
+    // 🌟 3. Clean up function：當離開 Dashboard 畫面時停止 polling，防止 Memory Leak
+    return () => clearInterval(interval);
+    
+  }, [reg, flightData?.defects]); // 依賴項保持不變 🌟 Dependency 係架飛機
 
   const routeStr = flightData?.route_id || gen.route || 'DCT';
   const shortRoute = routeStr.split(" ").length > 5 ? routeStr.split(" ").slice(0, 5).join(" ") + " ..." : routeStr;

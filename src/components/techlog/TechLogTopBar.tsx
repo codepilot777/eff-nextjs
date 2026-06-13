@@ -3,13 +3,23 @@
 export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMode, setActiveTask, setShowInFlightMenu, isTrainee }: any) {
   const reg = flightData?.aircraft_reg || "B-HNQ";
   
-  const currFlt = tlData?.tl_prep_flt || flightData?.flight_no || "CPA 564";
-  const currDep = tlData?.tl_prep_dep || flightData?.dep_icao || "HKG";
-  const currArr = tlData?.tl_prep_arr || flightData?.arr_icao || "KIX";
+  // 🌟 動態獲取當前航班資訊
+  const rawFlightNo = tlData?.tl_prep_flt || flightData?.flight_no || "---";
+  const currFlt = rawFlightNo.replace('CPA', 'CX').replace(/\s+/g, ''); 
+// 咁樣 "CPA 564" 或者 "CPA564" 都會變成靚靚仔仔嘅 "CX564"！
+  const currDep = tlData?.tl_prep_dep || flightData?.dep_icao || "---";
+  const currArr = tlData?.tl_prep_arr || flightData?.arr_icao || "---";
   
-  const lastFlt = tlData?.tl_prev_flt || "CX881";
-  const lastRoute = `${tlData?.tl_prev_dep || "LAX"} ➔ ${tlData?.tl_prev_arr || "HKG"}`;
-  const lastFob = tlData?.tl_prev_fob || "10.5";
+  // 🌟 動態獲取上一程航班資訊 (從 History Array 讀取)
+  const history = tlData?.history || [];
+  const lastSector = history.length > 0 ? history[0] : null;
+
+  // 優先讀取暫存嘅 tl_prev_* (如果有)，否則讀取 History 嘅第一項
+  const lastFlt = tlData?.tl_prev_flt || lastSector?.flt || "---";
+  const lastRoute = (tlData?.tl_prev_dep && tlData?.tl_prev_arr) 
+    ? `${tlData.tl_prev_dep} ➔ ${tlData.tl_prev_arr}`
+    : lastSector?.route || "--- ➔ ---";
+  const lastFob = tlData?.tl_prev_fob || lastSector?.fuelArr || "0.0";
 
   const {
     tl_prepared: isPrepared,
@@ -22,7 +32,7 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
     tl_release: isReleased,
   } = tlData || {};
 
-  // 🌟 重新設計的 Status Pill (專業 SVG 狀態)
+  // 重新設計的 Status Pill (專業 SVG 狀態)
   const StatusPill = ({ label, isOk }: { label: string, isOk: boolean }) => (
     <div className={`flex flex-col items-center gap-1.5 px-6 py-1.5 rounded-lg border border-transparent transition-all ${isOk ? 'bg-[#00E676]/10 border-[#00E676]/20' : ''}`}>
       {isOk ? (
@@ -43,7 +53,7 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
   return (
     <div className="bg-[#1E1E1E] border-b border-[#333] shrink-0 relative transition-all duration-500 font-sans shadow-md">
       
-      {/* 🌟 頂部：角色切換列 (非 Trainee 時顯示) */}
+      {/* 頂部：角色切換列 (非 Trainee 時顯示) */}
       {!isTrainee && (
         <div className="bg-[#0a0a0a] border-b border-[#333] px-4 py-2 flex justify-between items-center">
           <span className="text-[#8fa0a6] text-[0.6rem] font-bold tracking-widest uppercase">System Role Override</span>
@@ -63,7 +73,7 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
         </div>
       )}
 
-      {/* 🌟 主資訊區 */}
+      {/* 主資訊區 */}
       <div className="p-4 flex flex-col gap-4">
         
         <div className="flex justify-between items-start">
@@ -85,7 +95,7 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
           <div className="flex-[3] flex justify-center items-center gap-4">
             {!isStarted ? (
               <>
-                {/* 舊 Sector */}
+                {/* 舊 Sector (動態讀取) */}
                 <div className="flex flex-col items-center">
                   <div className="text-xl font-black font-mono text-[#8fa0a6] leading-none mb-1.5">{lastFlt}</div>
                   <div className="text-[0.65rem] font-bold font-mono text-[#8fa0a6] bg-[#0a0a0a] px-3 py-1 rounded border border-[#333]">
@@ -93,7 +103,7 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
                   </div>
                 </div>
                 
-                {/* 舊 Sector FOB */}
+                {/* 舊 Sector FOB (動態讀取) */}
                 <div className="flex items-center gap-1.5 text-[0.6rem] text-[#8fa0a6] font-bold tracking-widest uppercase bg-[#0a0a0a] px-2 py-1 rounded border border-[#333] shadow-inner ml-1">
                   <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 15v-6m0 0l-3 3m3-3l3 3" /></svg>
                   {lastFob} T
@@ -130,7 +140,7 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
                   </div>
                 </div>
                 
-                {/* 🌟 當前 Sector 嘅 FOB */}
+                {/* 當前 Sector 嘅 FOB */}
                 <div className="flex items-center gap-1.5 text-[0.6rem] text-[#FF9100] font-bold tracking-widest uppercase bg-[#FF9100]/10 px-2.5 py-1.5 rounded border border-[#FF9100]/30 shadow-sm ml-3">
                   <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 15v-6m0 0l-3 3m3-3l3 3" /></svg>
                   {lastFob} T
@@ -146,7 +156,7 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
           </div>
         </div>
 
-        {/* 🌟 底部：狀態膠囊 / 飛行警告條 */}
+        {/* 底部：狀態膠囊 / 飛行警告條 */}
         {isStarted && roleMode === "FLIGHT CREW" ? (
           <div className="bg-[#00E676]/10 border border-[#00E676] rounded-lg py-2.5 flex items-center justify-center gap-3 overflow-hidden relative">
             <div className="absolute inset-0 opacity-10 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,#00E676_10px,#00E676_20px)]"></div>

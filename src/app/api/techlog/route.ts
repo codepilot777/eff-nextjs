@@ -60,7 +60,93 @@ export async function GET(request: Request) {
             time: "0412Z", 
             reported_by: "ENGINEER" 
           }
-        ]
+        ],
+        history: [
+  {
+    "id": 3,
+    "date": "13 JUN 2026",
+    "action": "Normal Close",
+    "flt": "CX501",
+    "route": "NRT ➔ HKG",
+    "blocksOff": "0110",
+    "takeOff": "0125",
+    "landing": "0530",
+    "blocksOn": "0540",
+    "def": [
+      {
+        "id": "A001",
+        "status": "DEFERRED",
+        "description": "LANDING GEAR GEAR-DOOR ACTUATOR ACCUMULATOR PRESSURE SLIGHTLY LOW."
+      }
+    ],
+    "checks": ["EDTO Transit Check"],
+    "serv": ["Nil Servicing Required"],
+    "fuelUp": "28.5",
+    "fuelArr": "10.5",
+    "cmdr": "CHAN T M",
+    "landingsCount": "1",
+    "overshoots": "0",
+    "touchGo": "0",
+    "edto": "120 mins",
+    "autoland": "Not Attempted"
+  },
+  {
+    "id": 2,
+    "date": "12 JUN 2026",
+    "action": "Normal Close",
+    "flt": "CX500",
+    "route": "HKG ➔ NRT",
+    "blocksOff": "0600",
+    "takeOff": "0620",
+    "landing": "0945",
+    "blocksOn": "0955",
+    "def": [
+      {
+        "id": "TL-8110",
+        "status": "CLEARED",
+        "description": "CAPTAIN SIDE WINDOW HEATER FAULT LIGHT ILLUMINATED."
+      }
+    ],
+    "checks": ["Daily Check", "EDTO Transit Check"],
+    "serv": ["Engine Oil: +1.5 Qts", "Hydraulic Fluid (Green): +0.5 Qts"],
+    "fuelUp": "35.2",
+    "fuelArr": "8.0",
+    "cmdr": "WONG K K",
+    "landingsCount": "1",
+    "overshoots": "0",
+    "touchGo": "0",
+    "edto": "120 mins",
+    "autoland": "Successful"
+  },
+  {
+    "id": 1,
+    "date": "11 JUN 2026",
+    "action": "Air Return",
+    "flt": "CX500",
+    "route": "HKG ➔ HKG",
+    "blocksOff": "0200",
+    "takeOff": "0215",
+    "landing": "0330",
+    "blocksOn": "0345",
+    "def": [
+      {
+        "id": "TL-8110",
+        "status": "OPEN",
+        "description": "CAPTAIN SIDE WINDOW HEATER FAULT LIGHT ILLUMINATED. RETURN TO BASE."
+      }
+    ],
+    "checks": ["Pre-flight Check"],
+    "serv": ["Potable Water: 100%"],
+    "fuelUp": "40.0",
+    "fuelArr": "25.5",
+    "cmdr": "WONG K K",
+    "landingsCount": "1",
+    "overshoots": "0",
+    "touchGo": "0",
+    "edto": "No",
+    "autoland": "Not Attempted"
+  }
+]
       };
       return NextResponse.json(defaultTl);
     }

@@ -126,14 +126,12 @@ export default function FmcCrewColumn({ flightData, calc, setActiveModal }: { fl
           className="flex-1 bg-transparent border border-[#333] rounded-lg py-1.5 px-3 text-[#8fa0a6] font-bold text-[0.8rem] flex items-center justify-between hover:text-white hover:bg-[#1E1E1E] transition-colors"
         >
           <span>SNN</span>
-          <span className="bg-white text-black text-[0.65rem] font-black w-5 h-5 rounded-full flex items-center justify-center">4</span>
         </button>
         <button 
           onClick={() => setActiveModal('DOCS')} 
           className="flex-1 bg-transparent border border-[#333] rounded-lg py-1.5 px-3 text-[#8fa0a6] font-bold text-[0.8rem] flex items-center justify-between hover:text-white hover:bg-[#1E1E1E] transition-colors"
         >
           <span>DOCS</span>
-          <span className="bg-white text-black text-[0.65rem] font-black w-5 h-5 rounded-full flex items-center justify-center">23</span>
         </button>
       </div>
 
