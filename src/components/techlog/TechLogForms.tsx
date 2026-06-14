@@ -26,7 +26,7 @@ export function TaskPrepareFlight({ flightData, tlData, updateTechLogData, setAc
     <div className="flex flex-col h-full relative">
       <div className="flex justify-between items-center border-b border-[#333333] pb-3 mb-6 shrink-0">
         <h3 className="text-2xl font-black text-[#00E676]">Enter Flight Details:</h3>
-        {isValid && <button onClick={handleConfirm} className="bg-[#00E676] text-black font-black px-6 py-2.5 rounded-lg hover:bg-[#00c853] shadow-[0_0_15px_rgba(0,230,118,0.3)] animate-fade-in tracking-widest">CONFIRM</button>}
+        {isValid && <button onClick={handleConfirm} className="bg-[#C6FF00] text-black font-black px-6 py-2.5 rounded-lg hover:bg-[#00c853] shadow-[0_0_15px_rgba(198,255,0,0.3)] animate-fade-in tracking-widest">CONFIRM</button>}
       </div>
       <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-5">
         <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">Flight Number</label><input type="text" value={prepFlightNo} onChange={e => setPrepFlightNo(e.target.value)} className="w-full bg-[#1a1a1a] border border-[#404040] p-3 rounded font-bold text-white outline-none focus:border-[#00bfa5] uppercase" /></div>
@@ -69,7 +69,7 @@ export function TaskFuelRecord({ flightData, tlData, updateTechLogData, setActiv
     <div className="flex flex-col h-full relative">
       <div className="flex justify-between items-center border-b border-[#333333] pb-3 mb-6 shrink-0">
         <h3 className="text-2xl font-black text-[#00E676]">Fuel Record</h3>
-        {isValid && <button onClick={() => { updateTechLogData({ tl_fuel_record_completed: true, tl_total_departure_fuel: parsedTotDep, tl_actual_uplift: parsedActual }); setActiveTask("acceptance"); }} className="bg-[#00E676] text-black font-black px-6 py-2.5 rounded-lg hover:bg-[#00c853] shadow-[0_0_15px_rgba(0,230,118,0.3)] animate-fade-in tracking-widest">CONFIRM</button>}
+        {isValid && <button onClick={() => { updateTechLogData({ tl_fuel_record_completed: true, tl_total_departure_fuel: parsedTotDep, tl_actual_uplift: parsedActual }); setActiveTask("acceptance"); }} className="bg-[#C6FF00] text-black font-black px-6 py-2.5 rounded-lg hover:bg-[#00c853] shadow-[0_0_15px_rgba(198,255,0,0.3)] animate-fade-in tracking-widest">CONFIRM</button>}
       </div>
       <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-5">
         <div><label className="block text-xs text-[#8fa0a6] font-bold mb-1">Total Departure Fuel T(KGSX1000)</label><input type="number" step="0.1" value={fuelTotDep} onChange={e => setFuelTotDep(e.target.value)} className="w-full bg-[#1a1a1a] border border-[#00bfa5] p-3 rounded font-bold text-[#00bfa5] outline-none focus:border-white text-lg" placeholder="e.g. 42.0"/></div>
@@ -100,7 +100,7 @@ export function TaskAcceptance({ tlData, updateTechLogData, setActiveTask }: any
       <div className="flex justify-between items-center border-b border-[#333333] pb-3 mb-4 shrink-0">
         <h3 className="text-2xl font-black text-[#00E676]">Commander's Acceptance</h3>
         {acceptToggle && isReleased && (
-          <button onClick={() => { updateTechLogData({tl_accept: true, tl_flight_started: true, tl_flight_status: "IN_FLIGHT"}); setActiveTask("info"); }} className="bg-[#00E676] text-black font-black px-6 py-2.5 rounded-lg hover:bg-[#00c853] shadow-[0_0_15px_rgba(0,230,118,0.3)] animate-fade-in tracking-widest">CONFIRM</button>
+          <button onClick={() => { updateTechLogData({tl_accept: true, tl_flight_started: true, tl_flight_status: "IN_FLIGHT"}); setActiveTask("info"); }} className="bg-[#C6FF00] text-black font-black px-6 py-2.5 rounded-lg hover:bg-[#00c853] shadow-[0_0_15px_rgba(198,255,0,0.3)] animate-fade-in tracking-widest">CONFIRM</button>
         )}
       </div>
       {!isReleased ? (
@@ -260,7 +260,7 @@ export function TaskNormalClose({ tlData, defects, updateTechLogData, setActiveT
         </div>
       </div>
       {isValid && (
-        <button onClick={() => finalizeSector("Normal Close", tlData?.tl_prep_arr || "KIX", ncArrivalFuel, { cmdr: ncCmdr }, tlData, updateTechLogData, setActiveTask)} className="w-full mt-4 py-4 bg-[#00E676] text-black font-black rounded-lg hover:bg-[#00c853] shadow-[0_0_15px_rgba(0,230,118,0.3)] animate-fade-in tracking-widest shrink-0">
+        <button onClick={() => finalizeSector("Normal Close", tlData?.tl_prep_arr || "KIX", ncArrivalFuel, { cmdr: ncCmdr }, tlData, updateTechLogData, setActiveTask)} className="w-full mt-4 py-4 bg-[#C6FF00] text-black font-black rounded-lg hover:bg-[#00c853] shadow-[0_0_15px_rgba(198,255,0,0.3)] animate-fade-in tracking-widest shrink-0">
           CONFIRM NORMAL CLOSE
         </button>
       )}

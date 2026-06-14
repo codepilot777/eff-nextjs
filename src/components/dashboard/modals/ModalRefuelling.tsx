@@ -83,7 +83,7 @@ export function ModalRefuelling({ flightData, updateFlightData, setActiveModal }
               </button>
             ) : (
               <div className="bg-[#00E676]/15 border border-[#00E676]/30 text-[#00E676] p-3.5 rounded-lg flex items-center justify-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-[#00E676] text-black flex items-center justify-center font-black text-xs">✓</span>
+                <span className="w-5 h-5 rounded-full bg-[#C6FF00] text-black flex items-center justify-center font-black text-xs">✓</span>
                 <span className="font-bold text-[0.8rem] uppercase tracking-widest mt-px">Fuel Receipt Accepted</span>
               </div>
             )}

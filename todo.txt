@@ -3,8 +3,6 @@ Trainee View:
   show Not Activated when the flight plan is not activated
   ----L 要搵方法將上面 Zulu time 轉返 Local Time
 
-  SNN section remove number
-  DOCS section remove number
 
   Loadsheet section
     Final Ack green align with other green
@@ -20,4 +18,4 @@ Trainee View:
   Airport section
 
 E-tech Log
-
+  

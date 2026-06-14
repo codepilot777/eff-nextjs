@@ -124,7 +124,7 @@ function WorkspaceContent() {
 
           <div className="flex items-center bg-[#333] rounded-full overflow-hidden text-[0.7rem] font-bold h-6 ml-2">
             <div className="bg-[#333] text-white px-3 flex items-center h-full">V{versionNum}</div>
-            <div className={`${isActivated ? 'bg-[#00E676] text-black' : 'bg-white text-black'} px-3 flex items-center h-full`}>
+            <div className={`${isActivated ? 'bg-[#C6FF00] text-black' : 'bg-white text-black'} px-3 flex items-center h-full`}>
               {statusText}
             </div>
           </div>

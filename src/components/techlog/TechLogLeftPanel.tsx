@@ -12,10 +12,11 @@ export default function TechLogLeftPanel({ tlData, roleMode, setActiveTask, setS
     tl_release: isReleased,
   } = tlData;
 
-  const openEntries = defects.filter((d: any) => d.status === "OPEN");
-  const paddEntries = defects.filter((d: any) => d.deferral_type === "PADD" || (d.status === "DEFERRED" && d.deferral_type === "PADD"));
-  const saddEntries = defects.filter((d: any) => d.deferral_type === "SADD" || (d.status === "DEFERRED" && d.deferral_type === "SADD"));
-  const addEntries = defects.filter((d: any) => d.deferral_type === "ADD" || (d.status === "DEFERRED" && d.deferral_type === "ADD"));
+  // 🌟 嚴格過濾：必須係 OPEN 先入 TL Entries，必須係 DEFERRED 先入對應嘅 ADD list
+  const openEntries = (defects || []).filter((d: any) => d.status === "OPEN");
+  const paddEntries = (defects || []).filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("P"));
+  const saddEntries = (defects || []).filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("S"));
+  const addEntries  = (defects || []).filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("A"));
 
   return (
     <div className="flex-[4] flex flex-col gap-4 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent font-sans">
@@ -81,7 +82,7 @@ export default function TechLogLeftPanel({ tlData, roleMode, setActiveTask, setS
                 </button>
               ) : !isAccepted ? (
                 <>
-                  <button onClick={() => setActiveTask("acceptance")} className="w-full py-3.5 bg-[#00E676] text-black font-black rounded-xl hover:bg-[#00c263] transition-colors shadow-[0_4px_15px_rgba(0,230,118,0.3)] text-[0.75rem] uppercase tracking-widest">
+                  <button onClick={() => setActiveTask("acceptance")} className="w-full py-3.5 bg-[#C6FF00] text-black font-black rounded-xl hover:bg-[#a8db00] transition-colors shadow-[0_4px_15px_rgba(198,255,0,0.3)] text-[0.75rem] uppercase tracking-widest">
                     Commander's Acceptance
                   </button>
                   <button onClick={() => { updateTechLogData({tl_prepared: false, tl_fuel_record_completed: false, tl_accept: false}); setActiveTask(null); }} className="w-full py-3 mt-1 bg-transparent border border-[#FF1744]/50 text-[#FF1744] text-[0.65rem] font-bold rounded-xl hover:bg-[#FF1744]/10 transition-colors uppercase tracking-widest">
@@ -109,7 +110,7 @@ export default function TechLogLeftPanel({ tlData, roleMode, setActiveTask, setS
                   </button>
                 )}
                 {isFluids && isChecks && isDefects && !isReleased && (
-                  <button onClick={() => setActiveTask("release_aircraft")} className="w-full py-3.5 bg-[#00E676] text-black font-black rounded-xl hover:bg-[#00c263] transition-colors shadow-[0_4px_15px_rgba(0,230,118,0.3)] text-[0.75rem] uppercase tracking-widest flex items-center justify-center gap-2">
+                  <button onClick={() => setActiveTask("release_aircraft")} className="w-full py-3.5 bg-[#C6FF00] text-black font-black rounded-xl hover:bg-[#a8db00] transition-colors shadow-[0_4px_15px_rgba(198,255,0,0.3)] text-[0.75rem] uppercase tracking-widest flex items-center justify-center gap-2">
                     <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
                     Release Aircraft
                   </button>

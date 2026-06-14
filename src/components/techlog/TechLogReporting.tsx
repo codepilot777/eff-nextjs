@@ -9,17 +9,38 @@ export default function TechLogReporting({ tlData, updateTechLogData, roleMode, 
 
   const handleSubmitReport = () => {
     if (!repSummary || !repDesc) return alert("Summary and Description required.");
+    
+    const randomTlId = `TL-${Math.floor(1000 + Math.random() * 9000)}`;
+    const fullDescription = `[${repCat}] ${repSummary} - ${repDesc}`;
+
     const newDefect = {
-      id: `TL-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: randomTlId,
       ata: repCat.split(" ")[1] || "00",
-      description: `[${repCat}] ${repSummary} - ${repDesc}`,
+      description: fullDescription,
       status: "OPEN",
       time: new Date().toISOString().substring(11, 16) + "Z",
       reported_by: roleMode
     };
-    updateTechLogData({ defects: [...(tlData?.defects || []), newDefect], tl_defects: false });
+
+    // 🌟 全新加入：機長報完，即刻留底入 Action Log
+    const newEntry = {
+      id: `ENT-${Math.floor(1000 + Math.random() * 9000)}`,
+      time: new Date().toISOString().substring(11, 16) + "Z",
+      action: "DEFECT RAISED",
+      ref: randomTlId,
+      original_desc: fullDescription, // 記低原始問題
+      desc: "Snag reported. Pending Engineer action.",
+      sign: `CMDR SYSTEM`
+    };
+
+    updateTechLogData({ 
+      defects: [...(tlData?.defects || []), newDefect],
+      tl_entries: [...(tlData?.tl_entries || []), newEntry], // 寫入 Log
+      tl_defects: false 
+    });
+    
     setRepSummary(""); setRepDesc(""); setActiveNav("dashboard");
-    alert("Defect logged into Aircraft Maintenance Book.");
+    alert(`Snag reported successfully under reference ${randomTlId}.`);
   };
 
   return (
@@ -90,7 +111,7 @@ export default function TechLogReporting({ tlData, updateTechLogData, roleMode, 
           {/* Submit Button */}
           <button 
             onClick={handleSubmitReport} 
-            className="w-full py-4.5 mt-4 bg-[#00E676] text-black font-black tracking-widest uppercase text-[0.8rem] rounded-xl hover:bg-[#00c263] transition-colors shadow-[0_4px_15px_rgba(0,230,118,0.3)] flex items-center justify-center gap-3"
+            className="w-full py-4.5 mt-4 bg-[#C6FF00] text-black font-black tracking-widest uppercase text-[0.8rem] rounded-xl hover:bg-[#a8db00] transition-colors shadow-[0_4px_15px_rgba(198,255,0,0.3)] flex items-center justify-center gap-3"
           >
             <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             Submit Defect Report

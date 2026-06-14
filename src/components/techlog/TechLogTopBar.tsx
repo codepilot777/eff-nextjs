@@ -11,8 +11,8 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
   const currArr = tlData?.tl_prep_arr || flightData?.arr_icao || "---";
   
   // 🌟 動態獲取上一程航班資訊 (從 History Array 讀取)
-  const history = tlData?.history || [];
-  const lastSector = history.length > 0 ? history[0] : null;
+  const flights = tlData?.flights || [];
+  const lastSector = flights.length > 0 ? flights[0] : null;
 
   // 優先讀取暫存嘅 tl_prev_* (如果有)，否則讀取 History 嘅第一項
   const lastFlt = tlData?.tl_prev_flt || lastSector?.flt || "---";
@@ -135,7 +135,7 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00E676]"></span>
                     </span>
                   </div>
-                  <div className="text-[0.65rem] font-bold font-mono text-black bg-[#00E676] px-4 py-1 rounded shadow-[0_0_15px_rgba(0,230,118,0.3)]">
+                  <div className="text-[0.65rem] font-bold font-mono text-black bg-[#00E676] px-4 py-1 rounded shadow-[0_0_15px_rgba(198,255,0,0.3)]">
                     {flightStatus === "DIVERTED" ? `${currDep} ➔ DIVERTED` : `${currDep} ➔ ${currArr}`}
                   </div>
                 </div>

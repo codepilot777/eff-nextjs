@@ -160,7 +160,7 @@ function FlightSelectContent() {
                               V{v.toString().padStart(2, '0')}
                             </span>
                             {isActivated && (
-                              <span className="bg-[#00E676] text-black text-[0.6rem] font-black tracking-widest px-2 py-0.5 rounded-sm">
+                              <span className="bg-[#C6FF00] text-black text-[0.6rem] font-black tracking-widest px-2 py-0.5 rounded-sm">
                                 ACTIVE
                               </span>
                             )}

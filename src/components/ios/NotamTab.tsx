@@ -121,7 +121,7 @@ export default function NotamTab({ flightData, updateFlightData }: { flightData:
         </div>
       ))}
 
-      <button onClick={handleSave} className="w-full bg-[#00E676] text-black py-4 rounded-lg font-black tracking-widest hover:bg-[#00c853] mt-2 shadow-lg">
+      <button onClick={handleSave} className="w-full bg-[#C6FF00] text-black py-4 rounded-lg font-black tracking-widest hover:bg-[#00c853] mt-2 shadow-lg">
         💾 SAVE & PUBLISH NOTAMs TO EFB
       </button>
     </div>

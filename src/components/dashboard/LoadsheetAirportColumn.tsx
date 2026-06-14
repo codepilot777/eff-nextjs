@@ -30,7 +30,7 @@ export default function LoadsheetAirportColumn({ flightData, calc, setActiveModa
   if (flightData?.pilots_signed_final) {
     stageName = `FINAL ${finalVer} ACK`;
     percent = 100;
-    bgClass = "bg-[#00E676] text-black"; 
+    bgClass = "bg-[#C6FF00] text-black"; 
     ringColor = "text-black";
     ringBgColor = "text-black/20";
   } else if (flightData?.final_ls_sent) {

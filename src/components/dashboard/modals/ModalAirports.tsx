@@ -61,7 +61,7 @@ export function ModalAirports({ calc, flightData }: any) {
           <div className="grid grid-cols-[1.5fr_0.8fr_0.8fr_0.5fr_0.8fr_0.8fr_0.8fr_0.8fr_1.8fr_1.5fr_1fr_1fr_0.6fr_0.6fr] gap-2 px-3 py-4 border-b-2 border-black bg-[#15201A] text-[#e2e8f0] text-sm items-center hover:bg-[#1A2620] transition-colors">
             <div className="font-bold text-xl flex items-center pl-2 tracking-wide text-white">
               {dest.icao_code || calc.arrIcao} 
-              <span className="bg-[#00E676] text-black text-[0.65rem] px-1.5 py-0.5 rounded ml-3 font-black leading-none shadow-sm">ARR</span>
+              <span className="bg-[#C6FF00] text-black text-[0.65rem] px-1.5 py-0.5 rounded ml-3 font-black leading-none shadow-sm">ARR</span>
             </div>
             <div className="text-[0.75rem] leading-tight text-[#8fa0a6]">--<br/>--</div>
             <div className="text-[0.75rem] leading-tight text-[#00E676] font-bold">-- T<br/><span className="text-[#8fa0a6] font-normal">--</span></div>

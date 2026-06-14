@@ -7,20 +7,55 @@ import {
 
 export default function TechLogRightPanel({ tlData, flightData, roleMode, activeTask, setActiveTask, selectedEntry, showInFlightMenu, setShowInFlightMenu, updateTechLogData, defects }: any) {
   
-  const { tl_flight_started: isStarted, tl_total_departure_fuel: totalDepFuel } = tlData;
+  const { tl_flight_started: isStarted, tl_total_departure_fuel: totalDepFuel, tl_entries } = tlData;
 
-  // Engineer 處理 Defects 嘅邏輯
+  // 🌟 通用：獲取當前 UTC 時間
+  const getCurrentTime = () => new Date().toISOString().substring(11, 16) + "Z";
+  // 🌟 通用：當前工程師簽名 (模擬)
+  const currentSign = "ENG SYSTEM (#8821)";
+
+  // -----------------------------------------------------
+  // 🔧 Engineer 處理 Defects 邏輯 (升級版：自動寫入 Action Log)
+  // -----------------------------------------------------
+  // 🌟 修改 1：Clear Defect
   const handleClearDefect = (id: string, actionDesc: string) => {
-    updateTechLogData({ defects: defects.map((d: any) => d.id === id ? { ...d, status: "CLEARED", action_desc: actionDesc } : d) });
+    const defectToClear = defects.find((d: any) => d.id === id); // 搵返個源頭問題出嚟
+
+    const newEntry = {
+      id: `ENT-${Math.floor(1000 + Math.random() * 9000)}`,
+      time: getCurrentTime(),
+      action: "DEFECT RECTIFIED",
+      ref: id,
+      original_desc: defectToClear?.description || "Unknown Defect", // 🌟 黐埋個原問題
+      desc: actionDesc || "Defect rectified and tested IAW AMM. Ops normal.",
+      sign: currentSign
+    };
+
+    updateTechLogData({ 
+      defects: defects.map((d: any) => d.id === id ? { ...d, status: "CLEARED", action_desc: actionDesc } : d),
+      tl_entries: [...(tl_entries || []), newEntry] 
+    });
     setActiveTask(null);
   };
 
+  // 🌟 修改 2：Defer Defect
   const handleDeferDefect = (id: string, type: string, mel: string, reason: string) => {
+    const defectToDefer = defects.find((d: any) => d.id === id); // 搵返個源頭問題出嚟
     const numMatch = id.match(/\d+/);
     const num = numMatch ? numMatch[0] : Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     
     const prefix = type === "PADD" ? "P" : type === "SADD" ? "S" : "A";
     const newId = `${prefix}${num}`;
+
+    const newEntry = {
+      id: `ENT-${Math.floor(1000 + Math.random() * 9000)}`,
+      time: getCurrentTime(),
+      action: "DEFECT DEFERRED",
+      ref: `${id} ➔ ${newId}`,
+      original_desc: defectToDefer?.description || "Unknown Defect", // 🌟 黐埋個原問題
+      desc: `Deferred as ${type}. MEL Ref: ${mel}. Reason: ${reason}`,
+      sign: currentSign
+    };
 
     updateTechLogData({ 
       defects: defects.map((d: any) => d.id === id ? { 
@@ -30,7 +65,55 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
         deferral_type: type, 
         mel_ref: mel, 
         deferral_reason: reason 
-      } : d) 
+      } : d),
+      tl_entries: [...(tl_entries || []), newEntry]
+    });
+    setActiveTask(null);
+  };
+
+  // -----------------------------------------------------
+  // 🔧 Engineer 日常簽發邏輯 (升級版：自動寫入 Action Log)
+  // -----------------------------------------------------
+  const handleCompleteChecks = () => {
+    const newEntry = {
+      id: `ENT-${Math.floor(1000 + Math.random() * 9000)}`,
+      time: getCurrentTime(),
+      action: "MAINTENANCE CHECK",
+      ref: "N/A",
+      desc: "Transit Check completed IAW AMM.",
+      sign: currentSign
+    };
+    updateTechLogData({ tl_checks: true, tl_entries: [...(tl_entries || []), newEntry] });
+    setActiveTask(null);
+  };
+
+  const handleCompleteFluids = () => {
+    const newEntry = {
+      id: `SRV-${Math.floor(1000 + Math.random() * 9000)}`,
+      time: getCurrentTime(),
+      action: "SERVICING UPLIFT",
+      ref: "N/A",
+      desc: "Routine fluids uplift recorded and verified.",
+      sign: currentSign
+    };
+    updateTechLogData({ tl_fluids: true, tl_entries: [...(tl_entries || []), newEntry] });
+    setActiveTask(null);
+  };
+
+  const handleReleaseAircraft = () => {
+    const crsId = `CRS-${Math.floor(1000 + Math.random() * 9000)}-X`; // 產生隨機 CRS 號碼
+    const newEntry = {
+      id: `ENT-${Math.floor(1000 + Math.random() * 9000)}`,
+      time: getCurrentTime(),
+      action: "AIRCRAFT RELEASED",
+      ref: crsId,
+      desc: "Certificate of Release to Service (CRS) signed and issued.",
+      sign: currentSign
+    };
+    updateTechLogData({ 
+      tl_release: true, 
+      crs_id: crsId, // 🌟 寫入最新嘅 CRS ID 畀機長睇
+      tl_entries: [...(tl_entries || []), newEntry] 
     });
     setActiveTask(null);
   };
@@ -115,7 +198,7 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
                 <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.83-5.83M15.17 11.42a4.5 4.5 0 11-6.34-6.34 4.5 4.5 0 016.34 6.34zM10 14H6l-3 3v3h3l3-3v-4z" /></svg>
                 Maintenance Check
               </h3>
-              <button onClick={() => {updateTechLogData({tl_checks: true}); setActiveTask(null);}} className="w-full py-4.5 bg-[#00E676] text-black text-[0.8rem] uppercase tracking-widest font-black rounded-xl mt-auto shadow-[0_4px_15px_rgba(0,230,118,0.3)] hover:bg-[#00c263] transition-colors">
+              <button onClick={handleCompleteChecks} className="w-full py-4.5 bg-[#C6FF00] text-black text-[0.8rem] uppercase tracking-widest font-black rounded-xl mt-auto shadow-[0_4px_15px_rgba(198,255,0,0.3)] hover:bg-[#a8db00] transition-colors">
                 CONFIRM SIGN-OFF
               </button>
             </div>
@@ -127,7 +210,7 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
                 <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25z" /></svg>
                 Fluids Uplift
               </h3>
-              <button onClick={() => {updateTechLogData({tl_fluids: true}); setActiveTask(null);}} className="w-full py-4.5 bg-[#00E676] text-black text-[0.8rem] uppercase tracking-widest font-black rounded-xl mt-auto shadow-[0_4px_15px_rgba(0,230,118,0.3)] hover:bg-[#00c263] transition-colors">
+              <button onClick={handleCompleteFluids} className="w-full py-4.5 bg-[#C6FF00] text-black text-[0.8rem] uppercase tracking-widest font-black rounded-xl mt-auto shadow-[0_4px_15px_rgba(198,255,0,0.3)] hover:bg-[#a8db00] transition-colors">
                 CONFIRM FLUIDS RECORD
               </button>
             </div>
@@ -139,7 +222,7 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
                 <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
                 Release Aircraft
               </h3>
-              <button onClick={() => {updateTechLogData({tl_release: true}); setActiveTask(null);}} className="w-full py-4.5 bg-[#00E676] text-black text-[0.8rem] uppercase tracking-widest font-black rounded-xl mt-auto shadow-[0_4px_15px_rgba(0,230,118,0.3)] hover:bg-[#00c263] transition-colors">
+              <button onClick={handleReleaseAircraft} className="w-full py-4.5 bg-[#C6FF00] text-black text-[0.8rem] uppercase tracking-widest font-black rounded-xl mt-auto shadow-[0_4px_15px_rgba(198,255,0,0.3)] hover:bg-[#a8db00] transition-colors">
                 SIGN RELEASING STATEMENT
               </button>
             </div>
@@ -185,7 +268,7 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
                       
                       <div id="clear_div" style={{display:'none'}} className="animate-fade-in">
                         <textarea id="val_clear_desc" placeholder="Enter Rectification Action..." className="w-full h-28 bg-[#0a0a0a] border border-[#444] p-4 rounded-xl text-white font-mono text-[0.75rem] outline-none focus:border-[#00E676] transition-colors mb-4 resize-none" />
-                        <button onClick={() => handleClearDefect(sel.id, (document.getElementById('val_clear_desc') as HTMLTextAreaElement).value)} className="w-full py-4 bg-[#00E676] text-black text-[0.75rem] uppercase tracking-widest font-black rounded-xl hover:bg-[#00c263] transition-colors shadow-lg">
+                        <button onClick={() => handleClearDefect(sel.id, (document.getElementById('val_clear_desc') as HTMLTextAreaElement).value)} className="w-full py-4 bg-[#C6FF00] text-black text-[0.75rem] uppercase tracking-widest font-black rounded-xl hover:bg-[#a8db00] transition-colors shadow-lg">
                           CLEAR DEFECT
                         </button>
                       </div>

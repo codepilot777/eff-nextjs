@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 
 export default function TechLogHistory({ tlData }: any) {
-  const realHistory = tlData?.history || [];
+  const realHistory = tlData?.flights || [];
   
   const [selectedHist, setSelectedHist] = useState<number | null>(null);
 

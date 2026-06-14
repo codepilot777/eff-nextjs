@@ -94,7 +94,7 @@ export default function ConfigTab({ flightData, updateFlightData }: { flightData
           <h4 className="text-status-teal font-bold text-xl mb-4">📝 Verify and Upgrade</h4>
           <div className="flex gap-4">
             <button onClick={() => setPendingUpdateData(null)} className="flex-1 py-4 bg-lido-800 text-white rounded-lg font-bold">❌ CANCEL</button>
-            <button onClick={handleConfirmUpdate} className="flex-1 py-4 bg-[#00E676] text-black font-black rounded-lg">📤 SEND V{(flightData.ofp_version || 1) + 1}</button>
+            <button onClick={handleConfirmUpdate} className="flex-1 py-4 bg-[#C6FF00] text-black font-black rounded-lg">📤 SEND V{(flightData.ofp_version || 1) + 1}</button>
           </div>
         </div>
       )}

@@ -353,7 +353,7 @@ export default function InstructorHub() {
             <button 
               onClick={() => handleConfirmCreate(true)} 
               disabled={isCreatingSession}
-              className="flex-1 py-4 bg-[#00E676] text-black font-black rounded-lg hover:bg-[#00c853] shadow-[0_4px_15px_rgba(0,230,118,0.4)] transition-all"
+              className="flex-1 py-4 bg-[#C6FF00] text-black font-black rounded-lg hover:bg-[#00c853] shadow-[0_4px_15px_rgba(0,230,118,0.4)] transition-all"
             >
               ✅ PUBLISH TO EFB
             </button>

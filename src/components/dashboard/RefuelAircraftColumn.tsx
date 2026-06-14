@@ -8,18 +8,54 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
   const isRefueled = flightData?.fuel_receipt_sent;
   const isAccepted = flightData?.pilots_signed_fuel;
 
-  // 🌟 2. 獨立處理 Techlog 數據 (帶有 Loading 狀態)
+  // 🌟 2. 獨立處理 Techlog 數據 (升級版：嚴格過濾 DEFERRED 狀態)
   let defectsStr = "LOADING...";
   
   if (techlogData) {
     const defects = techlogData.defects || [];
-    const paddCount = defects.filter((d: any) => d.type === 'PADD' || d.category === 'PADD').length;
-    const saddCount = defects.filter((d: any) => d.type === 'SADD' || d.category === 'SADD').length; 
-    const addCount = defects.filter((d: any) => d.type === 'ADD' || d.category === 'ADD').length;   
+    // 只計算仍未修復 (DEFERRED) 嘅項目，完美配合 Engineer Defect Management
+    const paddCount = defects.filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("P")).length;
+    const saddCount = defects.filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("S")).length; 
+    const addCount = defects.filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("A")).length;   
     defectsStr = `P${paddCount} S${saddCount} A${addCount}`;
   } else if (techlogData === null) {
-    // 如果 API 炒咗或者特登 set 做 null
     defectsStr = "N/A";
+  }
+
+  // 🌟 3. Techlog Release vs Commander Acceptance 狀態機
+  const tlReleased = techlogData?.tl_release || false;
+  const tlAccepted = techlogData?.tl_accept || false;
+
+  let aircraftStatusBanner;
+  if (tlAccepted) {
+    // ✅ 終極狀態：機長已 Accept (還原做 #C6FF00 螢光青)
+    aircraftStatusBanner = (
+      <div className="bg-[#C6FF00] text-black font-bold px-2.5 py-1.5 rounded-lg flex justify-between items-center shadow-sm leading-none transition-colors">
+        <span className="text-[0.75rem] uppercase tracking-widest">Aircraft Accepted</span>
+        <span className="text-[0.7rem] flex items-center gap-1 font-black">✓ <span className="text-sm font-light leading-none pb-px">›</span></span>
+      </div>
+    );
+  } else if (tlReleased) {
+    // ⚠️ 中間狀態：工程師已 Release，等候機長 Accept (Amber 警告)
+    aircraftStatusBanner = (
+      <div className="bg-[#FF9100] text-black font-bold px-2.5 py-1.5 rounded-lg flex justify-between items-center shadow-sm leading-none cursor-pointer hover:bg-[#e68a00] transition-colors animate-pulse" onClick={() => setActiveModal('Techlog')}>
+        <span className="text-[0.75rem] uppercase tracking-widest flex items-center gap-1.5">
+          <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+          Techlog Released
+        </span>
+        <span className="text-[0.55rem] font-black uppercase tracking-widest flex items-center">
+          Pending Accept <span className="text-sm font-light leading-none pb-px ml-1">›</span>
+        </span>
+      </div>
+    );
+  } else {
+    // 🛑 初始狀態：工程師未 Release
+    aircraftStatusBanner = (
+      <div className="bg-[#1a1a1a] border border-[#333] text-[#8fa0a6] font-bold px-2.5 py-1.5 rounded-lg flex justify-between items-center shadow-sm leading-none">
+        <span className="text-[0.75rem] uppercase tracking-widest">Techlog Pending</span>
+        <span className="text-[0.65rem] font-black tracking-widest">---</span>
+      </div>
+    );
   }
 
   const logFuelT = flightData?.fuel_on_board || 11.0;
@@ -29,7 +65,7 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
   // 🌟 動態渲染 Refueling Logo (油車) 與 Progress Ring
   let logoColor = "text-[#555]";
   let ringSvg = null;
-  let statusBanner = null;
+  let refuelBanner = null;
 
   const truckIcon = (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
@@ -39,13 +75,13 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
   );
 
   if (isAccepted) {
-    logoColor = "text-[#00E676]";
+    logoColor = "text-[#C6FF00]";
     ringSvg = (
       <svg className="absolute inset-0 w-full h-full transform -rotate-90">
-        <circle cx="12" cy="12" r="10" stroke="#00E676" strokeWidth="2" fill="transparent" />
+        <circle cx="12" cy="12" r="10" stroke="#C6FF00" strokeWidth="2" fill="transparent" />
       </svg>
     );
-    statusBanner = (
+    refuelBanner = (
       <div className="bg-[#C6FF00] rounded-lg px-3 py-2 flex justify-between items-center text-black shadow-md mt-auto shrink-0">
         <span className="font-bold text-[0.8rem] leading-none uppercase tracking-widest">Refuel Accepted</span>
         <span className="text-[0.65rem] font-black">✓</span>
@@ -58,7 +94,7 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
         <circle cx="12" cy="12" r="10" stroke="#FF9100" strokeWidth="2" fill="transparent" />
       </svg>
     );
-    statusBanner = (
+    refuelBanner = (
       <div 
         onClick={() => setActiveModal('Refuelling')} 
         className="bg-[#FF9100] rounded-lg px-3 py-2 flex justify-between items-center text-black shadow-md cursor-pointer hover:bg-[#e68a00] transition-colors mt-auto shrink-0"
@@ -75,14 +111,14 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
         <circle cx="12" cy="12" r="10" stroke="#FF9100" strokeWidth="2" fill="transparent" strokeDasharray="62.8" strokeDashoffset="47.1" strokeLinecap="round" />
       </svg>
     );
-    statusBanner = (
+    refuelBanner = (
       <div className="bg-[#1a1a1a] border border-[#FF9100] rounded-lg px-3 py-2 flex justify-between items-center text-[#FF9100] mt-auto shrink-0">
         <span className="font-bold text-[0.8rem] leading-none uppercase tracking-widest animate-pulse">Refuelling...</span>
       </div>
     );
   } else {
     logoColor = "text-[#555]";
-    statusBanner = (
+    refuelBanner = (
       <div className="bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 flex justify-between items-center text-[#8fa0a6] mt-auto shrink-0">
         <span className="font-bold text-[0.8rem] leading-none uppercase tracking-widest">
           Standby {totalFuelT.toFixed(1)}T Sent
@@ -105,7 +141,7 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
           </div>
         </div>
         
-        {statusBanner}
+        {refuelBanner}
       </div>
       
       {/* 🌟 2. Aircraft 區塊 */}
@@ -116,12 +152,10 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
         </div>
         
         <div className="flex-1 flex flex-col justify-between min-h-0">
-          <div className="bg-[#C6FF00] text-black font-bold px-2.5 py-1.5 rounded-lg flex justify-between items-center shadow-sm leading-none">
-            <span className="text-[0.75rem]">Aircraft Accepted</span>
-            <span className="text-[0.65rem] flex items-center gap-1">0210z <span className="text-sm leading-none pb-px">›</span></span>
-          </div>
+          {/* 🌟 渲染狀態欄：Techlog Pending ➔ Amber Released ➔ Green Accepted */}
+          {aircraftStatusBanner}
           
-          <div className="grid grid-cols-3 gap-2 text-[#8fa0a6] text-[0.55rem] uppercase tracking-wide">
+          <div className="grid grid-cols-3 gap-2 text-[#8fa0a6] text-[0.55rem] uppercase tracking-wide mt-1">
             <div className="leading-tight">Inbound<br/><span className="text-white font-bold text-[0.8rem] leading-none">--</span></div>
             <div className="leading-tight">ETA<br/><span className="text-white font-mono text-[0.8rem] leading-none">--z</span></div>
             <div className="text-right leading-tight">Bay<br/><span className="text-white font-bold text-[0.8rem] leading-none">{flightData?.bay_no || '--'}</span></div>
@@ -143,7 +177,6 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
           
           <div className="flex flex-col leading-tight">
             <span className="text-[#8fa0a6] text-[0.55rem]">Defect (PADD/ SADD/ ADD)</span>
-            {/* 🌟 渲染 Techlog 狀態字串 */}
             <span className={`font-mono text-[0.75rem] tracking-wider ${!techlogData ? 'text-[#FF9100] animate-pulse' : 'text-white'}`}>
               {defectsStr}
             </span>

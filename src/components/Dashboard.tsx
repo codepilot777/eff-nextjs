@@ -101,7 +101,7 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   if (flightData?.final_ls_sent) {
     const fVer = flightData?.final_ls_version || 1;
     lsStageHtml = flightData?.pilots_signed_final 
-      ? <div className="mt-2 bg-[#00E676] text-black p-1 rounded text-center font-bold text-xs shadow-[0_0_8px_rgba(0,230,118,0.4)]">FINAL {fVer.toString().padStart(2, '0')} Ack.</div>
+      ? <div className="mt-2 bg-[#C6FF00] text-black p-1 rounded text-center font-bold text-xs shadow-[0_0_8px_rgba(0,230,118,0.4)]">FINAL {fVer.toString().padStart(2, '0')} Ack.</div>
       : <div className="mt-2 bg-[#FF9100] text-black p-1 rounded text-center font-bold text-xs shadow-[0_0_8px_rgba(255,145,0,0.4)] animate-pulse">FINAL {fVer.toString().padStart(2, '0')}</div>;
     isLsActive = true;
   } else if (flightData?.prelim_ls_sent) {
@@ -157,10 +157,10 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   if (!flightData?.final_fuel_accepted) refuelHtml = <div className="flex flex-col items-center justify-center py-2 h-full"><span className="text-text-muted text-[0.65rem] font-bold">STANDBY FIGURE SENT</span><span className="text-white text-xl font-bold">{Math.max(0, currTotal - 5.0).toFixed(1)} T</span></div>;
   else if (!flightData?.fuel_receipt_sent) refuelHtml = <div className="flex flex-col items-center justify-center py-3 h-full"><span className="text-[#FF9100] text-lg font-bold tracking-widest animate-pulse">REFUELLING...</span></div>;
   else if (!flightData?.pilots_signed_fuel) refuelHtml = <div className="flex flex-col items-center justify-center py-2 h-full cursor-pointer hover:scale-105 transition-transform"><div className="bg-[#FF9100] text-black py-2 px-4 w-full text-center font-black rounded shadow-[0_2px_8px_rgba(255,145,0,0.4)]">SIGN RECEIPT</div></div>;
-  else refuelHtml = <div className="flex flex-col items-center justify-center py-2 h-full"><div className="bg-[#00E676] text-black py-2 px-4 w-full text-center font-black rounded shadow-[0_2px_8px_rgba(0,230,118,0.4)]">FUEL ACCEPTED</div></div>;
+  else refuelHtml = <div className="flex flex-col items-center justify-center py-2 h-full"><div className="bg-[#C6FF00] text-black py-2 px-4 w-full text-center font-black rounded shadow-[0_2px_8px_rgba(0,230,118,0.4)]">FUEL ACCEPTED</div></div>;
 
   let acStatus = <div className="bg-[#1c2630] text-text-muted p-1 rounded text-center font-bold mb-2 text-xs border border-dashed border-[#404040]">AWAITING TECHLOG RELEASE</div>;
-  if (flightData?.tl_release && flightData?.tl_accept && flightData?.tl_flight_started) acStatus = <div className="bg-[#00E676] text-black p-1 rounded text-center font-bold mb-2 text-xs">✅ AIRCRAFT ACCEPTED</div>;
+  if (flightData?.tl_release && flightData?.tl_accept && flightData?.tl_flight_started) acStatus = <div className="bg-[#C6FF00] text-black p-1 rounded text-center font-bold mb-2 text-xs">✅ AIRCRAFT ACCEPTED</div>;
   else if (flightData?.tl_release) acStatus = <div className="bg-[#FF9100] text-black p-1 rounded text-center font-bold mb-2 text-xs">⏳ TECHLOG RELEASED</div>;
 
   const calc = {

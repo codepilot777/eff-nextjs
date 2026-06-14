@@ -132,7 +132,7 @@ export default function WxTab({ flightData, updateFlightData }: { flightData: an
       ))}
 
       {/* 💾 Save Button */}
-      <button onClick={handleSave} className="w-full bg-[#00E676] text-black py-4 rounded-lg font-black tracking-widest hover:bg-[#00c853] mt-2 shadow-lg transition-colors">
+      <button onClick={handleSave} className="w-full bg-[#C6FF00] text-black py-4 rounded-lg font-black tracking-widest hover:bg-[#00c853] mt-2 shadow-lg transition-colors">
         💾 SAVE & PUBLISH WX TO EFB
       </button>
       

@@ -3,7 +3,11 @@ import { useState } from "react";
 
 export function TaskAcceptance({ tlData, updateTechLogData, setActiveTask }: any) {
   const [acceptToggle, setAcceptToggle] = useState(false);
-  const { tl_release: isReleased, tl_total_departure_fuel: totalDepFuel, tl_actual_uplift: actualUplift, tl_prep_flt, tl_prep_dep, tl_prep_arr, tl_cmdr, tl_galaxy_id } = tlData;
+  const { 
+    tl_release: isReleased, tl_total_departure_fuel: totalDepFuel, tl_actual_uplift: actualUplift, 
+    tl_prep_flt, tl_prep_dep, tl_prep_arr, tl_cmdr, tl_galaxy_id, 
+    crs_id, tl_entries 
+  } = tlData;
 
   const handleConfirm = () => {
     updateTechLogData({
@@ -42,30 +46,71 @@ export function TaskAcceptance({ tlData, updateTechLogData, setActiveTask }: any
         /* ✅ 已 Release 表單畫面 */
         <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-6 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent pb-4">
           
-          {/* 第 1 行：Maintenance & Servicing */}
-          <div className="grid grid-cols-2 gap-5">
-            <div className="bg-[#0a0a0a] border border-[#333] p-5 rounded-xl shadow-inner">
-              <h4 className="text-white font-bold text-[0.65rem] uppercase tracking-widest mb-4 border-b border-[#333] pb-2 flex items-center gap-2">
-                <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.83-5.83M15.17 11.42a4.5 4.5 0 11-6.34-6.34 4.5 4.5 0 016.34 6.34zM10 14H6l-3 3v3h3l3-3v-4z" /></svg>
-                Maintenance Work
-              </h4>
-              <div className="flex flex-col gap-2.5">
-                <div className="text-[0.75rem] text-[#e2e8f0] flex justify-between items-center"><span className="text-[#8fa0a6] font-bold">EDTO Transit Check</span><span className="text-[#00E676] font-black tracking-widest text-[0.65rem] bg-[#00E676]/10 px-2 py-0.5 rounded border border-[#00E676]/30">COMPLETED</span></div>
-                <div className="text-[0.75rem] text-[#e2e8f0] flex justify-between items-center"><span className="text-[#8fa0a6] font-bold">Daily Check</span><span className="text-[#00E676] font-black tracking-widest text-[0.65rem] bg-[#00E676]/10 px-2 py-0.5 rounded border border-[#00E676]/30">COMPLETED</span></div>
-                <div className="text-[0.75rem] text-[#e2e8f0] flex justify-between items-center"><span className="text-[#8fa0a6] font-bold">Weekly Check</span><span className="text-[#00E676] font-black tracking-widest text-[0.65rem] bg-[#00E676]/10 px-2 py-0.5 rounded border border-[#00E676]/30">COMPLETED</span></div>
-              </div>
-            </div>
+          {/* 🌟 頂部：Maintenance Release (CRS) 狀態橫幅 */}
+          <div className="bg-[#00E676]/10 border border-[#00E676]/30 p-4 rounded-xl flex items-center justify-between shadow-inner">
+             <div className="flex items-center gap-3">
+               <div className="w-10 h-10 bg-[#00E676]/20 rounded-full flex items-center justify-center text-[#00E676]">
+                 <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9 9-4.03 9-9z" /></svg>
+               </div>
+               <div>
+                 <div className="text-[#00E676] font-black text-[0.7rem] uppercase tracking-widest">Maintenance Release Issued</div>
+                 <div className="text-white font-mono font-bold text-sm mt-0.5">{crs_id || 'CRS-PENDING'}</div>
+               </div>
+             </div>
+             <div className="text-[#8fa0a6] text-[0.65rem] font-bold uppercase tracking-widest text-right">
+               Status:<br/><span className="text-[#00E676]">Airworthy</span>
+             </div>
+          </div>
+
+          {/* 🌟 全新區塊：Pre-flight Engineering Actions (讀取 tl_entries) */}
+          <div className="bg-[#0a0a0a] border border-[#333] p-5 rounded-xl shadow-inner">
+            <h4 className="text-white font-bold text-[0.65rem] uppercase tracking-widest mb-4 border-b border-[#333] pb-2 flex items-center gap-2">
+              <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-[#00E676]"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+              Pre-flight Action Log
+            </h4>
             
-            <div className="bg-[#0a0a0a] border border-[#333] p-5 rounded-xl shadow-inner">
-              <h4 className="text-white font-bold text-[0.65rem] uppercase tracking-widest mb-4 border-b border-[#333] pb-2 flex items-center gap-2">
-                <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25z" /></svg>
-                Servicing Uplift
-              </h4>
-              <div className="flex flex-col gap-2.5">
-                <div className="text-[0.75rem] text-[#e2e8f0] flex justify-between items-center"><span className="text-[#8fa0a6] font-bold">APU Oil</span><span className="font-mono font-bold">0.0 Qts</span></div>
-                <div className="text-[0.75rem] text-[#e2e8f0] flex justify-between items-center"><span className="text-[#8fa0a6] font-bold">Engine Oil</span><span className="font-mono font-bold">0.0 Qts</span></div>
-                <div className="text-[0.75rem] text-[#e2e8f0] flex justify-between items-center"><span className="text-[#8fa0a6] font-bold">Hydraulic Fluid</span><span className="font-mono font-bold">0.0 Qts</span></div>
-              </div>
+            <div className="flex flex-col gap-3">
+              {tl_entries && tl_entries.length > 0 ? (
+                tl_entries.map((entry: any) => (
+                  <div key={entry.id} className="flex gap-4 p-3 bg-[#1a1a1a] border border-[#333] rounded-lg items-start">
+                    <div className="text-[0.65rem] text-[#8fa0a6] font-mono font-bold mt-0.5">{entry.time}</div>
+                    <div className="flex-1 w-full">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-[0.55rem] font-black px-1.5 py-0.5 rounded uppercase tracking-widest border ${
+                          entry.action.includes("RECTIFIED") ? "bg-[#00E676]/10 text-[#00E676] border-[#00E676]/30" : 
+                          entry.action.includes("SERVICING") ? "bg-[#FF9100]/10 text-[#FF9100] border-[#FF9100]/30" : 
+                          entry.action.includes("RAISED") ? "bg-[#FF1744]/10 text-[#FF1744] border-[#FF1744]/30" :
+                          "bg-[#2979FF]/10 text-[#2979FF] border-[#2979FF]/30"
+                        }`}>
+                          {entry.action}
+                        </span>
+                        <span className="text-white font-mono font-bold text-[0.7rem]">
+                          {entry.ref !== "N/A" ? `REF: ${entry.ref}` : entry.id}
+                        </span>
+                      </div>
+                      
+                      {/* 🌟 全新加入：如果有 Original Desc (原問題)，就用一個子區塊顯示出嚟 */}
+                      {entry.original_desc && (
+                        <div className="mb-2 bg-[#0a0a0a] border-l-2 border-[#FF9100] p-2 rounded-r-md">
+                          <div className="text-[0.55rem] text-[#8fa0a6] font-bold uppercase tracking-widest mb-0.5">Reported Issue:</div>
+                          <div className="text-[0.7rem] text-[#ccc] font-mono leading-snug">{entry.original_desc}</div>
+                        </div>
+                      )}
+
+                      <div className="text-[0.75rem] text-[#e2e8f0] leading-relaxed">
+                        <span className="text-[#8fa0a6] font-bold mr-1">{entry.original_desc ? "Action Taken:" : ""}</span>
+                        {entry.desc}
+                      </div>
+                      
+                      <div className="text-[0.6rem] text-[#555] font-mono font-bold mt-2 text-right">{entry.sign}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-[#555] text-[0.75rem] font-bold py-4 uppercase tracking-widest">
+                  No engineering actions recorded for this sector.
+                </div>
+              )}
             </div>
           </div>
 
@@ -86,9 +131,6 @@ export function TaskAcceptance({ tlData, updateTechLogData, setActiveTask }: any
               </div>
             </div>
           </div>
-
-          {/* Divider */}
-          <div className="h-px bg-[#333] w-full my-1"></div>
 
           {/* 第 3 行：Flight Details */}
           <div className="flex flex-col gap-5">
@@ -148,7 +190,7 @@ export function TaskAcceptance({ tlData, updateTechLogData, setActiveTask }: any
             disabled={!acceptToggle}
             className={`w-full py-4.5 mt-2 rounded-xl font-black text-[0.8rem] uppercase tracking-widest transition-all flex items-center justify-center gap-3 shrink-0 ${
               acceptToggle 
-                ? 'bg-[#00E676] text-black hover:bg-[#00c263] shadow-[0_4px_15px_rgba(0,230,118,0.3)]' 
+                ? 'bg-[#C6FF00] text-black hover:bg-[#a8db00] shadow-[0_4px_15px_rgba(198,255,0,0.3)]' 
                 : 'bg-[#1a1a1a] text-[#444] border border-[#333] cursor-not-allowed'
             }`}
           >

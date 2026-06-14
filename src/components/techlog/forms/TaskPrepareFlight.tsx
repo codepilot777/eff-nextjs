@@ -111,7 +111,7 @@ export function TaskPrepareFlight({ flightData, tlData, updateTechLogData, setAc
         disabled={!isValid}
         className={`w-full py-4.5 mt-4 rounded-xl font-black text-[0.8rem] uppercase tracking-widest transition-all flex items-center justify-center gap-3 shrink-0 ${
           isValid 
-            ? 'bg-[#00E676] text-black hover:bg-[#00c263] shadow-[0_4px_15px_rgba(0,230,118,0.3)]' 
+            ? 'bg-[#C6FF00] text-black hover:bg-[#a8db00] shadow-[0_4px_15px_rgba(198,255,0,0.3)]' 
             : 'bg-[#1a1a1a] text-[#444] border border-[#333] cursor-not-allowed'
         }`}
       >
