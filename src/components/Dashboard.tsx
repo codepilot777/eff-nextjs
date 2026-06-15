@@ -108,7 +108,7 @@ export default function Dashboard({ flightData, updateFlightData, setCurrentTab 
   // =========================================================================
   const {
     isManual, ofpZfw, ofpTaxi, ofpTrip, ofpCont, ofpRes, baseAltnOfp, ofpReqdBase, ofpTotal,
-    actualZfw, delta, autoTaxi, autoCont, autoTrip, autoTotal, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
+    actualZfw, deltaZfw, autoTaxi, autoCont, autoTrip, autoTotal, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
     mf, currTaxi, currTrip, currCont, currTank, currExtra, currReqdBase, currTotal, currTow, currLw, showRevVal,
     efobAtDest, processedAlternates
   } = calculateFuelEngine(flightData);
@@ -129,7 +129,7 @@ export default function Dashboard({ flightData, updateFlightData, setCurrentTab 
     totalDist, cruiseAlt, tocTemp, edtoFlight, minDivert, avgWind, avgTrip, mraHigh, mraEdg,
     sid, star, depRwy, arrRwy, paxTot, cgo_total, lsStageHtml, isLsActive,
     isManual, ofpZfw, ofpTaxi, ofpTrip, ofpCont, ofpRes, baseAltnOfp, ofpReqdBase, ofpTotal,
-    actualZfw, delta, autoTaxi, autoCont, autoTrip, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
+    actualZfw, deltaZfw, autoTaxi, autoCont, autoTrip, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
     mf, currTaxi, currTrip, currCont, currTank, currExtra, currReqdBase, currTotal, currTow, currLw, showRevVal,
     refuelHtml, acStatus, efobAtDest, processedAlternates // <--- Airport 依家用呢兩個數就得！
   };
