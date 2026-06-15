@@ -50,15 +50,21 @@ export default function LoadsheetAirportColumn({ flightData, calc, setActiveModa
     percent = 25;
   }
 
-  // 計算 SVG 圓環進度
-  const radius = 6;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percent / 100) * circumference;
+  // 🌟 從燃料引擎（calc）獲取動態 In-Flight 數據
+  const efobAtDest = calc?.efobAtDest || 0.0;
+  const displayAlternates = calc?.processedAlternates || [];
+
+  // 🌟 找到當前被選中的備降場數據，用來渲染目的地機場旁邊的摘要資訊
+  const activeAltnData = displayAlternates.find((a: any) => a.icao === calc.selectedAltn) || displayAlternates[0];
+  
+  const destHoldFuel = activeAltnData ? Math.max(0, activeAltnData.holdFuel) : 0.0;
+  const destHoldTime = activeAltnData ? activeAltnData.holdTime : "0m";
+  const destEta = flightData?.sta_z?.replace('Z', 'z') || "--z";
 
   return (
     <div className="flex-[4] flex flex-col gap-2 h-full overflow-hidden min-h-0 text-white font-sans w-full max-w-[320px]">
       
-      {/* 🌟 1. Loadsheet 卡片 (保持 shrink-0) */}
+      {/* 1. Loadsheet 卡片 */}
       <div 
         onClick={() => setActiveModal('Loadsheet')}
         className="bg-[#1E1E1E] rounded-xl p-3 shrink-0 flex flex-col cursor-pointer hover:bg-[#252525] transition-colors relative"
@@ -109,7 +115,7 @@ export default function LoadsheetAirportColumn({ flightData, calc, setActiveModa
         </div>
       </div>
       
-      {/* 🌟 2. NOTOC 卡片 (保持 shrink-0) */}
+      {/* 2. NOTOC 卡片 */}
       <div className="bg-[#1E1E1E] rounded-xl p-3 shrink-0 flex flex-col relative overflow-hidden">
         {planeWatermark}
         <div className="flex justify-between items-center relative z-10">
@@ -133,7 +139,7 @@ export default function LoadsheetAirportColumn({ flightData, calc, setActiveModa
         </div>
       </div>
       
-      {/* 🌟 3. Airport 卡片 (保持 flex-1 霸佔空間) */}
+      {/* 🌟 3. Airport 卡片 (已對接自動燃料引擎數據) */}
       <div 
         onClick={() => setActiveModal('Airports')}
         className="bg-[#1E1E1E] rounded-xl p-3 flex-1 flex flex-col min-h-0 cursor-pointer hover:bg-[#252525] transition-colors relative overflow-hidden"
@@ -143,54 +149,76 @@ export default function LoadsheetAirportColumn({ flightData, calc, setActiveModa
           <span className="text-[#8fa0a6] text-lg font-light leading-none">›</span>
         </div>
 
+        {/* 目的地機場摘要列 */}
         <div className="flex items-center gap-4 shrink-0 mt-1">
           <div className="text-white font-bold text-lg leading-none">{calc.arrIcao}</div>
           <div className="flex flex-col">
             <span className="text-[0.5rem] text-[#8fa0a6] uppercase tracking-wide leading-tight">EFOB</span>
-            <span className="font-bold text-[0.8rem] leading-none">11.2<span className="text-[0.55rem] font-bold text-[#8fa0a6]">T</span></span>
+            {/* 🌟 顯示動態計算出來的目的地預計剩餘油量 */}
+            <span className="font-bold text-[0.8rem] text-[#00E676] leading-none">{efobAtDest.toFixed(1)}<span className="text-[0.55rem] font-bold text-[#8fa0a6]">T</span></span>
           </div>
           <div className="flex flex-col ml-auto">
             <span className="text-[0.5rem] text-[#8fa0a6] uppercase tracking-wide leading-tight">Hold</span>
-            <span className="font-bold text-[0.8rem] text-right leading-none">--</span>
+            {/* 🌟 顯示相對於當前被選中備降場，在目的地的可用 Holding 油量 */}
+            <span className="font-bold text-[0.8rem] text-right leading-none">{destHoldFuel.toFixed(1)}<span className="text-[0.55rem] font-bold text-[#8fa0a6]">T</span></span>
           </div>
           <div className="flex flex-col">
             <span className="text-[0.5rem] text-[#8fa0a6] uppercase tracking-wide leading-tight">Time</span>
-            <span className="font-bold text-[0.8rem] text-right leading-none">--</span>
+            {/* 🌟 顯示 Holding 時間（分鐘） */}
+            <span className="font-bold text-[0.8rem] text-right leading-none">{destHoldTime}</span>
           </div>
           <div className="flex flex-col">
             <span className="text-[0.5rem] text-[#8fa0a6] uppercase tracking-wide leading-tight">ETA</span>
-            <span className="font-mono text-[0.7rem] text-right leading-none">--z</span>
+            {/* 🌟 顯示目的地的預計抵達 UTC 時間 */}
+            <span className="font-mono text-[0.7rem] text-right text-[#00E676] leading-none">{destEta}</span>
           </div>
         </div>
         
-        <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr] text-[0.55rem] text-[#8fa0a6] uppercase tracking-wider border-b border-[#333] pb-1 shrink-0 ml-4 mt-2">
+        {/* 表頭 */}
+        <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1.2fr] text-[0.55rem] text-[#8fa0a6] uppercase tracking-wider border-b border-[#333] pb-1 shrink-0 ml-4 mt-2">
           <div>ALTN</div><div className="text-right">MDF</div><div className="text-right">Hold</div><div className="text-right">Time</div><div className="text-right">ETA</div>
         </div>
         
-        {/* 🌟 上半部 (50%)：ALTN List (移除 justify-evenly，改用 gap-2 令行距收緊) */}
-        <div className="flex-1 flex flex-col gap-2 overflow-y-auto mt-2 pr-1 relative min-h-0">
+        {/* 備降場清單滾動區 */}
+        <div className="flex-1 flex flex-col gap-2 overflow-y-auto mt-2 pr-1 relative min-h-0 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
            <div className="absolute left-[3px] top-2 bottom-2 w-px bg-[#444]"></div>
 
-          {calc.altnList.map((altn: any, index: number) => {
+          {displayAlternates.map((altn: any, index: number) => {
+            // 🌟 判斷是否為當前被選中的 Active Alternate
             const isSelected = altn.icao === calc.selectedAltn;
-            const holdT = (altn.burn * 0.3).toFixed(1);
-            const timeMins = altn.time;
-            const etaZ = "07" + (27 + index * 13).toString() + "z";
+            
+            // 🌟 防禦機制：如果 Hold 燃油變成負數，觸發高對比紅色警告色（#FF1744）
+            const isNegative = altn.holdFuel < 0;
+            const holdColor = isNegative ? "text-[#FF1744] font-black animate-pulse" : (isSelected ? "text-white" : "text-[#8fa0a6]");
+            
+            const holdDisplayFuel = altn.holdFuel > 0 ? altn.holdFuel.toFixed(1) : "0.0";
+            const holdDisplayTime = isNegative ? "0m" : altn.holdTime;
 
             return (
               <div key={index} className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1.2fr] items-center text-[0.7rem] relative leading-none">
+                {/* 狀態指示燈 */}
                 <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full border-2 ${isSelected ? 'border-white bg-white' : 'border-[#666] bg-[#1E1E1E]'}`}></div>
+                
+                {/* 備降場 ICAO */}
                 <div className={`pl-4 font-bold font-sans ${isSelected ? "text-white" : "text-[#8fa0a6]"}`}>{altn.icao}</div>
-                <div className={`text-right font-mono ${isSelected ? "text-white font-bold" : "text-[#8fa0a6]"}`}>{altn.burn.toFixed(1)}<span className="text-[0.55rem]">T</span></div>
-                <div className="text-right font-mono text-[#8fa0a6]">{holdT}<span className="text-[0.55rem]">T</span></div>
-                <div className="text-right font-mono text-[#8fa0a6]">{timeMins}</div>
-                <div className="text-right font-mono text-white text-[0.65rem]">{etaZ}</div>
+                
+                {/* MDF 最低分流油量 */}
+                <div className={`text-right font-mono ${isSelected ? "text-white font-bold" : "text-[#8fa0a6]"}`}>{altn.mdf?.toFixed(1)}<span className="text-[0.55rem]">T</span></div>
+                
+                {/* Hold 油量 */}
+                <div className={`text-right font-mono ${holdColor}`}>{holdDisplayFuel}<span className="text-[0.55rem]">T</span></div>
+                
+                {/* Hold 時間 */}
+                <div className={`text-right font-mono ${holdColor}`}>{holdDisplayTime}</div>
+                
+                {/* 備降場 ETA */}
+                <div className="text-right font-mono text-white text-[0.65rem]">{altn.eta}</div>
               </div>
             );
           })}
         </div>
 
-        {/* 🌟 下半部 (50%)：Critical Points (加入 flex-1 同 justify-evenly，完美散開) */}
+        {/* 下半部：Critical Points 面板 */}
         <div className="flex-1 mt-2 pt-2 border-t border-[#333] flex flex-col min-h-0">
           <div className="flex justify-between text-[0.55rem] text-[#8fa0a6] uppercase tracking-wider leading-none mb-2 shrink-0">
             <span>Critical Points</span><span>Margin</span>

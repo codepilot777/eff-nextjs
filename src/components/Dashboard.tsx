@@ -1,49 +1,37 @@
 "use client";
 
 import { useState, useEffect } from "react";
+// 🌟 Import 我哋嘅神級燃油引擎
+import { calculateFuelEngine } from "@/lib/fuelCalculator";
 import FmcCrewColumn from "./dashboard/FmcCrewColumn";
 import FuelWeightColumn from "./dashboard/FuelWeightColumn";
 import LoadsheetAirportColumn from "./dashboard/LoadsheetAirportColumn";
 import RefuelAircraftColumn from "./dashboard/RefuelAircraftColumn";
 import DashboardModals from "./dashboard/DashboardModals";
 
+
 export default function Dashboard({ flightData, updateFlightData, setCurrentTab }: { flightData?: any, updateFlightData?: any, setCurrentTab?: any }) {
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  // 🌟 2. 加入 techlogData 嘅 State
   const [techlogData, setTechlogData] = useState<any>(null);
-  // 🌟 3. 加入 Fetch API 邏輯 (同 TechLog 嗰邊同步，每 3 秒更新)
+
   useEffect(() => {
-    // 🌟 1. 從 flightData 抽返架機個 reg 出嚟
-    // (請根據你實際嘅 JSON 結構微調，通常 SimBrief 會有 raw_simbrief.aircraft.reg 或者直接有一層叫 aircraft_reg)
-    const aircraftReg = flightData?.aircraft_reg 
-                     || flightData?.raw_simbrief?.aircraft?.reg 
-                     || "B-LQA"; // 加個 Fallback 防彈
-
+    const aircraftReg = flightData?.aircraft_reg || flightData?.raw_simbrief?.aircraft?.reg || "B-LQA"; 
     const fetchTechlog = async () => {
-      // 如果未有 flightData，就唔好白費心機 call API
       if (!flightData) return; 
-
       try {
-        // 🌟 2. 將 reg 包裝做 params 射過去
         const res = await fetch(`/api/techlog?reg=${encodeURIComponent(aircraftReg)}`);
-        
         if (res.ok) {
           const data = await res.json();
           setTechlogData(data);
-        } else {
-          setTechlogData(null);
-        }
+        } else setTechlogData(null);
       } catch (error) {
         console.error("Failed to fetch techlog data:", error);
         setTechlogData(null);
       }
     };
-
     fetchTechlog();
     const interval = setInterval(fetchTechlog, 3000);
     return () => clearInterval(interval);
-    
-  // 🌟 3. 將 flightData 加入 Dependency Array，確保有 Data 先 Trigger
   }, [flightData]);
 
   const rawSb = flightData?.raw_simbrief || {};
@@ -111,49 +99,19 @@ export default function Dashboard({ flightData, updateFlightData, setCurrentTab 
     lsStageHtml = <div className="mt-2 text-[#00E676] text-center font-bold text-xs border border-dashed border-[#00E676] p-1 rounded">AZF SENT</div>;
     isLsActive = true;
   } else if (flightData?.ezfw_sent) {
-    lsStageHtml = <div className="mt-2 text-status-teal text-center font-bold text-xs border border-dashed border-[#00bfa5] p-1 rounded">EZFW SENT</div>;
+    lsStageHtml = <div className="mt-2 text-[#00bfa5] text-center font-bold text-xs border border-dashed border-[#00bfa5] p-1 rounded">EZFW SENT</div>;
     isLsActive = true;
   }
 
-  const isManual = flightData?.fuel_manual_mode || false;
-  
-  const alternates = flightData?.alternates || [];
-  const altnList = alternates.length > 0 ? alternates : [{ icao: flightData?.altn_icao || 'N/A', burn: flightData?.fuel_altn_ofp || 0.0, time: 30 }];
-  const altnOptions = altnList.map((a: any) => a.icao);
-  const selectedAltn = flightData?.selected_altn || altnOptions[0] || 'N/A';
-  
-  // 🌟 重點修改：將 baseAltnOfp 動態綁定為所選 Alternate 的油量
-  const baseAltnOfp = altnList.find((a: any) => a.icao === selectedAltn)?.burn || flightData?.fuel_altn_ofp || 0.0;
-  // 🌟 因為修改的是 OFP 基準，Revised (currAltnOfp) 直接等於 base，這樣 Diff 就是 0
-  const currAltnOfp = baseAltnOfp;
-
-  const ofpZfw = flightData?.weight_zfw_ofp || 0.0;
-  const ofpTaxi = flightData?.fuel_taxi_ofp || 0.0;
-  const ofpTrip = flightData?.fuel_trip_ofp || 0.0;
-  const ofpCont = flightData?.fuel_cont_ofp || 0.0;
-  const ofpRes = flightData?.fuel_reserve_ofp || 0.0;
-  const ofpReqdBase = ofpTaxi + ofpTrip + ofpCont + baseAltnOfp + ofpRes;
-  const ofpTotal = ofpReqdBase; 
-  
-  const actualZfw = flightData?.trainee_input_zfw || 0.0;
-  const delta = actualZfw > 0 ? actualZfw - ofpZfw : 0.0;
-  const autoTaxi = ofpTaxi;
-  const autoCont = ofpCont;
-  const autoTrip = ofpTrip + (delta * 0.03);
-  const autoReqdBase = autoTaxi + autoTrip + autoCont + currAltnOfp + ofpRes;
-  const autoTotal = autoReqdBase;
-  
-  const mf = flightData?.manual_fuel || {};
-  const currTaxi = isManual ? (mf.taxi ?? autoTaxi) : autoTaxi;
-  const currTrip = isManual ? (mf.trip ?? autoTrip) : autoTrip;
-  const currCont = isManual ? (mf.cont ?? autoCont) : autoCont;
-  const currTank = isManual ? (mf.tankering ?? 0.0) : 0.0;
-  const currExtra = isManual ? (mf.extra ?? 0.0) : 0.0;
-  const currReqdBase = currTaxi + currTrip + currCont + currAltnOfp + ofpRes;
-  const currTotal = isManual ? (mf.total ?? (currReqdBase + currTank + currExtra)) : (currReqdBase + currTank + currExtra);
-  const currTow = (actualZfw > 0 ? actualZfw : ofpZfw) + (currTotal - currTaxi);
-  const currLw = currTow - currTrip;
-  const showRevVal = isManual || (actualZfw > 0) || (selectedAltn !== (altnOptions[0] || 'N/A'));
+  // =========================================================================
+  // 🌟 一行搞掂！呼叫燃油引擎，直接解構所需 Variables (取代舊有幾十行 Code)
+  // =========================================================================
+  const {
+    isManual, ofpZfw, ofpTaxi, ofpTrip, ofpCont, ofpRes, baseAltnOfp, ofpReqdBase, ofpTotal,
+    actualZfw, delta, autoTaxi, autoCont, autoTrip, autoTotal, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
+    mf, currTaxi, currTrip, currCont, currTank, currExtra, currReqdBase, currTotal, currTow, currLw, showRevVal,
+    efobAtDest, processedAlternates
+  } = calculateFuelEngine(flightData);
 
   let refuelHtml = null;
   if (!flightData?.final_fuel_accepted) refuelHtml = <div className="flex flex-col items-center justify-center py-2 h-full"><span className="text-text-muted text-[0.65rem] font-bold">STANDBY FIGURE SENT</span><span className="text-white text-xl font-bold">{Math.max(0, currTotal - 5.0).toFixed(1)} T</span></div>;
@@ -161,10 +119,11 @@ export default function Dashboard({ flightData, updateFlightData, setCurrentTab 
   else if (!flightData?.pilots_signed_fuel) refuelHtml = <div className="flex flex-col items-center justify-center py-2 h-full cursor-pointer hover:scale-105 transition-transform"><div className="bg-[#FF9100] text-black py-2 px-4 w-full text-center font-black rounded shadow-[0_2px_8px_rgba(255,145,0,0.4)]">SIGN RECEIPT</div></div>;
   else refuelHtml = <div className="flex flex-col items-center justify-center py-2 h-full"><div className="bg-[#00E676] text-black py-2 px-4 w-full text-center font-black rounded shadow-[0_2px_8px_rgba(0,230,118,0.4)]">FUEL ACCEPTED</div></div>;
 
-  let acStatus = <div className="bg-[#1c2630] text-text-muted p-1 rounded text-center font-bold mb-2 text-xs border border-dashed border-[#404040]">AWAITING TECHLOG RELEASE</div>;
+  let acStatus = <div className="bg-[#1c2630] text-[#8fa0a6] p-1 rounded text-center font-bold mb-2 text-xs border border-dashed border-[#404040]">AWAITING TECHLOG RELEASE</div>;
   if (flightData?.tl_release && flightData?.tl_accept && flightData?.tl_flight_started) acStatus = <div className="bg-[#00E676] text-black p-1 rounded text-center font-bold mb-2 text-xs">✅ AIRCRAFT ACCEPTED</div>;
   else if (flightData?.tl_release) acStatus = <div className="bg-[#FF9100] text-black p-1 rounded text-center font-bold mb-2 text-xs">⏳ TECHLOG RELEASED</div>;
 
+  // 🌟 calc 物件加入 In-flight 變數，畀 Airport Column 用
   const calc = {
     acType, reg, routeStr, shortRoute, costIndex, depIcao, arrIcao, depIata, arrIata, dragFf, melCdl,
     totalDist, cruiseAlt, tocTemp, edtoFlight, minDivert, avgWind, avgTrip, mraHigh, mraEdg,
@@ -172,7 +131,7 @@ export default function Dashboard({ flightData, updateFlightData, setCurrentTab 
     isManual, ofpZfw, ofpTaxi, ofpTrip, ofpCont, ofpRes, baseAltnOfp, ofpReqdBase, ofpTotal,
     actualZfw, delta, autoTaxi, autoCont, autoTrip, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
     mf, currTaxi, currTrip, currCont, currTank, currExtra, currReqdBase, currTotal, currTow, currLw, showRevVal,
-    refuelHtml, acStatus
+    refuelHtml, acStatus, efobAtDest, processedAlternates // <--- Airport 依家用呢兩個數就得！
   };
 
   const handlers = {

@@ -1,7 +1,9 @@
 "use client";
 
 // 從 index.ts 一次過引入所有模組
-import { ModalLoadsheet, ModalReject, ModalFMS, ModalAirports, ModalDOCS, ModalRefuelling, ModalSNN, ModalAcceptFuel } from "./modals"; 
+import { ModalReject, ModalFMS, ModalDOCS, ModalRefuelling, ModalSNN, ModalAcceptFuel } from "./modals"; 
+import { ModalLoadsheet } from './modals/ModalLoadsheet/index'
+import { ModalAirports } from "./modals/ModalAirports/index";
 
 // 🌟 修正：記得喺呢度加返 handlers 入去！
 export default function DashboardModals({ flightData, updateFlightData, activeModal, setActiveModal, calc, handlers }: any) {

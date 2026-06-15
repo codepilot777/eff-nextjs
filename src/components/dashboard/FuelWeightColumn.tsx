@@ -2,11 +2,10 @@
 import React from "react";
 import { B773_BHNQ } from "@/lib/loadsheet/MockAHM";
 
-// 🌟 Props 新增 setActiveModal，用來激發彈窗
 export default function FuelWeightColumn({ flightData, updateFlightData, calc, handlers, setActiveModal }: { flightData: any, updateFlightData: any, calc: any, handlers: any, setActiveModal: any }) {
   
   // ==========================================
-  // 1. Time / Endurance 計算邏輯
+  // 1. Time / Endurance 計算邏輯 (保留純 UI 顯示用)
   // ==========================================
   const fuelFlow = parseFloat(flightData?.raw_simbrief?.fuel?.avg_fuel_flow) || 7653; 
   
@@ -22,6 +21,7 @@ export default function FuelWeightColumn({ flightData, updateFlightData, calc, h
     return `${h}${m}`;
   };
 
+  // 根據 toggle 決定顯示邊組數
   const tripFuel = calc.showRevVal ? calc.currTrip : calc.ofpTrip;
   const contFuel = calc.showRevVal ? calc.currCont : calc.ofpCont;
   const altnFuel = calc.showRevVal ? calc.currAltnOfp : calc.baseAltnOfp;
@@ -37,7 +37,6 @@ export default function FuelWeightColumn({ flightData, updateFlightData, calc, h
   const resMins = 30; 
   
   const reqdMins = taxiMins + tripMins + contMins + holdMins + addMins + altnMins + resMins;
-  
   const tankMins = getMins(tankFuel);
   const extraMins = getMins(extraFuel);
   const totalMins = reqdMins + tankMins + extraMins;
@@ -58,45 +57,35 @@ export default function FuelWeightColumn({ flightData, updateFlightData, calc, h
   const getMarginColor = (m: number) => m > 0 ? 'text-[#FF1744] font-black' : 'text-[#8fa0a6]';
 
   // ==========================================
-  // 3. Row UI 組件
+  // 3. Row UI 組件 (原封不動)
   // ==========================================
   const Row = ({ label, ofp, rev, time, isInput, field, isBold, isTotal, isZfw, isTow }: any) => {
     const diff = rev - ofp;
     const hasDiff = Math.abs(diff) > 0.05;
     const diffSign = diff > 0 ? "+" : "";
-    
     const diffText = hasDiff ? `${diffSign}${diff.toFixed(1)}` : "";
     const diffColor = "text-[#00E676]";
-
     const labelClass = isBold ? "text-white font-bold" : "text-[#8fa0a6]";
+    
     let revClass = "text-right font-bold ";
-    if (isTotal) {
-      revClass += "text-[#00E676] text-[0.95rem] leading-none";
-    } else if (isZfw) {
-      revClass = "bg-[#153f36] text-[#00E676] text-right font-bold py-0.5 px-2 rounded-l ml-auto w-max leading-none";
-    } else if (isTow) {
-      revClass = "bg-white text-[#1E1E1E] text-right font-bold py-0.5 px-2 rounded-l ml-auto w-max text-[0.9rem] leading-none";
-    } else {
-      revClass += "text-[#00E676] leading-none";
-    }
+    if (isTotal) revClass += "text-[#00E676] text-[0.95rem] leading-none";
+    else if (isZfw) revClass = "bg-[#153f36] text-[#00E676] text-right font-bold py-0.5 px-2 rounded-l ml-auto w-max leading-none";
+    else if (isTow) revClass = "bg-white text-[#1E1E1E] text-right font-bold py-0.5 px-2 rounded-l ml-auto w-max text-[0.9rem] leading-none";
+    else revClass += "text-[#00E676] leading-none";
 
     return (
       <div className={`grid grid-cols-[1.4fr_1fr_0.7fr_1fr_0.8fr] gap-1 items-center py-0.5 ${isTotal || isTow ? 'border-y border-[#333]' : 'border-b border-dashed border-[#333]'}`}>
         <div className={`text-[0.65rem] ${labelClass} leading-none`}>{label}</div>
-        
         <div className="text-right leading-none pr-2">
           <span className={`text-[0.8rem] ${isBold ? 'font-bold text-white' : 'text-white'}`}>{ofp?.toFixed(1) || '0.0'}</span>
         </div>
-
         <div className={`text-center text-[0.65rem] font-bold font-mono ${diffColor} leading-none`}>
           {calc.showRevVal ? diffText : ""}
         </div>
-
         <div className="text-right flex justify-end items-center pr-2">
           {isInput && calc.isManual ? (
             <input 
-              type="number" step="0.1" 
-              defaultValue={rev || ''} 
+              type="number" step="0.1" defaultValue={rev || ''} 
               onBlur={(e) => handlers.handleFuelInput(field, e.target.value)}
               key={`${field}-${rev}`}
               className="w-14 bg-[#1a1a1a] text-[#00E676] text-right text-[0.8rem] font-bold rounded px-1 py-0.5 outline-none border border-[#333] focus:border-[#00E676] leading-none transition-colors" 
@@ -107,10 +96,7 @@ export default function FuelWeightColumn({ flightData, updateFlightData, calc, h
             </div>
           )}
         </div>
-
-        <div className="text-right text-[0.6rem] text-[#00E676] font-mono pr-1 leading-none">
-          {time}
-        </div>
+        <div className="text-right text-[0.6rem] text-[#00E676] font-mono pr-1 leading-none">{time}</div>
       </div>
     );
   };
@@ -131,7 +117,7 @@ export default function FuelWeightColumn({ flightData, updateFlightData, calc, h
           </div>
         </div>
 
-        {/* 🌟 Banner Click 更改：唔再直接送出，改為彈出 'AcceptFuel' Modal */}
+        {/* Banner */}
         {calc.showRevVal ? (
           <div 
             onClick={!flightData?.final_fuel_accepted ? () => setActiveModal('AcceptFuel') : undefined} 
@@ -146,8 +132,8 @@ export default function FuelWeightColumn({ flightData, updateFlightData, calc, h
           </div>
         ) : (<div className="h-1 shrink-0"></div>)}
 
+        {/* List Section */}
         <div className="flex-1 px-4 pb-3 mt-3 flex flex-col min-h-0">
-          
           <div className="grid grid-cols-[1.4fr_1fr_0.7fr_1fr_0.8fr] text-[0.55rem] text-[#8fa0a6] uppercase tracking-wider mb-2 border-b border-[#333] pb-1 shrink-0">
             <div></div><div className="text-right pr-2">OFP</div><div className="text-center">Diff</div><div className="text-right pr-2">Revised</div><div className="text-right">Time</div>
           </div>
@@ -159,22 +145,22 @@ export default function FuelWeightColumn({ flightData, updateFlightData, calc, h
             {Row({ label: "Dest Hold", ofp: 0.0, rev: 0.0, time: formatTime(holdMins) })}
             {Row({ label: "Additional", ofp: 0.0, rev: 0.0, time: formatTime(addMins) })}
             
+            {/* Alternate Row */}
             <div className="grid grid-cols-[1.4fr_1fr_0.7fr_1fr_0.8fr] gap-1 items-center py-0.5 border-b border-dashed border-[#333]">
               <div className="text-[0.65rem] leading-none">
                 <div className="bg-white text-black px-1 py-0.5 rounded text-[0.55rem] font-bold font-sans inline-block w-max leading-tight cursor-pointer">
                   ALTN<br/>
                   <select value={calc.selectedAltn} onChange={(e) => updateFlightData({ selected_altn: e.target.value, final_fuel_accepted: false })} className="bg-transparent font-bold outline-none cursor-pointer appearance-none text-center">
-                    {calc.altnOptions.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                    {/* Fallback array to prevent mapping undefined */}
+                    {(calc.altnOptions || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
                   </select> ∨
                 </div>
               </div>
-              <div className="text-right leading-none pr-2">
-                <span className="text-[0.8rem] text-white">{calc.baseAltnOfp.toFixed(1)}</span>
-              </div>
+              <div className="text-right leading-none pr-2"><span className="text-[0.8rem] text-white">{calc.baseAltnOfp?.toFixed(1) || '0.0'}</span></div>
               <div className="text-center text-[0.65rem] font-bold font-mono text-[#00E676] leading-none">
                 {calc.showRevVal ? (Math.abs(calc.currAltnOfp - calc.baseAltnOfp) > 0.05 ? `+${Math.abs(calc.currAltnOfp - calc.baseAltnOfp).toFixed(1)}` : "") : ""}
               </div>
-              <div className="text-right text-[#00E676] font-bold leading-none pr-2">{calc.showRevVal ? calc.currAltnOfp.toFixed(1) : ''}</div>
+              <div className="text-right text-[#00E676] font-bold leading-none pr-2">{calc.showRevVal ? calc.currAltnOfp?.toFixed(1) : ''}</div>
               <div className="text-right text-[0.6rem] text-[#00E676] font-mono pr-1 leading-none">{formatTime(altnMins)}</div>
             </div>
 
@@ -193,7 +179,7 @@ export default function FuelWeightColumn({ flightData, updateFlightData, calc, h
             <div className="grid grid-cols-[1.4fr_1fr_0.7fr_1fr_0.8fr] gap-1 items-center py-0.5 border-b border-dashed border-[#333]">
               <div className="text-[0.65rem] text-[#8fa0a6] leading-none">ZFW</div>
               <div className="text-right leading-none pr-2">
-                <span className="text-[0.8rem] font-bold text-white">{calc.ofpZfw.toFixed(1)}</span>
+                <span className="text-[0.8rem] font-bold text-white">{calc.ofpZfw?.toFixed(1)}</span>
               </div>
               <div className="text-center text-[0.65rem] font-bold font-mono text-[#00E676] leading-none">
                 {calc.showRevVal ? (Math.abs(zfwVal - calc.ofpZfw) > 0.05 ? (
@@ -202,8 +188,7 @@ export default function FuelWeightColumn({ flightData, updateFlightData, calc, h
               </div>
               <div className="text-right flex justify-end items-center pr-2">
                 <input 
-                  type="number" step="0.1" 
-                  defaultValue={calc.actualZfw || ''} 
+                  type="number" step="0.1" defaultValue={calc.actualZfw || ''} 
                   onBlur={(e) => handlers.handleZfwInput(e.target.value)}
                   key={`zfw-${calc.actualZfw}-${calc.isManual}`} 
                   className={`w-14 text-right text-[0.8rem] font-bold rounded px-1 py-0.5 outline-none leading-none transition-all ${
@@ -226,7 +211,6 @@ export default function FuelWeightColumn({ flightData, updateFlightData, calc, h
             <div className="flex justify-between leading-none"><span className="font-sans">LNDG CG</span><span className="text-white">+103 up -94 down</span></div>
             <div className="flex justify-between leading-none"><span className="font-sans">RAMP CG</span><span className="text-white">+93 up -86 down</span></div>
           </div>
-
         </div>
       </div>
     </div>

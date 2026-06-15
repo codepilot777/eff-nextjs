@@ -2,15 +2,12 @@ Trainee View:
   Loadsheet modal
 
   Airport section
-    MDF
-    HOLD Time
-    Time
     ETA
   airport modal
 
-NAVLOG tab
 
-NOTAM tab
+  Refuelling Section
+    Even Refuel accpeted, 都可以clickalbe 開fuel receipt modal
     
 
 E-tech Log
