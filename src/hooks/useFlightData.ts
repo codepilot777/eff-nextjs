@@ -34,9 +34,8 @@ export function useFlightData() {
     },
     onMutate: async (updates) => {
       await queryClient.cancelQueries({ queryKey: ["flight", flightId] });
-      const previousData = queryClient.getQueryData(["flight", flightId]);
-      queryClient.setQueryData(["flight", flightId], { ...previousData, ...updates });
-      return { previousData };
+      const previousData = queryClient.getQueryData(["flight", flightId]) as any;
+queryClient.setQueryData(["flight", flightId], { ...(previousData || {}), ...updates });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["flight", flightId] });

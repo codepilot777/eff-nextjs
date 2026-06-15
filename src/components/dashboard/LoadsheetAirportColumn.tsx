@@ -1,14 +1,35 @@
 "use client";
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 
-export default function LoadsheetAirportColumn({ flightData, calc, setActiveModal }: { flightData: any, calc: any, setActiveModal: any }) {
+// 🌟 Props 大清洗：只保留 setActiveModal
+export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveModal: any }) {
   
+  // 🌟 1. 從天上直接抽取 Data
+  const { flightData, calc } = useFlightData();
+
+  // 🌟 防呆保護：如果未有 data 就唔 render，防止下面計算爆炸
+  if (!flightData || !calc) return null;
+
+  // =====================================================================
+  // 🌟 2. 喺 Component 內部安全解構所需的 UI Metadata
+  // =====================================================================
+  const rawSb = flightData?.raw_simbrief || {};
+  const gen = rawSb.general || {};
+  const dest = rawSb.destination || {};
+
+  const arrIcao = flightData?.arr_icao || dest.icao_code || 'RJBB';
+  const paxTot = (flightData?.pax_f || 0) + (flightData?.pax_j || 0) + (flightData?.pax_w || 0) + (flightData?.pax_y || 0);
+
+  // =====================================================================
+  // 🌟 3. 原本嘅計算邏輯 (修正為使用本地變數)
+  // =====================================================================
   const lastUpdated = flightData?.sta_z?.replace('Z', 'z') || "0323z"; 
-  const displayZfw = calc.actualZfw > 0 ? calc.actualZfw.toFixed(1) : calc.ofpZfw.toFixed(1);
+  const displayZfw = calc.actualZfw > 0 ? calc.actualZfw.toFixed(1) : (calc.ofpZfw?.toFixed(1) || '0.0');
 
   const crewFd = flightData?.crew_fd || 2;
   const crewCc = flightData?.crew_cc || 13;
   const totalCrew = crewFd + crewCc;
-  const totalPob = calc.paxTot + totalCrew;
+  const totalPob = paxTot + totalCrew; // 👈 換上本地 paxTot
 
   const finalVer = (flightData?.final_ls_version || 1).toString().padStart(2, '0');
   const prelimVer = (flightData?.prelim_ls_version || 1).toString().padStart(2, '0');
@@ -56,7 +77,6 @@ export default function LoadsheetAirportColumn({ flightData, calc, setActiveModa
   const destHoldTime = activeAltnData ? activeAltnData.holdTime : "0m";
   const destEta = flightData?.sta_z?.replace('Z', 'z') || "--z";
 
-  // 🌟 計算需要補幾多個吉行 (假設一半空間預設顯示 4 行 ALTN)
   const MIN_ALTN_ROWS = 4;
   const emptyAltnRows = Math.max(0, MIN_ALTN_ROWS - displayAlternates.length);
 
@@ -81,8 +101,8 @@ export default function LoadsheetAirportColumn({ flightData, calc, setActiveModa
           </div>
           <div className="flex items-center leading-none">
             <span className="text-[#8fa0a6] font-sans text-[0.6rem] uppercase tracking-widest w-9">Pax</span>
-            <span className="ml-1 font-mono font-bold text-[1rem] text-white w-6 text-right">{calc.paxTot}</span>
-            <span className="ml-3 text-[0.65rem] text-[#8fa0a6] font-mono">J42 Y{calc.paxTot > 42 ? calc.paxTot - 42 : 0}</span>
+            <span className="ml-1 font-mono font-bold text-[1rem] text-white w-6 text-right">{paxTot}</span>
+            <span className="ml-3 text-[0.65rem] text-[#8fa0a6] font-mono">J42 Y{paxTot > 42 ? paxTot - 42 : 0}</span>
           </div>
         </div>
 
@@ -135,7 +155,7 @@ export default function LoadsheetAirportColumn({ flightData, calc, setActiveModa
       {/* 3. Airport 卡片 */}
       <div onClick={() => setActiveModal('Airports')} className="bg-[#1E1E1E] rounded-xl p-3 flex-1 flex flex-col min-h-0 cursor-pointer hover:bg-[#252525] transition-colors relative overflow-hidden">
         
-        {/* 🌟 頂部 50%：Airport & ALTN List */}
+        {/* 頂部 50%：Airport & ALTN List */}
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex justify-between items-center mb-1 shrink-0">
             <h2 className="text-[1.05rem] font-bold text-white leading-none">Airport</h2>
@@ -143,7 +163,8 @@ export default function LoadsheetAirportColumn({ flightData, calc, setActiveModa
           </div>
 
           <div className="flex items-center gap-4 shrink-0 mt-1">
-            <div className="text-white font-bold text-lg leading-none">{calc.arrIcao}</div>
+            {/* 🌟 換上本地 arrIcao */}
+            <div className="text-white font-bold text-lg leading-none">{arrIcao}</div> 
             <div className="flex flex-col">
               <span className="text-[0.5rem] text-[#8fa0a6] uppercase tracking-wide leading-tight">EFOB</span>
               <span className="font-bold text-[0.8rem] text-[#00E676] leading-none">{efobAtDest.toFixed(1)}<span className="text-[0.55rem] font-bold text-[#8fa0a6]">T</span></span>
@@ -189,7 +210,7 @@ export default function LoadsheetAirportColumn({ flightData, calc, setActiveModa
               );
             })}
 
-            {/* 🌟 填補空位的 Placeholder Rows (確保 50% 空間被填滿，唔會有死位) */}
+            {/* 填補空位的 Placeholder Rows */}
             {[...Array(emptyAltnRows)].map((_, i) => (
               <div key={`empty-${i}`} className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1.2fr] items-center text-[0.7rem] relative leading-none z-10 bg-[#1E1E1E] py-1 opacity-40">
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full border-2 border-[#444] bg-[#1E1E1E]"></div>
@@ -203,7 +224,7 @@ export default function LoadsheetAirportColumn({ flightData, calc, setActiveModa
           </div>
         </div>
 
-        {/* 🌟 底部 50%：Critical Points 面板 */}
+        {/* 底部 50%：Critical Points 面板 */}
         <div className="flex-1 mt-2 pt-2 border-t border-[#333] flex flex-col min-h-0">
           <div className="flex justify-between text-[0.55rem] text-[#8fa0a6] uppercase tracking-wider leading-none mb-2 shrink-0">
             <span>Critical Points</span><span>Margin</span>

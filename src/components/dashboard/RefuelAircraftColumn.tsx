@@ -1,19 +1,39 @@
 "use client";
 import React from "react";
+import { useQuery } from "@tanstack/react-query"; // 🌟 引入 React Query
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 
-// 🌟 1. 加入 techlogData prop
-export default function RefuelAircraftColumn({ flightData, techlogData, updateFlightData, calc, setActiveModal, setCurrentTab }: { flightData: any, techlogData: any, updateFlightData: any, calc: any, setActiveModal: any, setCurrentTab: any }) {
+// 🌟 Props 大清洗：只保留 setActiveModal 同 setCurrentTab
+export default function RefuelAircraftColumn({ setActiveModal, setCurrentTab }: { setActiveModal: any, setCurrentTab: any }) {
   
+  // 🌟 1. 從天上直接抽取 Flight 數據
+  const { flightData, calc, updateFlightData } = useFlightData();
+
+  // 🌟 2. 獨立自主！自己喺度 Fetch Techlog 數據 (完美封裝)
+  const reg = flightData?.aircraft_reg || flightData?.raw_simbrief?.general?.aircraft_reg || 'B-HNQ';
+  const { data: techlogData } = useQuery({
+    queryKey: ["techlog", reg],
+    queryFn: async () => {
+      const res = await fetch(`/api/techlog?reg=${reg}`);
+      if (!res.ok) throw new Error("Network error");
+      return res.json();
+    },
+    refetchInterval: 3000,
+    enabled: !!reg && !!flightData,
+  });
+
+  // 防呆保護
+  if (!flightData || !calc) return null;
+
   const isStandbyFuel = !flightData?.final_fuel_accepted;
   const isRefueled = flightData?.fuel_receipt_sent;
   const isAccepted = flightData?.pilots_signed_fuel;
 
-  // 🌟 2. 獨立處理 Techlog 數據 (升級版：嚴格過濾 DEFERRED 狀態)
+  // 🌟 獨立處理 Techlog 數據 (嚴格過濾 DEFERRED 狀態)
   let defectsStr = "LOADING...";
   
   if (techlogData) {
     const defects = techlogData.defects || [];
-    // 只計算仍未修復 (DEFERRED) 嘅項目，完美配合 Engineer Defect Management
     const paddCount = defects.filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("P")).length;
     const saddCount = defects.filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("S")).length; 
     const addCount = defects.filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("A")).length;   
@@ -22,13 +42,12 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
     defectsStr = "N/A";
   }
 
-  // 🌟 3. Techlog Release vs Commander Acceptance 狀態機
+  // 🌟 Techlog Release vs Commander Acceptance 狀態機
   const tlReleased = techlogData?.tl_release || false;
   const tlAccepted = techlogData?.tl_accept || false;
 
   let aircraftStatusBanner;
   if (tlAccepted) {
-    // ✅ 終極狀態：機長已 Accept (還原做 #C6FF00 螢光青)
     aircraftStatusBanner = (
       <div className="bg-[#C6FF00] text-black font-bold px-2.5 py-1.5 rounded-lg flex justify-between items-center shadow-sm leading-none transition-colors">
         <span className="text-[0.75rem] uppercase tracking-widest">Aircraft Accepted</span>
@@ -36,12 +55,10 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
       </div>
     );
   } else if (tlReleased) {
-    // ⚠️ 中間狀態：工程師已 Release，等候機長 Accept (Amber 警告)
     aircraftStatusBanner = (
-      // 🌟 2. 改寫 onClick 事件
       <div className="bg-[#FF9100] text-black font-bold px-2.5 py-1.5 rounded-lg flex justify-between items-center shadow-sm leading-none cursor-pointer hover:bg-[#e68a00] transition-colors" 
         onClick={() => {
-          if (setCurrentTab) setCurrentTab("TECHLOG"); // 跳去 TechLog Tab
+          if (setCurrentTab) setCurrentTab("TECHLOG"); 
         }}
       >
         <span className="text-[0.75rem] uppercase tracking-widest flex items-center gap-1.5">
@@ -51,7 +68,6 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
       </div>
     );
   } else {
-    // 🛑 初始狀態：工程師未 Release
     aircraftStatusBanner = (
       <div className="bg-[#1a1a1a] border border-[#333] text-[#8fa0a6] font-bold px-2.5 py-1.5 rounded-lg flex justify-between items-center shadow-sm leading-none">
         <span className="text-[0.75rem] uppercase tracking-widest">Techlog Pending</span>
@@ -62,14 +78,12 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
 
   // 🌟 重新整理 Fuel 計算邏輯
   const logFuelT = flightData?.fuel_on_board || 0.0;
-  const ofpPlannedFuelT = calc.currTotal || 36.4; // 取得 OFP Flight Plan Fuel
+  const ofpPlannedFuelT = calc.currTotal || 36.4; 
   const totalFuelT = flightData?.final_fuel_request || ofpPlannedFuelT;
   const estimatedUplift = Math.max(0, totalFuelT - logFuelT).toFixed(1);
   
-  // 🌟 新增：Standby Fuel = OFP Fuel - 5T (最低為 0)
   const standbyFuelT = Math.max(0, ofpPlannedFuelT - 5.0).toFixed(1);
 
-  // 🌟 動態渲染 Refueling Logo (油車) 與 Progress Ring
   let logoColor = "text-[#555]";
   let ringSvg = null;
   let refuelBanner = null;
@@ -128,7 +142,6 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
     refuelBanner = (
       <div className="bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 flex justify-between items-center text-[#8fa0a6] mt-auto shrink-0">
         <span className="font-bold text-[0.8rem] leading-none uppercase tracking-widest">
-          {/* 🌟 顯示 OFP Fuel - 5T */}
           Standby {standbyFuelT}T Sent
         </span>
       </div>
@@ -160,7 +173,6 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
         </div>
         
         <div className="flex-1 flex flex-col justify-between min-h-0">
-          {/* 🌟 渲染狀態欄：Techlog Pending ➔ Amber Released ➔ Green Accepted */}
           {aircraftStatusBanner}
           
           <div className="grid grid-cols-3 gap-2 text-[#8fa0a6] text-[0.55rem] uppercase tracking-wide mt-1">
