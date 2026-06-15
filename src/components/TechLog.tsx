@@ -16,6 +16,7 @@ export default function TechLog({ flightData, updateFlightData, forcedRole }: { 
   const [roleMode, setRoleMode] = useState<"FLIGHT CREW" | "ENGINEER">(isInstructor ? "ENGINEER" : "FLIGHT CREW");
   
   useEffect(() => { setRoleMode(isInstructor ? "ENGINEER" : "FLIGHT CREW"); }, [isInstructor]);
+
   
   const [activeNav, setActiveNav] = useState<"dashboard" | "history" | "reporting">("dashboard");
   const [activeTask, setActiveTask] = useState<string | null>(null);
@@ -25,6 +26,18 @@ export default function TechLog({ flightData, updateFlightData, forcedRole }: { 
   const [tlData, setTlData] = useState<any>(null);
   const [tlLoading, setTlLoading] = useState(true);
   const isUpdatingTl = useRef(false);
+
+  // 🌟 加入呢段：監聽來自 Dashboard 嘅跳轉指令
+  useEffect(() => {
+    const handleOpenTask = (e: any) => {
+      setActiveTask(e.detail); // 自動將 activeTask 設為 'acceptance'
+    };
+    window.addEventListener('open-techlog-task', handleOpenTask);
+    
+    return () => {
+      window.removeEventListener('open-techlog-task', handleOpenTask);
+    };
+  }, []);
 
   // 🌟 1. 抽取 Aircraft Registration，而唔係 Flight Number
   const rawSb = flightData?.raw_simbrief || {};

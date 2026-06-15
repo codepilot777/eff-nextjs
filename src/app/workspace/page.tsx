@@ -78,7 +78,7 @@ function WorkspaceContent() {
   // --- 數據格式化 (對應 Cathay EFB 佈局) ---
   const isActivated = flightData?.activated_version > 0;
   const versionNum = isActivated ? flightData.activated_version : (flightData?.ofp_version || 1);
-  const statusText = isActivated ? "Activated" : "Submitted"; // 模擬圖中 "Submitted" 狀態
+  const statusText = isActivated ? "ACTIVATED" : "NOT ACTIVATED"; // 🌟 更新狀態字眼
 
   const dateObj = flightData?.std_unix ? new Date(flightData.std_unix * 1000) : new Date();
   const dayStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit' });
@@ -92,6 +92,38 @@ function WorkspaceContent() {
   const stdZ = flightData?.std_z?.replace('Z', 'z') || "--z";
   const staZ = flightData?.sta_z?.replace('Z', 'z') || "--z";
 
+  // 🌟 Helper: 利用 SimBrief JSON 內置嘅 Timezone 轉 Local Time (防彈版)
+  const getLocalTime = (zTimeStr: string, airportObj: any) => {
+    if (!zTimeStr || zTimeStr === "--z" || zTimeStr.length < 5) return "----L";
+    
+    // 預設 fallback 為 HKG (+8)
+    let offset = 8; 
+
+    // 直接讀取 SimBrief 嘅 timezone (例如 RJCC 會出 "9", 印度出 "5.5")
+    if (airportObj && airportObj.timezone !== undefined) {
+      offset = parseFloat(airportObj.timezone); 
+    }
+
+    // 抽出字串入面嘅 Zulu 小時同分鐘
+    const hours = parseInt(zTimeStr.substring(0, 2), 10);
+    const mins = parseInt(zTimeStr.substring(2, 4), 10);
+
+    // 🌟 神級演算法：全部轉做分鐘加減，完美解決負數、跨日、同埋小數點時區！
+    let totalMins = (hours * 60) + mins + Math.round(offset * 60);
+
+    // 確保 totalMins 永遠係一日之內嘅正數 (解決跨越午夜嘅問題)
+    totalMins = ((totalMins % 1440) + 1440) % 1440; 
+
+    const localHours = Math.floor(totalMins / 60);
+    const localMins = totalMins % 60;
+    
+    return `${localHours.toString().padStart(2, '0')}${localMins.toString().padStart(2, '0')}L`;
+  };
+
+  // 傳入 SimBrief 嘅 origin 同 destination object
+  const stdL = getLocalTime(stdZ, flightData?.raw_simbrief?.origin);
+  const staL = getLocalTime(staZ, flightData?.raw_simbrief?.destination);
+
   const eetMins = Math.floor((flightData?.eet_seconds || 0) / 60);
   const fltH = Math.floor(eetMins / 60).toString().padStart(2, '0');
   const fltM = (eetMins % 60).toString().padStart(2, '0');
@@ -101,7 +133,6 @@ function WorkspaceContent() {
   const blkM = (blkMins % 60).toString().padStart(2, '0');
 
   return (
-    // 🌟 底色改為極深的 #0A0A0A (純黑)
     <div className="flex flex-col h-screen overflow-hidden bg-[#0a0a0a] text-[#e2e8f0] font-sans">
       
       {isLoading && !flightData && (
@@ -122,9 +153,12 @@ function WorkspaceContent() {
             <span className="text-[1.1rem] font-bold text-white tracking-wide">{flightData?.flight_no || flightId}</span>
           </div>
 
-          <div className="flex items-center bg-[#333] rounded-full overflow-hidden text-[0.7rem] font-bold h-6 ml-2">
-            <div className="bg-[#333] text-white px-3 flex items-center h-full">V{versionNum}</div>
-            <div className={`${isActivated ? 'bg-[#C6FF00] text-black' : 'bg-white text-black'} px-3 flex items-center h-full`}>
+          {/* 🌟 同一顏色的 Status Pill */}
+          <div className={`flex items-center rounded-full overflow-hidden text-[0.65rem] font-bold h-6 ml-2 transition-colors ${isActivated ? 'bg-[#C6FF00] text-black' : 'bg-[#333] text-[#8fa0a6]'}`}>
+            <div className={`px-3 flex items-center h-full border-r ${isActivated ? 'border-black/20' : 'border-[#444]'}`}>
+              V{versionNum}
+            </div>
+            <div className="px-3 flex items-center h-full tracking-widest uppercase">
               {statusText}
             </div>
           </div>
@@ -138,6 +172,7 @@ function WorkspaceContent() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Origin */}
             <div className="flex flex-col items-start leading-none gap-0.5">
               <div className="flex items-baseline gap-2">
                 <span className="text-white text-[0.95rem]">{depIcao}</span>
@@ -145,12 +180,13 @@ function WorkspaceContent() {
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-[#8fa0a6] text-[0.7rem]">{depIata}</span>
-                <span className="text-[#8fa0a6] text-[0.7rem]">----L</span>
+                <span className="text-[#8fa0a6] text-[0.7rem]">{stdL}</span> {/* 🌟 顯示真實 Local Time */}
               </div>
             </div>
 
             <span className="text-[#8fa0a6] text-lg mx-1">✈️</span>
 
+            {/* Destination */}
             <div className="flex flex-col items-start leading-none gap-0.5">
               <div className="flex items-baseline gap-2">
                 <span className="text-white text-[0.95rem]">{arrIcao}</span>
@@ -158,7 +194,7 @@ function WorkspaceContent() {
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-[#8fa0a6] text-[0.7rem]">{arrIata}</span>
-                <span className="text-[#8fa0a6] text-[0.7rem]">----L</span>
+                <span className="text-[#8fa0a6] text-[0.7rem]">{staL}</span> {/* 🌟 顯示真實 Local Time */}
               </div>
             </div>
           </div>
@@ -203,9 +239,9 @@ function WorkspaceContent() {
         </div>
       </header>
 
-      {/* 🌟 主內容區 (加入 flex-1, flex flex-col, min-h-0, overflow-hidden 組合拳) */}
+      {/* 🌟 主內容區 */}
       <main className="flex-1 flex flex-col overflow-hidden min-h-0 relative bg-[#0a0a0a] pt-4 px-4 pb-2">
-        {currentTab === "DASH" && flightData && <Dashboard flightData={flightData} updateFlightData={updateFlightData} />}
+        {currentTab === "DASH" && flightData && <Dashboard flightData={flightData} updateFlightData={updateFlightData} setCurrentTab={setCurrentTab} />}
         {currentTab === "NAVLOG" && flightData && <Navlog flightData={flightData} updateFlightData={updateFlightData} />}
         {currentTab === "WEATHER" && flightData && <Weather flightData={flightData} />}
         {currentTab === "NOTAM" && flightData && <Notam flightData={flightData} />}

@@ -7,11 +7,44 @@ import LoadsheetAirportColumn from "./dashboard/LoadsheetAirportColumn";
 import RefuelAircraftColumn from "./dashboard/RefuelAircraftColumn";
 import DashboardModals from "./dashboard/DashboardModals";
 
-export default function Dashboard({ flightData, updateFlightData }: { flightData?: any, updateFlightData?: any }) {
+export default function Dashboard({ flightData, updateFlightData, setCurrentTab }: { flightData?: any, updateFlightData?: any, setCurrentTab?: any }) {
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  
-  // 🌟 1. 新增 Techlog 專用 State (undefined 代表 Loading 中)
-  const [techlogData, setTechlogData] = useState<any>(undefined);
+  // 🌟 2. 加入 techlogData 嘅 State
+  const [techlogData, setTechlogData] = useState<any>(null);
+  // 🌟 3. 加入 Fetch API 邏輯 (同 TechLog 嗰邊同步，每 3 秒更新)
+  useEffect(() => {
+    // 🌟 1. 從 flightData 抽返架機個 reg 出嚟
+    // (請根據你實際嘅 JSON 結構微調，通常 SimBrief 會有 raw_simbrief.aircraft.reg 或者直接有一層叫 aircraft_reg)
+    const aircraftReg = flightData?.aircraft_reg 
+                     || flightData?.raw_simbrief?.aircraft?.reg 
+                     || "B-LQA"; // 加個 Fallback 防彈
+
+    const fetchTechlog = async () => {
+      // 如果未有 flightData，就唔好白費心機 call API
+      if (!flightData) return; 
+
+      try {
+        // 🌟 2. 將 reg 包裝做 params 射過去
+        const res = await fetch(`/api/techlog?reg=${encodeURIComponent(aircraftReg)}`);
+        
+        if (res.ok) {
+          const data = await res.json();
+          setTechlogData(data);
+        } else {
+          setTechlogData(null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch techlog data:", error);
+        setTechlogData(null);
+      }
+    };
+
+    fetchTechlog();
+    const interval = setInterval(fetchTechlog, 3000);
+    return () => clearInterval(interval);
+    
+  // 🌟 3. 將 flightData 加入 Dependency Array，確保有 Data 先 Trigger
+  }, [flightData]);
 
   const rawSb = flightData?.raw_simbrief || {};
   const gen = rawSb.general || {};
@@ -21,39 +54,6 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
 
   const acType = flightData?.aircraft_type || gen.icao_aircraft || 'B773';
   const reg = flightData?.aircraft_reg || gen.aircraft_reg || 'B-HNQ';
-
-  // 🌟 2. 使用 useEffect 獨立去 Call 第二個 API 讀取 Techlog
-  // 🌟 獨立去 Call API 讀取 Techlog (加強版：加入實時同步)
-  useEffect(() => {
-    const fetchTechlog = async () => {
-      if (!reg) return;
-      
-      try {
-        const res = await fetch(`/api/techlog?reg=${reg}`);
-        
-        if (res.ok) {
-          const data = await res.json();
-          setTechlogData(data);
-        } else {
-          setTechlogData({ defects: flightData?.defects || [] }); 
-        }
-      } catch (error) {
-        console.error("Failed to fetch techlog data", error);
-        setTechlogData({ defects: flightData?.defects || [] });
-      }
-    };
-
-    // 1. 初次載入時即刻 Fetch 一次
-    fetchTechlog();
-
-    // 🌟 2. 加入「心跳機制」：每 3 秒去 Database 攞一次最新 Defect 狀態
-    const interval = setInterval(fetchTechlog, 3000);
-
-    // 🌟 3. Clean up function：當離開 Dashboard 畫面時停止 polling，防止 Memory Leak
-    return () => clearInterval(interval);
-    
-  }, [reg, flightData?.defects]); // 依賴項保持不變 🌟 Dependency 係架飛機
-
   const routeStr = flightData?.route_id || gen.route || 'DCT';
   const shortRoute = routeStr.split(" ").length > 5 ? routeStr.split(" ").slice(0, 5).join(" ") + " ..." : routeStr;
   const costIndex = flightData?.cost_index || (gen.costindex ? `CI ${gen.costindex}` : 'CI 85');
@@ -101,7 +101,7 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   if (flightData?.final_ls_sent) {
     const fVer = flightData?.final_ls_version || 1;
     lsStageHtml = flightData?.pilots_signed_final 
-      ? <div className="mt-2 bg-[#C6FF00] text-black p-1 rounded text-center font-bold text-xs shadow-[0_0_8px_rgba(0,230,118,0.4)]">FINAL {fVer.toString().padStart(2, '0')} Ack.</div>
+      ? <div className="mt-2 bg-[#00E676] text-black p-1 rounded text-center font-bold text-xs shadow-[0_0_8px_rgba(0,230,118,0.4)]">FINAL {fVer.toString().padStart(2, '0')} Ack.</div>
       : <div className="mt-2 bg-[#FF9100] text-black p-1 rounded text-center font-bold text-xs shadow-[0_0_8px_rgba(255,145,0,0.4)] animate-pulse">FINAL {fVer.toString().padStart(2, '0')}</div>;
     isLsActive = true;
   } else if (flightData?.prelim_ls_sent) {
@@ -122,7 +122,9 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   const altnOptions = altnList.map((a: any) => a.icao);
   const selectedAltn = flightData?.selected_altn || altnOptions[0] || 'N/A';
   
+  // 🌟 重點修改：將 baseAltnOfp 動態綁定為所選 Alternate 的油量
   const baseAltnOfp = altnList.find((a: any) => a.icao === selectedAltn)?.burn || flightData?.fuel_altn_ofp || 0.0;
+  // 🌟 因為修改的是 OFP 基準，Revised (currAltnOfp) 直接等於 base，這樣 Diff 就是 0
   const currAltnOfp = baseAltnOfp;
 
   const ofpZfw = flightData?.weight_zfw_ofp || 0.0;
@@ -157,10 +159,10 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
   if (!flightData?.final_fuel_accepted) refuelHtml = <div className="flex flex-col items-center justify-center py-2 h-full"><span className="text-text-muted text-[0.65rem] font-bold">STANDBY FIGURE SENT</span><span className="text-white text-xl font-bold">{Math.max(0, currTotal - 5.0).toFixed(1)} T</span></div>;
   else if (!flightData?.fuel_receipt_sent) refuelHtml = <div className="flex flex-col items-center justify-center py-3 h-full"><span className="text-[#FF9100] text-lg font-bold tracking-widest animate-pulse">REFUELLING...</span></div>;
   else if (!flightData?.pilots_signed_fuel) refuelHtml = <div className="flex flex-col items-center justify-center py-2 h-full cursor-pointer hover:scale-105 transition-transform"><div className="bg-[#FF9100] text-black py-2 px-4 w-full text-center font-black rounded shadow-[0_2px_8px_rgba(255,145,0,0.4)]">SIGN RECEIPT</div></div>;
-  else refuelHtml = <div className="flex flex-col items-center justify-center py-2 h-full"><div className="bg-[#C6FF00] text-black py-2 px-4 w-full text-center font-black rounded shadow-[0_2px_8px_rgba(0,230,118,0.4)]">FUEL ACCEPTED</div></div>;
+  else refuelHtml = <div className="flex flex-col items-center justify-center py-2 h-full"><div className="bg-[#00E676] text-black py-2 px-4 w-full text-center font-black rounded shadow-[0_2px_8px_rgba(0,230,118,0.4)]">FUEL ACCEPTED</div></div>;
 
   let acStatus = <div className="bg-[#1c2630] text-text-muted p-1 rounded text-center font-bold mb-2 text-xs border border-dashed border-[#404040]">AWAITING TECHLOG RELEASE</div>;
-  if (flightData?.tl_release && flightData?.tl_accept && flightData?.tl_flight_started) acStatus = <div className="bg-[#C6FF00] text-black p-1 rounded text-center font-bold mb-2 text-xs">✅ AIRCRAFT ACCEPTED</div>;
+  if (flightData?.tl_release && flightData?.tl_accept && flightData?.tl_flight_started) acStatus = <div className="bg-[#00E676] text-black p-1 rounded text-center font-bold mb-2 text-xs">✅ AIRCRAFT ACCEPTED</div>;
   else if (flightData?.tl_release) acStatus = <div className="bg-[#FF9100] text-black p-1 rounded text-center font-bold mb-2 text-xs">⏳ TECHLOG RELEASED</div>;
 
   const calc = {
@@ -211,8 +213,7 @@ export default function Dashboard({ flightData, updateFlightData }: { flightData
       <FmcCrewColumn flightData={flightData} calc={calc} setActiveModal={setActiveModal} />
       <FuelWeightColumn flightData={flightData} updateFlightData={updateFlightData} calc={calc} handlers={handlers} setActiveModal={setActiveModal}/>
       <LoadsheetAirportColumn flightData={flightData} calc={calc} setActiveModal={setActiveModal} />
-      {/* 🌟 3. 將 techlogData 當做 prop 傳畀 RefuelAircraftColumn */}
-      <RefuelAircraftColumn flightData={flightData} techlogData={techlogData} updateFlightData={updateFlightData} calc={calc} setActiveModal={setActiveModal} />
+      <RefuelAircraftColumn flightData={flightData} updateFlightData={updateFlightData} calc={calc} setActiveModal={setActiveModal} setCurrentTab={setCurrentTab} techlogData={techlogData}/>
       <DashboardModals flightData={flightData} updateFlightData={updateFlightData} activeModal={activeModal} setActiveModal={setActiveModal} calc={calc} handlers={handlers} />
     </div>
   );

@@ -1,21 +1,13 @@
 Trainee View:
-  Top bar: Version number 同 status color align, green align with other green
-  show Not Activated when the flight plan is not activated
-  ----L 要搵方法將上面 Zulu time 轉返 Local Time
-
-
-  Loadsheet section
-    Final Ack green align with other green
   Loadsheet modal
-  
-  Refuelling section
-    Standby fuel figure
-
-  Aircraft section
-    Techlog Release/ Aircraft Accepted
-    Defects number update
 
   Airport section
+    MDF
+    HOLD Time
+    Time
+    ETA
+  airport modal
+    
 
 E-tech Log
   

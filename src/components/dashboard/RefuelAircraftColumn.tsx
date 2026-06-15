@@ -2,7 +2,7 @@
 import React from "react";
 
 // 🌟 1. 加入 techlogData prop
-export default function RefuelAircraftColumn({ flightData, techlogData, updateFlightData, calc, setActiveModal }: { flightData: any, techlogData: any, updateFlightData: any, calc: any, setActiveModal: any }) {
+export default function RefuelAircraftColumn({ flightData, techlogData, updateFlightData, calc, setActiveModal, setCurrentTab }: { flightData: any, techlogData: any, updateFlightData: any, calc: any, setActiveModal: any, setCurrentTab: any }) {
   
   const isStandbyFuel = !flightData?.final_fuel_accepted;
   const isRefueled = flightData?.fuel_receipt_sent;
@@ -38,13 +38,15 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
   } else if (tlReleased) {
     // ⚠️ 中間狀態：工程師已 Release，等候機長 Accept (Amber 警告)
     aircraftStatusBanner = (
-      <div className="bg-[#FF9100] text-black font-bold px-2.5 py-1.5 rounded-lg flex justify-between items-center shadow-sm leading-none cursor-pointer hover:bg-[#e68a00] transition-colors animate-pulse" onClick={() => setActiveModal('Techlog')}>
+      // 🌟 2. 改寫 onClick 事件
+      <div className="bg-[#FF9100] text-black font-bold px-2.5 py-1.5 rounded-lg flex justify-between items-center shadow-sm leading-none cursor-pointer hover:bg-[#e68a00] transition-colors" 
+        onClick={() => {
+          if (setCurrentTab) setCurrentTab("TECHLOG"); // 跳去 TechLog Tab
+        }}
+      >
         <span className="text-[0.75rem] uppercase tracking-widest flex items-center gap-1.5">
           <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
           Techlog Released
-        </span>
-        <span className="text-[0.55rem] font-black uppercase tracking-widest flex items-center">
-          Pending Accept <span className="text-sm font-light leading-none pb-px ml-1">›</span>
         </span>
       </div>
     );
@@ -58,9 +60,14 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
     );
   }
 
-  const logFuelT = flightData?.fuel_on_board || 11.0;
-  const totalFuelT = flightData?.final_fuel_request || calc.currTotal || 36.4;
+  // 🌟 重新整理 Fuel 計算邏輯
+  const logFuelT = flightData?.fuel_on_board || 0.0;
+  const ofpPlannedFuelT = calc.currTotal || 36.4; // 取得 OFP Flight Plan Fuel
+  const totalFuelT = flightData?.final_fuel_request || ofpPlannedFuelT;
   const estimatedUplift = Math.max(0, totalFuelT - logFuelT).toFixed(1);
+  
+  // 🌟 新增：Standby Fuel = OFP Fuel - 5T (最低為 0)
+  const standbyFuelT = Math.max(0, ofpPlannedFuelT - 5.0).toFixed(1);
 
   // 🌟 動態渲染 Refueling Logo (油車) 與 Progress Ring
   let logoColor = "text-[#555]";
@@ -102,8 +109,8 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
         <span className="font-bold text-[0.8rem] leading-none uppercase tracking-widest">Refueling Complete</span>
         <span className="text-sm leading-none pb-px">›</span>
       </div>
-    );
-  } else if (!isStandbyFuel) {
+    )
+    } else if (!isStandbyFuel) {
     logoColor = "text-[#FF9100]";
     ringSvg = (
       <svg className="absolute inset-0 w-full h-full transform -rotate-90 animate-spin">
@@ -121,7 +128,8 @@ export default function RefuelAircraftColumn({ flightData, techlogData, updateFl
     refuelBanner = (
       <div className="bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 flex justify-between items-center text-[#8fa0a6] mt-auto shrink-0">
         <span className="font-bold text-[0.8rem] leading-none uppercase tracking-widest">
-          Standby {totalFuelT.toFixed(1)}T Sent
+          {/* 🌟 顯示 OFP Fuel - 5T */}
+          Standby {standbyFuelT}T Sent
         </span>
       </div>
     );
