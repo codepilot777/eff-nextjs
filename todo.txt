@@ -7,6 +7,10 @@ Trainee View:
     Time
     ETA
   airport modal
+
+NAVLOG tab
+
+NOTAM tab
     
 
 E-tech Log

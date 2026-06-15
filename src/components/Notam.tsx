@@ -1,6 +1,74 @@
 "use client";
 import { useState } from "react";
 
+// 🌟 1. 移到外面：Cathay EFB 風格的 Accordion 組件 (防止 Re-render 丟失滾動位置)
+const Accordion = ({ 
+  id, 
+  type, 
+  icao, 
+  notams, 
+  expanded, 
+  setExpanded 
+}: { 
+  id: string, 
+  type: string, 
+  icao: string, 
+  notams: string[], 
+  expanded: string | null, 
+  setExpanded: (id: string | null) => void 
+}) => {
+  const isOpen = expanded === id;
+  
+  // 根據 Type 設定 Badge 顏色
+  let badgeStyle = "";
+  let typeLabel = "";
+  if (type === "DEP") {
+    badgeStyle = "bg-[#2979FF]/15 text-[#2979FF] border-[#2979FF]/30";
+    typeLabel = "DEPARTURE";
+  } else if (type === "ARR") {
+    // 🌟 順手更新：將 Arrival 換成標誌性的 #C6FF00 螢光青色
+    badgeStyle = "bg-[#C6FF00]/15 text-[#C6FF00] border-[#C6FF00]/30";
+    typeLabel = "ARRIVAL";
+  } else {
+    badgeStyle = "bg-[#FF9100]/15 text-[#FF9100] border-[#FF9100]/30";
+    typeLabel = "ALTERNATE";
+  }
+
+  return (
+    <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl mb-5 shrink-0 shadow-lg flex flex-col font-sans overflow-hidden transition-all">
+      {/* Clickable Header */}
+      <button 
+        onClick={() => setExpanded(isOpen ? null : id)}
+        className="w-full px-5 py-4 flex justify-between items-center bg-[#1E1E1E] hover:bg-[#252525] transition-colors outline-none"
+      >
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-black text-white tracking-widest">{icao}</h2>
+          <div className={`px-2 py-0.5 rounded text-[0.65rem] font-black uppercase tracking-wider border ${badgeStyle}`}>
+            {typeLabel}
+          </div>
+        </div>
+        <span className={`text-[#8fa0a6] text-2xl font-light transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+          ›
+        </span>
+      </button>
+      
+      {/* Expanded Content Area */}
+      {isOpen && (
+        <div className="bg-[#0a0a0a] border-t border-[#333333] p-5 max-h-[60vh] overflow-y-auto flex flex-col gap-4 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
+          {notams.map((notamText, idx) => (
+            <div 
+              key={idx} 
+              className="text-[#e2e8f0] font-mono text-[0.85rem] whitespace-pre-wrap leading-relaxed pb-4 border-b border-[#2a2a2a] last:border-0 last:pb-0"
+            >
+              {notamText}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function Notam({ flightData }: { flightData: any }) {
   const [expanded, setExpanded] = useState<string | null>('dep');
   
@@ -8,7 +76,7 @@ export default function Notam({ flightData }: { flightData: any }) {
   const rawSb = flightData?.raw_simbrief || {};
   const alternates = flightData?.alternates || [];
 
-  // 🌟 解析並回傳 Array (方便前端做靚排版，唔用 --- 隔開)
+  // 🌟 解析並回傳 Array
   const parseNotams = (overrideValue: string | undefined, rawSbArray: any): string[] => {
     if (overrideValue && overrideValue !== "NIL") {
       return [overrideValue];
@@ -17,59 +85,6 @@ export default function Notam({ flightData }: { flightData: any }) {
       return rawSbArray.map((n: any) => n.notam_raw || n.notam_text || n.message || String(n));
     }
     return ["No active NOTAMs available."];
-  };
-
-  // 🌟 Cathay EFB 風格的 Accordion 組件
-  const Accordion = ({ id, type, icao, notams }: { id: string, type: string, icao: string, notams: string[] }) => {
-    const isOpen = expanded === id;
-    
-    // 根據 Type 設定 Badge 顏色
-    let badgeStyle = "";
-    let typeLabel = "";
-    if (type === "DEP") {
-      badgeStyle = "bg-[#2979FF]/15 text-[#2979FF] border-[#2979FF]/30";
-      typeLabel = "DEPARTURE";
-    } else if (type === "ARR") {
-      badgeStyle = "bg-[#00E676]/15 text-[#00E676] border-[#00E676]/30";
-      typeLabel = "ARRIVAL";
-    } else {
-      badgeStyle = "bg-[#FF9100]/15 text-[#FF9100] border-[#FF9100]/30";
-      typeLabel = "ALTERNATE";
-    }
-
-    return (
-      <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl mb-5 shrink-0 shadow-lg flex flex-col font-sans overflow-hidden transition-all">
-        {/* Clickable Header */}
-        <button 
-          onClick={() => setExpanded(isOpen ? null : id)}
-          className="w-full px-5 py-4 flex justify-between items-center bg-[#1E1E1E] hover:bg-[#252525] transition-colors outline-none"
-        >
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-black text-white tracking-widest">{icao}</h2>
-            <div className={`px-2 py-0.5 rounded text-[0.65rem] font-black uppercase tracking-wider border ${badgeStyle}`}>
-              {typeLabel}
-            </div>
-          </div>
-          <span className={`text-[#8fa0a6] text-2xl font-light transform transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}>
-            ›
-          </span>
-        </button>
-        
-        {/* Expanded Content Area */}
-        {isOpen && (
-          <div className="bg-[#0a0a0a] border-t border-[#333333] p-5 max-h-[60vh] overflow-y-auto flex flex-col gap-4">
-            {notams.map((notamText, idx) => (
-              <div 
-                key={idx} 
-                className="text-[#e2e8f0] font-mono text-[0.85rem] whitespace-pre-wrap leading-relaxed pb-4 border-b border-[#2a2a2a] last:border-0 last:pb-0"
-              >
-                {notamText}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
   };
 
   // 🌟 過濾重複機場的邏輯 (Deduplication Logic)
@@ -116,9 +131,9 @@ export default function Notam({ flightData }: { flightData: any }) {
   });
 
   return (
-    <div className="h-full w-full overflow-y-auto pr-2 pb-10 animate-fade-in">
+    <div className="h-full w-full overflow-y-auto pr-2 pb-10 animate-fade-in scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
       
-      {/* 標題與 Icon (與 Weather.tsx 統一風格) */}
+      {/* 標題與 Icon */}
       <div className="flex items-center gap-3 mb-6 mt-2 ml-1">
          <div className="w-8 h-8 rounded-full bg-[#1E1E1E] border border-[#333] flex items-center justify-center text-white">
            <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
@@ -129,6 +144,7 @@ export default function Notam({ flightData }: { flightData: any }) {
       </div>
       
       {/* 依序渲染去重後的 NOTAM Accordions */}
+      {/* 依序渲染去重後的 NOTAM Accordions */}
       {renderList.map((item) => (
         <Accordion 
           key={item.id}
@@ -136,9 +152,10 @@ export default function Notam({ flightData }: { flightData: any }) {
           type={item.type}
           icao={item.icao}
           notams={item.notams}
+          expanded={expanded}
+          setExpanded={setExpanded}
         />
       ))}
-      
     </div>
   );
 }
