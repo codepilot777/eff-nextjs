@@ -21,7 +21,7 @@ function WorkspaceContent() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   // 🌟 一行取代舊有嘅 useState, useEffect, setInterval, fetchFlightData!
-  const { flightData, updateFlightData: rqUpdateFlightData, isLoading } = useFlightData(flightId);
+  const { flightData, updateFlightData: rqUpdateFlightData, isLoading } = useFlightData();
 
   // 🌟 包裝 update 函數以保留你原本嘅 1.5 秒 Sync Icon 動畫
   const updateFlightData = (updates: any) => {
