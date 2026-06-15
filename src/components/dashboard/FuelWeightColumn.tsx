@@ -1,9 +1,17 @@
 "use client";
 import React from "react";
 import { B773_BHNQ } from "@/lib/loadsheet/MockAHM";
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 
-export default function FuelWeightColumn({ flightData, updateFlightData, calc, handlers, setActiveModal }: { flightData: any, updateFlightData: any, calc: any, handlers: any, setActiveModal: any }) {
+// 🌟 Props 大清洗：只保留 setActiveModal，其他全部飛走！
+export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: any }) {
   
+  // 🌟 一句說話，喺天上攞晒所有最新鮮嘅 Data！
+  const { flightData, calc, handlers } = useFlightData();
+
+  // 如果 data 仲未 ready (防呆)
+  if (!flightData || !calc || !handlers) return null;
+
   // ==========================================
   // 1. Time / Endurance 計算邏輯 (保留純 UI 顯示用)
   // ==========================================
@@ -57,7 +65,7 @@ export default function FuelWeightColumn({ flightData, updateFlightData, calc, h
   const getMarginColor = (m: number) => m > 0 ? 'text-[#FF1744] font-black' : 'text-[#8fa0a6]';
 
   // ==========================================
-  // 3. Row UI 組件 (原封不動)
+  // 3. Row UI 組件 
   // ==========================================
   const Row = ({ label, ofp, rev, time, isInput, field, isBold, isTotal, isZfw, isTow }: any) => {
     const diff = rev - ofp;
@@ -150,8 +158,11 @@ export default function FuelWeightColumn({ flightData, updateFlightData, calc, h
               <div className="text-[0.65rem] leading-none">
                 <div className="bg-white text-black px-1 py-0.5 rounded text-[0.55rem] font-bold font-sans inline-block w-max leading-tight cursor-pointer">
                   ALTN<br/>
-                  <select value={calc.selectedAltn} onChange={(e) => updateFlightData({ selected_altn: e.target.value, final_fuel_accepted: false })} className="bg-transparent font-bold outline-none cursor-pointer appearance-none text-center">
-                    {/* Fallback array to prevent mapping undefined */}
+                  <select 
+                     value={calc.selectedAltn} 
+                     // 🌟 呢度唯一要改嘅位：因為 updateFlightData 無再傳入嚟，所以用 handlers 嚟改佢
+                     onChange={(e) => handlers.handleFuelInput('selected_altn', e.target.value)} 
+                     className="bg-transparent font-bold outline-none cursor-pointer appearance-none text-center">
                     {(calc.altnOptions || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
                   </select> ∨
                 </div>

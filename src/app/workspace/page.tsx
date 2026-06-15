@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, Suspense, useRef } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級 Hook
+
 import Dashboard from "@/components/Dashboard";
 import Navlog from "@/components/Navlog";
 import Weather from "@/components/Weather";
@@ -16,52 +18,17 @@ function WorkspaceContent() {
   const role = searchParams.get("role") || "Trainee";
   
   const [currentTab, setCurrentTab] = useState("DASH");
-  const [flightData, setFlightData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // 🌟 加入更新鎖定標記
-  const isUpdatingRef = useRef(false);
-  const [isSyncing, setIsSyncing] = useState(false); // 用作顯示 Sync Icon 動畫
+  // 🌟 一行取代舊有嘅 useState, useEffect, setInterval, fetchFlightData!
+  const { flightData, updateFlightData: rqUpdateFlightData, isLoading } = useFlightData(flightId);
 
-  const fetchFlightData = async () => {
-    if (!flightId || isUpdatingRef.current) return;
-    try {
-      const res = await fetch(`/api/flight?id=${encodeURIComponent(flightId)}`);
-      if (res.ok) {
-        setFlightData(await res.json());
-      }
-    } catch (error) {
-      console.error("Failed to fetch flight data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchFlightData();
-    const interval = setInterval(fetchFlightData, 3000);
-    return () => clearInterval(interval);
-  }, [flightId]);
-
-  const updateFlightData = async (updates: any) => {
-    isUpdatingRef.current = true;
+  // 🌟 包裝 update 函數以保留你原本嘅 1.5 秒 Sync Icon 動畫
+  const updateFlightData = (updates: any) => {
     setIsSyncing(true);
-    const updatedData = { ...flightData, ...updates };
-    setFlightData(updatedData); 
-    try {
-      await fetch('/api/flight/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: flightId, data: updatedData })
-      });
-    } catch (error) {
-      console.error("Failed to update flight data", error);
-    } finally {
-      setTimeout(() => {
-        isUpdatingRef.current = false;
-        setIsSyncing(false);
-      }, 1500);
-    }
+    rqUpdateFlightData(updates, {
+      onSettled: () => setTimeout(() => setIsSyncing(false), 1500)
+    });
   };
 
   const navButtons = [
@@ -78,7 +45,7 @@ function WorkspaceContent() {
   // --- 數據格式化 (對應 Cathay EFB 佈局) ---
   const isActivated = flightData?.activated_version > 0;
   const versionNum = isActivated ? flightData.activated_version : (flightData?.ofp_version || 1);
-  const statusText = isActivated ? "ACTIVATED" : "NOT ACTIVATED"; // 🌟 更新狀態字眼
+  const statusText = isActivated ? "ACTIVATED" : "NOT ACTIVATED";
 
   const dateObj = flightData?.std_unix ? new Date(flightData.std_unix * 1000) : new Date();
   const dayStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit' });
@@ -92,35 +59,21 @@ function WorkspaceContent() {
   const stdZ = flightData?.std_z?.replace('Z', 'z') || "--z";
   const staZ = flightData?.sta_z?.replace('Z', 'z') || "--z";
 
-  // 🌟 Helper: 利用 SimBrief JSON 內置嘅 Timezone 轉 Local Time (防彈版)
   const getLocalTime = (zTimeStr: string, airportObj: any) => {
     if (!zTimeStr || zTimeStr === "--z" || zTimeStr.length < 5) return "----L";
-    
-    // 預設 fallback 為 HKG (+8)
     let offset = 8; 
-
-    // 直接讀取 SimBrief 嘅 timezone (例如 RJCC 會出 "9", 印度出 "5.5")
     if (airportObj && airportObj.timezone !== undefined) {
       offset = parseFloat(airportObj.timezone); 
     }
-
-    // 抽出字串入面嘅 Zulu 小時同分鐘
     const hours = parseInt(zTimeStr.substring(0, 2), 10);
     const mins = parseInt(zTimeStr.substring(2, 4), 10);
-
-    // 🌟 神級演算法：全部轉做分鐘加減，完美解決負數、跨日、同埋小數點時區！
     let totalMins = (hours * 60) + mins + Math.round(offset * 60);
-
-    // 確保 totalMins 永遠係一日之內嘅正數 (解決跨越午夜嘅問題)
     totalMins = ((totalMins % 1440) + 1440) % 1440; 
-
     const localHours = Math.floor(totalMins / 60);
     const localMins = totalMins % 60;
-    
     return `${localHours.toString().padStart(2, '0')}${localMins.toString().padStart(2, '0')}L`;
   };
 
-  // 傳入 SimBrief 嘅 origin 同 destination object
   const stdL = getLocalTime(stdZ, flightData?.raw_simbrief?.origin);
   const staL = getLocalTime(staZ, flightData?.raw_simbrief?.destination);
 
@@ -128,7 +81,7 @@ function WorkspaceContent() {
   const fltH = Math.floor(eetMins / 60).toString().padStart(2, '0');
   const fltM = (eetMins % 60).toString().padStart(2, '0');
   
-  const blkMins = eetMins + 40; // 模擬圖中 Block time 多 Flight time 40 分鐘
+  const blkMins = eetMins + 40; 
   const blkH = Math.floor(blkMins / 60).toString().padStart(2, '0');
   const blkM = (blkMins % 60).toString().padStart(2, '0');
 
@@ -141,7 +94,7 @@ function WorkspaceContent() {
         </div>
       )}
 
-      {/* 🌟 頂部 Header：完美還原 Cathay EFB Top Bar */}
+      {/* 🌟 頂部 Header */}
       <header className="flex-none flex items-center justify-between h-[54px] bg-[#1E1E1E] px-4 shadow-md z-50 border-b border-[#333]">
         
         {/* 左側：Flight No & Version Badge */}
@@ -153,7 +106,6 @@ function WorkspaceContent() {
             <span className="text-[1.1rem] font-bold text-white tracking-wide">{flightData?.flight_no || flightId}</span>
           </div>
 
-          {/* 🌟 同一顏色的 Status Pill */}
           <div className={`flex items-center rounded-full overflow-hidden text-[0.65rem] font-bold h-6 ml-2 transition-colors ${isActivated ? 'bg-[#C6FF00] text-black' : 'bg-[#333] text-[#8fa0a6]'}`}>
             <div className={`px-3 flex items-center h-full border-r ${isActivated ? 'border-black/20' : 'border-[#444]'}`}>
               V{versionNum}
@@ -172,7 +124,6 @@ function WorkspaceContent() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Origin */}
             <div className="flex flex-col items-start leading-none gap-0.5">
               <div className="flex items-baseline gap-2">
                 <span className="text-white text-[0.95rem]">{depIcao}</span>
@@ -180,13 +131,12 @@ function WorkspaceContent() {
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-[#8fa0a6] text-[0.7rem]">{depIata}</span>
-                <span className="text-[#8fa0a6] text-[0.7rem]">{stdL}</span> {/* 🌟 顯示真實 Local Time */}
+                <span className="text-[#8fa0a6] text-[0.7rem]">{stdL}</span> 
               </div>
             </div>
 
             <span className="text-[#8fa0a6] text-lg mx-1">✈️</span>
 
-            {/* Destination */}
             <div className="flex flex-col items-start leading-none gap-0.5">
               <div className="flex items-baseline gap-2">
                 <span className="text-white text-[0.95rem]">{arrIcao}</span>
@@ -194,7 +144,7 @@ function WorkspaceContent() {
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-[#8fa0a6] text-[0.7rem]">{arrIata}</span>
-                <span className="text-[#8fa0a6] text-[0.7rem]">{staL}</span> {/* 🌟 顯示真實 Local Time */}
+                <span className="text-[#8fa0a6] text-[0.7rem]">{staL}</span> 
               </div>
             </div>
           </div>
@@ -241,7 +191,8 @@ function WorkspaceContent() {
 
       {/* 🌟 主內容區 */}
       <main className="flex-1 flex flex-col overflow-hidden min-h-0 relative bg-[#0a0a0a] pt-4 px-4 pb-2">
-        {currentTab === "DASH" && flightData && <Dashboard flightData={flightData} updateFlightData={updateFlightData} setCurrentTab={setCurrentTab} />}
+        {/* 🌟 重點：Dashboard 已經獨立，只傳 flightId！其餘 Component 暫時保持不變 */}
+        {currentTab === "DASH" && flightData && <Dashboard flightId={flightId} setCurrentTab={setCurrentTab} />}
         {currentTab === "NAVLOG" && flightData && <Navlog flightData={flightData} updateFlightData={updateFlightData} />}
         {currentTab === "WEATHER" && flightData && <Weather flightData={flightData} />}
         {currentTab === "NOTAM" && flightData && <Notam flightData={flightData} />}
