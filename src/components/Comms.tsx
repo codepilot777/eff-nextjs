@@ -1,18 +1,37 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 
-export default function Comms({ flightData, updateFlightData }: { flightData: any, updateFlightData: any }) {
+// 🌟 Props 大清洗：唔使再收 flightData 同 updateFlightData
+export default function Comms() {
+  
+  // 🌟 從天上直接抽取 Data 同 Update Function
+  const { flightData, updateFlightData } = useFlightData();
+
   // ==========================================
   // ACARS 狀態
   // ==========================================
   const [msgInput, setMsgInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  // ==========================================
+  // ATC Datalink 狀態
+  // ==========================================
+  const [atisApt, setAtisApt] = useState(flightData?.dep_icao || "");
+  const [atisType, setAtisType] = useState("DEPARTURE");
+  const [fac, setFac] = useState("");
+  const [atisCd, setAtisCd] = useState("");
+  const [gate, setGate] = useState(flightData?.bay_no || "");
+
   const messages = flightData?.acars_messages || [];
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // 防呆保護：必須放喺所有 Hooks 之後
+  if (!flightData) return null;
 
   const handleTransmitAcars = () => {
     if (!msgInput.trim()) return;
@@ -22,15 +41,6 @@ export default function Comms({ flightData, updateFlightData }: { flightData: an
     updateFlightData({ acars_messages: [...messages, newMsg] });
     setMsgInput("");
   };
-
-  // ==========================================
-  // ATC Datalink 狀態
-  // ==========================================
-  const [atisApt, setAtisApt] = useState(flightData?.dep_icao || "");
-  const [atisType, setAtisType] = useState("DEPARTURE");
-  const [fac, setFac] = useState("");
-  const [atisCd, setAtisCd] = useState("");
-  const [gate, setGate] = useState(flightData?.bay_no || "");
 
   const approvedPdcs = (flightData?.pdc_requests || []).filter((r: any) => r.status === "APPROVED");
   const latestPdc = approvedPdcs.length > 0 ? approvedPdcs[approvedPdcs.length - 1] : null;

@@ -2,7 +2,8 @@
 
 import TechLog from "../TechLog"; // 確保路徑指向你嘅主 TechLog 元件
 
-export default function TechLogModal({ isOpen, onClose, flightData, updateFlightData }: any) {
+// 🌟 Props 清洗：只保留 isOpen 同 onClose，唔使再傳 flightData
+export default function TechLogModal({ isOpen, onClose }: any) {
   if (!isOpen) return null;
 
   return (
@@ -32,10 +33,9 @@ export default function TechLogModal({ isOpen, onClose, flightData, updateFlight
           </button>
         </div>
 
-        {/* 核心 TechLog 內容區 (隱藏 Scrollbar 防止雙重滾動) */}
         <div className="flex-1 overflow-hidden p-2">
-          {/* 將 forcedRole="instructor" 傳入，確保打開一定係 Engineer Mode */}
-          <TechLog flightData={flightData} updateFlightData={updateFlightData} forcedRole="instructor" />
+          {/* 🌟 淨係傳 forcedRole="instructor"，乾淨俐落！ */}
+          <TechLog forcedRole="instructor" />
         </div>
 
       </div>

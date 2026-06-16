@@ -1,7 +1,63 @@
 "use client";
 import React from "react";
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 
-export default function Weather({ flightData }: { flightData: any }) {
+// 🌟 將 WxCard 抽離主函數，效能更好，唔會重複 Render
+const WxCard = ({ type, icao, metar, taf }: { type: string, icao: string, metar: string, taf: string }) => {
+  // 根據 Type 設定 Badge 顏色
+  let badgeStyle = "";
+  let typeLabel = "";
+  if (type === "DEP") {
+    badgeStyle = "bg-[#2979FF]/15 text-[#2979FF] border-[#2979FF]/30";
+    typeLabel = "DEPARTURE";
+  } else if (type === "ARR") {
+    badgeStyle = "bg-[#00E676]/15 text-[#00E676] border-[#00E676]/30";
+    typeLabel = "ARRIVAL";
+  } else {
+    badgeStyle = "bg-[#FF9100]/15 text-[#FF9100] border-[#FF9100]/30";
+    typeLabel = "ALTERNATE";
+  }
+
+  return (
+    <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-5 mb-5 shrink-0 shadow-lg flex flex-col font-sans">
+      {/* Header 區塊 */}
+      <div className="flex justify-between items-center mb-4 border-b border-[#333] pb-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-black text-white tracking-widest">{icao}</h2>
+          <div className={`px-2 py-0.5 rounded text-[0.65rem] font-black uppercase tracking-wider border ${badgeStyle}`}>
+            {typeLabel}
+          </div>
+        </div>
+        <span className="text-[#8fa0a6] text-xl font-light">›</span>
+      </div>
+      
+      {/* METAR / TAF 內容區塊 */}
+      <div className="flex flex-col gap-4">
+        <div>
+          <h3 className="text-[#8fa0a6] font-bold text-[0.65rem] mb-1.5 uppercase tracking-widest">METAR</h3>
+          <div className="bg-[#0a0a0a] p-3.5 rounded-lg text-[#e2e8f0] font-mono text-[0.85rem] whitespace-pre-wrap border border-[#2a2a2a] leading-relaxed">
+            {metar}
+          </div>
+        </div>
+        <div>
+          <h3 className="text-[#8fa0a6] font-bold text-[0.65rem] mb-1.5 uppercase tracking-widest">TAF</h3>
+          <div className="bg-[#0a0a0a] p-3.5 rounded-lg text-[#e2e8f0] font-mono text-[0.85rem] whitespace-pre-wrap border border-[#2a2a2a] leading-relaxed">
+            {taf}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 🌟 Props 大清洗：唔使再收 flightData
+export default function Weather() {
+  // 🌟 從天上直接抽取 Data
+  const { flightData } = useFlightData();
+
+  // 防呆保護：未有 data 就唔 render
+  if (!flightData) return null;
+
   // 提取 SimBrief 原始數據與預設備降場
   const rawSb = flightData?.raw_simbrief || {};
   const alternates = flightData?.alternates || [];
@@ -11,56 +67,6 @@ export default function Weather({ flightData }: { flightData: any }) {
     if (overrideValue && overrideValue !== "NIL") return overrideValue;
     if (rawValue && rawValue !== "NIL") return rawValue;
     return "NO METAR/TAF DATA AVAILABLE";
-  };
-
-  // 🌟 Cathay EFB 風格的天氣卡片
-  const WxCard = ({ type, icao, metar, taf }: { type: string, icao: string, metar: string, taf: string }) => {
-    
-    // 根據 Type 設定 Badge 顏色
-    let badgeStyle = "";
-    let typeLabel = "";
-    if (type === "DEP") {
-      badgeStyle = "bg-[#2979FF]/15 text-[#2979FF] border-[#2979FF]/30";
-      typeLabel = "DEPARTURE";
-    } else if (type === "ARR") {
-      badgeStyle = "bg-[#00E676]/15 text-[#00E676] border-[#00E676]/30";
-      typeLabel = "ARRIVAL";
-    } else {
-      badgeStyle = "bg-[#FF9100]/15 text-[#FF9100] border-[#FF9100]/30";
-      typeLabel = "ALTERNATE";
-    }
-
-    return (
-      <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-5 mb-5 shrink-0 shadow-lg flex flex-col font-sans">
-        
-        {/* Header 區塊 */}
-        <div className="flex justify-between items-center mb-4 border-b border-[#333] pb-3">
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-black text-white tracking-widest">{icao}</h2>
-            <div className={`px-2 py-0.5 rounded text-[0.65rem] font-black uppercase tracking-wider border ${badgeStyle}`}>
-              {typeLabel}
-            </div>
-          </div>
-          <span className="text-[#8fa0a6] text-xl font-light">›</span>
-        </div>
-        
-        {/* METAR / TAF 內容區塊 */}
-        <div className="flex flex-col gap-4">
-          <div>
-            <h3 className="text-[#8fa0a6] font-bold text-[0.65rem] mb-1.5 uppercase tracking-widest">METAR</h3>
-            <div className="bg-[#0a0a0a] p-3.5 rounded-lg text-[#e2e8f0] font-mono text-[0.85rem] whitespace-pre-wrap border border-[#2a2a2a] leading-relaxed">
-              {metar}
-            </div>
-          </div>
-          <div>
-            <h3 className="text-[#8fa0a6] font-bold text-[0.65rem] mb-1.5 uppercase tracking-widest">TAF</h3>
-            <div className="bg-[#0a0a0a] p-3.5 rounded-lg text-[#e2e8f0] font-mono text-[0.85rem] whitespace-pre-wrap border border-[#2a2a2a] leading-relaxed">
-              {taf}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   // 🌟 過濾重複機場的邏輯 (Deduplication Logic)

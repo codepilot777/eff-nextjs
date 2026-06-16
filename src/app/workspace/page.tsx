@@ -193,11 +193,11 @@ function WorkspaceContent() {
       <main className="flex-1 flex flex-col overflow-hidden min-h-0 relative bg-[#0a0a0a] pt-4 px-4 pb-2">
         {/* 🌟 重點：Dashboard 已經獨立，只傳 flightId！其餘 Component 暫時保持不變 */}
         {currentTab === "DASH" && flightData && <Dashboard setCurrentTab={setCurrentTab} />}
-        {currentTab === "NAVLOG" && flightData && <Navlog flightData={flightData} updateFlightData={updateFlightData} />}
-        {currentTab === "WEATHER" && flightData && <Weather flightData={flightData} />}
-        {currentTab === "NOTAM" && flightData && <Notam flightData={flightData} />}
-        {currentTab === "COMMS" && flightData && <Comms flightData={flightData} updateFlightData={updateFlightData} />}
-        {currentTab === "TECHLOG" && flightData && <TechLog flightData={flightData} updateFlightData={updateFlightData} />}
+        {currentTab === "NAVLOG" && flightData && <Navlog />}
+        {currentTab === "WEATHER" && flightData && <Weather />}
+        {currentTab === "NOTAM" && flightData && <Notam />}
+        {currentTab === "COMMS" && flightData && <Comms />}
+        {currentTab === "TECHLOG" && flightData && <TechLog />}
       </main>
 
       {/* 🌟 底部 Tabs */}

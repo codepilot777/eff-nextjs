@@ -1,9 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 
-export default function Navlog({ flightData, updateFlightData }: { flightData: any, updateFlightData: any }) {
+// 🌟 Props 大清洗：唔使再收 flightData 同 updateFlightData
+export default function Navlog() {
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
+
+  // 🌟 從天上直接抽取 Data 同 Update Function
+  const { flightData, updateFlightData } = useFlightData();
+
+  // 防呆保護：如果未有 data 就唔 render
+  if (!flightData) return null;
 
   const navInputs = flightData?.navlog_inputs || {};
   const depTimes = navInputs.dep_times || { doors: "", ready: "", out: "", off: "", fuel: "" };

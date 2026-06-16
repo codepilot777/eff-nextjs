@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 
 // 🌟 1. 移到外面：Cathay EFB 風格的 Accordion 組件 (防止 Re-render 丟失滾動位置)
 const Accordion = ({ 
@@ -69,14 +70,21 @@ const Accordion = ({
   );
 };
 
-export default function Notam({ flightData }: { flightData: any }) {
+// 🌟 Props 大清洗：唔使再收 flightData
+export default function Notam() {
   const [expanded, setExpanded] = useState<string | null>('dep');
   
+  // 🌟 從天上直接抽取 Data
+  const { flightData } = useFlightData();
+
+  // 防呆保護
+  if (!flightData) return null;
+
   // 提取整包 SimBrief 原始數據
   const rawSb = flightData?.raw_simbrief || {};
   const alternates = flightData?.alternates || [];
 
-  // 🌟 解析並回傳 Array
+  // 解析並回傳 Array
   const parseNotams = (overrideValue: string | undefined, rawSbArray: any): string[] => {
     if (overrideValue && overrideValue !== "NIL") {
       return [overrideValue];
@@ -87,7 +95,7 @@ export default function Notam({ flightData }: { flightData: any }) {
     return ["No active NOTAMs available."];
   };
 
-  // 🌟 過濾重複機場的邏輯 (Deduplication Logic)
+  // 過濾重複機場的邏輯 (Deduplication Logic)
   const renderList = [];
   const seenIcaos = new Set<string>();
 
@@ -143,7 +151,6 @@ export default function Notam({ flightData }: { flightData: any }) {
          <h2 className="text-lg font-bold text-white tracking-wide">NOTAM Briefing</h2>
       </div>
       
-      {/* 依序渲染去重後的 NOTAM Accordions */}
       {/* 依序渲染去重後的 NOTAM Accordions */}
       {renderList.map((item) => (
         <Accordion 

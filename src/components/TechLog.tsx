@@ -2,12 +2,19 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
+
 import TechLogTopBar from "./techlog/TechLogTopBar";
 import TechLogDashboard from "./techlog/TechLogDashboard";
 import TechLogHistory from "./techlog/TechLogHistory";
 import TechLogReporting from "./techlog/TechLogReporting";
 
-export default function TechLog({ flightData, updateFlightData, forcedRole }: { flightData: any, updateFlightData?: any, forcedRole?: string }) {
+// 🌟 Props 終極大清洗：咩都唔使收！
+export default function TechLog({ forcedRole }: { forcedRole?: string }) {
+  
+  // 🌟 從天上直接抽取 Data
+  const { flightData } = useFlightData();
+
   const searchParams = useSearchParams();
   const roleParam = (searchParams.get("role") || "").toLowerCase();
   const isInstructor = roleParam === "instructor" || roleParam === "ios";
@@ -17,7 +24,6 @@ export default function TechLog({ flightData, updateFlightData, forcedRole }: { 
   
   useEffect(() => { setRoleMode(isInstructor ? "ENGINEER" : "FLIGHT CREW"); }, [isInstructor]);
 
-  
   const [activeNav, setActiveNav] = useState<"dashboard" | "history" | "reporting">("dashboard");
   const [activeTask, setActiveTask] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
@@ -27,10 +33,10 @@ export default function TechLog({ flightData, updateFlightData, forcedRole }: { 
   const [tlLoading, setTlLoading] = useState(true);
   const isUpdatingTl = useRef(false);
 
-  // 🌟 加入呢段：監聽來自 Dashboard 嘅跳轉指令
+  // 監聽來自 Dashboard 嘅跳轉指令
   useEffect(() => {
     const handleOpenTask = (e: any) => {
-      setActiveTask(e.detail); // 自動將 activeTask 設為 'acceptance'
+      setActiveTask(e.detail);
     };
     window.addEventListener('open-techlog-task', handleOpenTask);
     
@@ -39,16 +45,18 @@ export default function TechLog({ flightData, updateFlightData, forcedRole }: { 
     };
   }, []);
 
-  // 🌟 1. 抽取 Aircraft Registration，而唔係 Flight Number
+  // 防呆保護
+  if (!flightData) return null;
+
+  // 🌟 1. 抽取 Aircraft Registration
   const rawSb = flightData?.raw_simbrief || {};
   const gen = rawSb.general || {};
   const currentReg = flightData?.aircraft_reg || gen.aircraft_reg || 'B-HNQ';
 
-  // 🌟 2. Fetch 時使用 reg 參數
+  // 🌟 2. Fetch 時使用 reg 參數 (保留原有獨立 Polling 邏輯以策安全)
   const fetchTechLog = async () => {
     if (!currentReg || isUpdatingTl.current) return;
     try {
-      // 注意：對應返頭先改好嘅 etechlog route
       const res = await fetch(`/api/techlog?reg=${encodeURIComponent(currentReg)}`);
       if (res.ok) setTlData(await res.json());
     } catch (e) { 
@@ -119,7 +127,7 @@ export default function TechLog({ flightData, updateFlightData, forcedRole }: { 
         )}
       </div>
 
-      {/* 🚀 BOTTOM NAV BAR (全新 iPad 專業風格) */}
+      {/* 🚀 BOTTOM NAV BAR */}
       <div className="flex items-center justify-around gap-2 bg-[#1a1a1a] border-t border-[#333] px-3 py-3 mt-auto shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] relative z-20">
         
         {/* Dashboard Button */}
