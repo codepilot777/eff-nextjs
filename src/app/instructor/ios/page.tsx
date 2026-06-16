@@ -10,7 +10,6 @@ import ConfigTab from "@/components/ios/ConfigTab";
 import PayloadTab from "@/components/ios/PayloadTab";
 import WxTab from "@/components/ios/WxTab";
 import NotamTab from "@/components/ios/NotamTab";
-import FuelTab from "@/components/ios/FuelTab";
 import TechLogModal from "@/components/techlog/TechLogModal"; 
 
 function IOSPanelContent() {
