@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
 
-import FmcCrewColumn from "./dashboard/FmcCrewColumn";
-import FuelWeightColumn from "./dashboard/FuelWeightColumn";
-import LoadsheetAirportColumn from "./dashboard/LoadsheetAirportColumn";
-import RefuelAircraftColumn from "./dashboard/RefuelAircraftColumn";
-import DashboardModals from "./dashboard/DashboardModals";
+import FmcCrewColumn from "./FmcCrewColumn";
+import FuelWeightColumn from "./FuelWeightColumn";
+import LoadsheetAirportColumn from "./LoadsheetAirportColumn";
+import RefuelAircraftColumn from "./RefuelAircraftColumn";
+import DashboardModals from "./DashboardModals";
 
 export default function Dashboard({ setCurrentTab }: { setCurrentTab?: any }) {
   const [activeModal, setActiveModal] = useState<string | null>(null);

@@ -4,12 +4,12 @@ import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級 Hook
 
-import Dashboard from "@/components/Dashboard";
-import Navlog from "@/components/Navlog";
-import Weather from "@/components/Weather";
-import Notam from "@/components/Notam";
-import Comms from "@/components/Comms";
-import TechLog from "@/components/TechLog";
+import Dashboard from "@/components/workspace/dashboard/Dashboard";
+import Navlog from "@/components/workspace/navlog/Navlog";
+import Weather from "@/components/workspace/Weather";
+import Notam from "@/components/workspace/Notam";
+import Comms from "@/components/workspace/comms/Comms";
+import TechLog from "@/components/techlog/TechLog";
 
 function WorkspaceContent() {
   const searchParams = useSearchParams();

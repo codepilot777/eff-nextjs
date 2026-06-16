@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 
-import TechLogTopBar from "./techlog/TechLogTopBar";
-import TechLogDashboard from "./techlog/TechLogDashboard";
-import TechLogHistory from "./techlog/TechLogHistory";
-import TechLogReporting from "./techlog/TechLogReporting";
+import TechLogTopBar from "./TechLogTopBar";
+import TechLogDashboard from "./TechLogDashboard";
+import TechLogHistory from "./TechLogHistory";
+import TechLogReporting from "./TechLogReporting";
 
 // 🌟 Props 終極大清洗：咩都唔使收！
 export default function TechLog({ forcedRole }: { forcedRole?: string }) {

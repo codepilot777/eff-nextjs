@@ -1,6 +1,6 @@
 "use client";
 
-import TechLog from "../TechLog"; // 確保路徑指向你嘅主 TechLog 元件
+import TechLog from "./TechLog"; // 確保路徑指向你嘅主 TechLog 元件
 
 // 🌟 Props 清洗：只保留 isOpen 同 onClose，唔使再傳 flightData
 export default function TechLogModal({ isOpen, onClose }: any) {
