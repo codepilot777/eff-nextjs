@@ -70,7 +70,7 @@ function IOSPanelContent() {
         
         {/* 左側：模組化的 InboxPanel */}
         {/* 🌟 舊有寫法暫時保留 Props 傳遞，之後你入面都可以改用 useFlightData 自己吸 */}
-        <InboxPanel flightData={flightData} updateFlightData={updateFlightData} />
+        <InboxPanel />
 
         {/* 右側：主工作區與 Tabs */}
         <div className="flex-[2.6] bg-[#2a2a2a] border border-[#333333] rounded-xl p-6 flex flex-col h-full overflow-hidden">
