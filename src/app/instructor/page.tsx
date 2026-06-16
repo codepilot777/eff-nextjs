@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+// 🌟 引入 React Query 核心組件
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function InstructorHub() {
   const router = useRouter();
+  const queryClient = useQueryClient(); // 🌟 取得 Cache 控制權
+  
   const [currentUser, setCurrentUser] = useState("");
-  const [flights, setFlights] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   
   // 建立新航班的表單與狀態
   const [sbUser, setSbUser] = useState("EFFSIM");
@@ -16,36 +18,103 @@ export default function InstructorHub() {
   const [dep, setDep] = useState("VHHH");
   const [arr, setArr] = useState("RJBB");
   
-  // 🌟 將覆寫欄位移到這裡，作為「必須先輸入」的欄位
+  // 覆寫欄位
   const [editZfw, setEditZfw] = useState<number>(0);
   const [editCmdr, setEditCmdr] = useState<string>("");
   
   const [isFetchingPreview, setIsFetchingPreview] = useState(false);
-  const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
 
+  // 1. 處理本地 User 身分
   useEffect(() => {
     const user = localStorage.getItem("instructor_user") || "Unknown";
     setCurrentUser(user);
-    fetchFlights();
   }, []);
 
-  const fetchFlights = async () => {
-    try {
+  // ==========================================
+  // 🌟 QUERY: 讀取全體航班列表
+  // ==========================================
+  const { data: flights = [], isLoading } = useQuery({
+    queryKey: ['instructor', 'flights'],
+    queryFn: async () => {
       const res = await fetch('/api/flights');
-      if (res.ok) {
-        const data = await res.json();
-        setFlights(data);
-      }
-    } catch (error) {
-      console.error("Failed to load flights", error);
-    } finally {
-      setIsLoading(false);
+      if (!res.ok) throw new Error('Failed to load flights');
+      return res.json();
     }
-  };
+  });
 
+  // ==========================================
+  // 🌟 MUTATION 1: 建立新航班 Session
+  // ==========================================
+  const createFlightMutation = useMutation({
+    mutationFn: async (payload: { username: string; flightNo: string; created_by: string; is_published: boolean; zfw_override: number; commander_override: string }) => {
+      const res = await fetch('/api/simbrief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to create flight');
+      }
+      return res.json();
+    },
+    onSuccess: (result, variables) => {
+      setPreviewHtml(null); // 清空 Preview
+      queryClient.invalidateQueries({ queryKey: ['instructor', 'flights'] }); // 瞬間刷列表！
+      alert(`✅ Flight ${result.flight_no} successfully created ${variables.is_published ? 'and published!' : 'as DRAFT!'}`);
+    },
+    onError: (error: any) => {
+      alert(`❌ Error: ${error.message}`);
+    }
+  });
+
+  // ==========================================
+  // 🌟 MUTATION 2: 刪除航班 Session
+  // ==========================================
+  const deleteFlightMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch('/api/flight/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (!res.ok) throw new Error('Failed to delete flight');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['instructor', 'flights'] }); // 瞬間刷列表！
+    },
+    onError: () => {
+      alert("Failed to delete flight.");
+    }
+  });
+
+  // ==========================================
+  // 🌟 MUTATION 3: 🚀 發佈航班 (Publish)
+  // ==========================================
+  const publishFlightMutation = useMutation({
+    mutationFn: async (flightData: any) => {
+      const updatedData = { ...flightData, is_published: true };
+      const res = await fetch('/api/flight/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: flightData._db_id, data: updatedData })
+      });
+      if (!res.ok) throw new Error('Failed to publish flight');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['instructor', 'flights'] }); // 瞬間刷列表！
+    },
+    onError: (err) => {
+      console.error(err);
+    }
+  });
+
+  // 權限過濾邏輯
   const isAdmin = currentUser.toLowerCase() === "admin";
-  const visibleFlights = flights.filter(f => isAdmin || f.created_by === currentUser);
+  const visibleFlights = flights.filter((f: any) => isAdmin || f.created_by === currentUser);
 
   const getSimbriefUrl = () => {
     const parts = fltNo.split(" ");
@@ -54,6 +123,7 @@ export default function InstructorHub() {
     return `https://www.simbrief.com/system/dispatch.php?airline=${airline}&fltnum=${fltnum}&orig=${dep}&dest=${arr}`;
   };
 
+  // SimBrief API 預覽抓取 (此處為純 Form 的外部請求，維持 Local State 處理最適合)
   const handleFetchPreview = async () => {
     if (!sbUser) return alert("Please enter a SimBrief Username.");
     
@@ -69,7 +139,6 @@ export default function InstructorHub() {
       
       setPreviewHtml(data.text?.plan_html || "<p>No briefing HTML available.</p>");
       
-      // 如果教官沒有輸入 Commander 或 ZFW，自動以 SimBrief 運算的數值補上
       if (!editZfw) {
          setEditZfw(parseFloat(data.weights?.est_zfw || 0) / 1000);
       }
@@ -85,71 +154,15 @@ export default function InstructorHub() {
     }
   };
 
-  const handleConfirmCreate = async (publish: boolean) => {
-    setIsCreatingSession(true);
-    try {
-      const res = await fetch('/api/simbrief', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: sbUser,
-          flightNo: fltNo,
-          created_by: currentUser,
-          is_published: publish,
-          zfw_override: editZfw, // 帶入教官先設定好的 ZFW
-          commander_override: editCmdr // 帶入教官先設定好的 Commander
-        })
-      });
-
-      const result = await res.json();
-
-      if (res.ok) {
-        setPreviewHtml(null); 
-        await fetchFlights(); 
-        alert(`✅ Flight ${result.flight_no} successfully created ${publish ? 'and published!' : 'as DRAFT!'}`);
-      } else {
-        alert(`❌ Error: ${result.error}`);
-      }
-    } catch (error) {
-      console.error("Create session error:", error);
-      alert("Network error while creating session.");
-    } finally {
-      setIsCreatingSession(false);
-    }
-  };
-
-  const handleDeleteFlight = async (id: string) => {
-    if (!confirm(`Are you sure you want to permanently delete flight ${id}?`)) return;
-    try {
-      const res = await fetch('/api/flight/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
-      });
-      if (res.ok) {
-        await fetchFlights();
-      } else {
-        alert("Failed to delete flight.");
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handlePublishFlight = async (flightData: any) => {
-    try {
-      const updatedData = { ...flightData, is_published: true };
-      const res = await fetch('/api/flight/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: flightData._db_id, data: updatedData })
-      });
-      if (res.ok) {
-        await fetchFlights();
-      }
-    } catch (e) {
-      console.error(e);
-    }
+  const handleConfirmCreate = (publish: boolean) => {
+    createFlightMutation.mutate({
+      username: sbUser,
+      flightNo: fltNo,
+      created_by: currentUser,
+      is_published: publish,
+      zfw_override: editZfw,
+      commander_override: editCmdr
+    });
   };
 
   return (
@@ -173,7 +186,7 @@ export default function InstructorHub() {
       </div>
 
       {/* ========================================== */}
-      {/* 1. 現有航班列表 (Active & Draft Sessions)    */}
+      {/* 1. 現有航班列表                             */}
       {/* ========================================== */}
       <div className="mb-10">
         <h3 className="text-xl font-bold text-white mb-4">▶ Your Simulator Sessions</h3>
@@ -186,12 +199,13 @@ export default function InstructorHub() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {visibleFlights.map((f) => (
+            {visibleFlights.map((f: any) => (
               <div key={f._db_id} className="bg-lido-800 border border-[#333333] rounded-xl p-5 hover:border-[#00bfa5] hover:shadow-[0_0_15px_rgba(0,191,165,0.2)] transition-all flex flex-col relative">
                 
                 <button 
-                  onClick={() => handleDeleteFlight(f._db_id)}
-                  className="absolute top-4 right-4 text-text-muted hover:text-[#FF1744] font-black text-xl transition-colors"
+                  onClick={() => deleteFlightMutation.mutate(f._db_id)}
+                  disabled={deleteFlightMutation.isPending}
+                  className="absolute top-4 right-4 text-text-muted hover:text-[#FF1744] font-black text-xl transition-colors disabled:opacity-30"
                   title="Delete Session"
                 >
                   🗑️
@@ -226,10 +240,11 @@ export default function InstructorHub() {
                   
                   {!f.is_published && (
                     <button 
-                      onClick={() => handlePublishFlight(f)}
-                      className="flex-[1.5] py-3 bg-[#00E676]/20 border border-[#00E676] text-[#00E676] font-bold rounded-lg hover:bg-[#00E676] hover:text-black transition-colors text-xs"
+                      onClick={() => publishFlightMutation.mutate(f)}
+                      disabled={publishFlightMutation.isPending}
+                      className="flex-[1.5] py-3 bg-[#00E676]/20 border border-[#00E676] text-[#00E676] font-bold rounded-lg hover:bg-[#00E676] hover:text-black transition-colors text-xs disabled:opacity-30"
                     >
-                      🚀 PUBLISH
+                      {publishFlightMutation.isPending ? "⏳..." : "🚀 PUBLISH"}
                     </button>
                   )}
                 </div>
@@ -240,14 +255,12 @@ export default function InstructorHub() {
       </div>
 
       {/* ========================================== */}
-      {/* 2. 建立新航班 (Create New Session)           */}
+      {/* 2. 建立新航班                                */}
       {/* ========================================== */}
       <div>
         <h3 className="text-xl font-bold text-white mb-4">➕ Create New Simulator Flight</h3>
         
         <div className="bg-lido-800 border border-[#333333] rounded-xl p-6 flex flex-col lg:flex-row gap-8">
-          
-          {/* 左側：基礎參數 */}
           <div className="flex-[1.5] flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -271,7 +284,6 @@ export default function InstructorHub() {
               </div>
             </div>
             
-            {/* 🌟 Commander 與 ZFW 移至此處，強制輸入 */}
             <hr className="border-[#333333] my-1" />
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -298,7 +310,6 @@ export default function InstructorHub() {
             </div>
           </div>
 
-          {/* 右側：抓取流程 */}
           <div className="flex-1 flex flex-col justify-center gap-4 bg-[#0a0a0a] p-6 rounded-lg border border-[#1d2733]">
             <h4 className="text-status-teal font-bold mb-2">🚀 Dispatch Workflow</h4>
             
@@ -324,7 +335,7 @@ export default function InstructorHub() {
       </div>
 
       {/* ========================================== */}
-      {/* 3. 預覽與進階覆寫視窗 (Review & Override)    */}
+      {/* 3. 預覽與進階覆寫視窗                         */}
       {/* ========================================== */}
       {previewHtml && (
         <div className="mt-8 bg-lido-800 border border-[#00bfa5] rounded-xl p-6 shadow-[0_0_20px_rgba(0,191,165,0.15)] animate-fade-in-up">
@@ -345,17 +356,17 @@ export default function InstructorHub() {
             </button>
             <button 
               onClick={() => handleConfirmCreate(false)} 
-              disabled={isCreatingSession}
-              className="flex-1 py-4 bg-[#FF9100]/20 border border-[#FF9100] text-[#FF9100] font-black rounded-lg hover:bg-[#FF9100] hover:text-black transition-all"
+              disabled={createFlightMutation.isPending}
+              className="flex-1 py-4 bg-[#FF9100]/20 border border-[#FF9100] text-[#FF9100] font-black rounded-lg hover:bg-[#FF9100] hover:text-black transition-all disabled:opacity-40"
             >
-              💾 SAVE AS DRAFT
+              {createFlightMutation.isPending ? "⏳ SAVING..." : "💾 SAVE AS DRAFT"}
             </button>
             <button 
               onClick={() => handleConfirmCreate(true)} 
-              disabled={isCreatingSession}
-              className="flex-1 py-4 bg-[#C6FF00] text-black font-black rounded-lg hover:bg-[#00c853] shadow-[0_4px_15px_rgba(0,230,118,0.4)] transition-all"
+              disabled={createFlightMutation.isPending}
+              className="flex-1 py-4 bg-[#C6FF00] text-black font-black rounded-lg hover:bg-[#00c853] shadow-[0_4px_15px_rgba(0,230,118,0.4)] transition-all disabled:opacity-40"
             >
-              ✅ PUBLISH TO EFB
+              {createFlightMutation.isPending ? "⏳ PUBLISHING..." : "✅ PUBLISH TO EFB"}
             </button>
           </div>
         </div>

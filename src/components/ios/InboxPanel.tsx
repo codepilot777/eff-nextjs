@@ -1,8 +1,16 @@
 "use client";
 import { useState } from "react";
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 
-export default function InboxPanel({ flightData, updateFlightData }: { flightData: any, updateFlightData: any }) {
+// 🌟 Props 大清洗：剷走晒 flightData 同 updateFlightData
+export default function InboxPanel() {
   const [isGeneratingAtis, setIsGeneratingAtis] = useState<number | null>(null);
+  
+  // 🌟 從天上直接抽取 Data 同 Update Function (全域共用，自帶樂觀更新！)
+  const { flightData, updateFlightData } = useFlightData();
+
+  // 🌟 防呆保護：如果未 Load 到 Data，就唔好 Render
+  if (!flightData) return null;
 
   const generateAtis = async (idx: number, req: any) => {
     setIsGeneratingAtis(idx);

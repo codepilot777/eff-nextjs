@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter } from "next/navigation";
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 
 // 載入模組
 import InboxPanel from "@/components/ios/InboxPanel";
@@ -10,63 +11,25 @@ import PayloadTab from "@/components/ios/PayloadTab";
 import WxTab from "@/components/ios/WxTab";
 import NotamTab from "@/components/ios/NotamTab";
 import FuelTab from "@/components/ios/FuelTab";
-import TechLogModal from "@/components/techlog/TechLogModal"; // 🌟 改為載入 Modal
+import TechLogModal from "@/components/techlog/TechLogModal"; 
 
 function IOSPanelContent() {
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const flightId = searchParams.get("id");
-  
-  const [flightData, setFlightData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Config");
-  
-  // 🌟 新增：控制 eTechLog Modal 的開關狀態
   const [isTechLogOpen, setIsTechLogOpen] = useState(false);
 
-  const fetchFlightData = async () => {
-    if (!flightId) return;
-    try {
-      const res = await fetch(`/api/flight?id=${encodeURIComponent(flightId)}`);
-      if (res.ok) setFlightData(await res.json());
-    } catch (error) {
-      console.error("Failed to fetch flight data", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // 🌟 從天上直接抽取 Data 同 Update Function (包含樂觀更新)
+  // 注意：useFlightData 內部已經處理咗 flightId 嘅抓取同 3 秒 Polling
+  const { flightData, updateFlightData, isLoading } = useFlightData();
 
-  useEffect(() => {
-    fetchFlightData();
-    const interval = setInterval(fetchFlightData, 3000);
-    return () => clearInterval(interval);
-  }, [flightId]);
-
-  const updateFlightData = async (updates: any) => {
-    const updatedData = { ...flightData, ...updates };
-    setFlightData(updatedData); 
-    try {
-      await fetch('/api/flight/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: flightId, data: updatedData })
-      });
-    } catch (error) {
-      console.error("Failed to update flight data", error);
-    }
-  };
-
-  if (!flightId) return <div className="p-8 text-[#FF1744]">Error: Missing flight ID</div>;
   if (isLoading && !flightData) return <div className="p-8 text-[#00bfa5] animate-pulse font-bold text-xl">Loading IOS Panel...</div>;
-  if (!flightData) return <div className="p-8 text-[#FF1744]">Flight not found in database.</div>;
+  if (!flightData) return <div className="p-8 text-[#FF1744]">Flight not found in database or URL ID missing.</div>;
 
-  // 🌟 移除了 eTechLog Tab，並將 Fuel 重新編號為 5
   const tabs = [
     { id: "Config", icon: "✈️", label: "1. Config" },
     { id: "Payload", icon: "⚖️", label: "2. Payload" },
     { id: "WX", icon: "🌦️", label: "3. WX" },
     { id: "NOTAMs", icon: "📢", label: "4. NOTAMs" },
-    { id: "Fuel", icon: "⛽", label: "5. Fuel" }
   ];
 
   return (
@@ -88,10 +51,8 @@ function IOSPanelContent() {
           </div>
         </div>
         
-        {/* 🌟 重新排版右上角的按鈕區 */}
+        {/* 右上角的按鈕區 */}
         <div className="flex items-center gap-4">
-          
-          {/* 觸發 eTechLog Modal 的發光按鈕 */}
           <button
             onClick={() => setIsTechLogOpen(true)}
             className="bg-[#00bfa5]/15 border border-[#00bfa5] text-[#00bfa5] hover:bg-[#00bfa5] hover:text-black font-black text-xs px-5 py-3 rounded-lg transition-all tracking-widest flex items-center gap-2 shadow-[0_0_10px_rgba(0,191,165,0.2)]"
@@ -109,6 +70,7 @@ function IOSPanelContent() {
       <div className="flex-1 flex gap-6 overflow-hidden">
         
         {/* 左側：模組化的 InboxPanel */}
+        {/* 🌟 舊有寫法暫時保留 Props 傳遞，之後你入面都可以改用 useFlightData 自己吸 */}
         <InboxPanel flightData={flightData} updateFlightData={updateFlightData} />
 
         {/* 右側：主工作區與 Tabs */}
@@ -130,22 +92,20 @@ function IOSPanelContent() {
           </div>
 
           <div className="flex-1 overflow-y-auto pr-2">
-            {activeTab === "Config" && <ConfigTab flightData={flightData} updateFlightData={updateFlightData} />}
-            {activeTab === "Payload" && <PayloadTab flightData={flightData} updateFlightData={updateFlightData} />}
-            {activeTab === "WX" && <WxTab flightData={flightData} updateFlightData={updateFlightData} />}
-            {activeTab === "NOTAMs" && <NotamTab flightData={flightData} updateFlightData={updateFlightData} />}
-            {activeTab === "Fuel" && <FuelTab flightData={flightData} updateFlightData={updateFlightData} />}
+            {/* 🌟 舊有寫法暫時保留 Props 傳遞，稍後可以入去斬！ */}
+            {activeTab === "Config" && <ConfigTab />}
+            {activeTab === "Payload" && <PayloadTab />}
+            {activeTab === "WX" && <WxTab />}
+            {activeTab === "NOTAMs" && <NotamTab />}
           </div>
         </div>
 
       </div>
 
-      {/* 🌟 掛載 eTechLog Modal 在最頂層 */}
+      {/* 🌟 TechLog Modal (之前已經幫你清走咗 Props，呢度唔好傳錯) */}
       <TechLogModal 
         isOpen={isTechLogOpen} 
         onClose={() => setIsTechLogOpen(false)} 
-        flightData={flightData} 
-        updateFlightData={updateFlightData} 
       />
       
     </div>

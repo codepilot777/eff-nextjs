@@ -1,9 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 import { LoadsheetEngine, AutoLoader } from "@/lib/loadsheet/LoadsheetEngine";
 import { B773_BHNQ } from "@/lib/loadsheet/MockAHM";
 
-export default function PayloadTab({ flightData, updateFlightData }: { flightData: any, updateFlightData: any }) {
+// 🌟 Props 大清洗：剷走晒 flightData 同 updateFlightData
+export default function PayloadTab() {
+  
+  // 🌟 從天上直接抽取 Data 同 Update Function (自帶樂觀更新！)
+  const { flightData, updateFlightData } = useFlightData();
+
   const [isInitialized, setIsInitialized] = useState(false);
   
   const [payload, setPayload] = useState({
@@ -11,6 +17,9 @@ export default function PayloadTab({ flightData, updateFlightData }: { flightDat
     cargo: { h1: 0, h2: 0, h3: 0, h4: 0, bulk: 0 },
     fuel: { uplift: 0, left: 0, center: 0, right: 0, finalOrder: 0 }
   });
+
+  // 🌟 防呆保護：如果未 Load 到 Data 就唔 Render
+  if (!flightData) return null;
 
   // ==========================================
   // 🌟 核心目標數據
@@ -126,7 +135,7 @@ export default function PayloadTab({ flightData, updateFlightData }: { flightDat
   const safeMACTOW = cg?.MACTOW ? cg.MACTOW.toFixed(1) : "0.0";
 
   // ==========================================
-  // 🌟 3. 發送至 Array History
+  // 🌟 3. 發送至 Array History (完美對接 React Query)
   // ==========================================
   const handleTransmit = (docType: string) => {
     const updates: any = {};

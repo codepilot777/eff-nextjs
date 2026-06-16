@@ -1,10 +1,19 @@
 "use client";
 import { useState } from "react";
+import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 
-export default function NotamTab({ flightData, updateFlightData }: { flightData: any, updateFlightData: any }) {
+// 🌟 Props 大清洗：剷走晒 flightData 同 updateFlightData
+export default function NotamTab() {
+  
+  // 🌟 從天上直接抽取 Data 同 Update Function (自帶樂觀更新！)
+  const { flightData, updateFlightData } = useFlightData();
+
   const [aiPrompt, setAiPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedResult, setGeneratedResult] = useState("");
+
+  // 🌟 防呆保護：未 Load 到 Data 就唔好 Render
+  if (!flightData) return null;
 
   const rawAlternates = flightData?.raw_simbrief?.alternate ? (Array.isArray(flightData.raw_simbrief.alternate) ? flightData.raw_simbrief.alternate : [flightData.raw_simbrief.alternate]) : (flightData?.alternates || []);
 
@@ -35,7 +44,6 @@ export default function NotamTab({ flightData, updateFlightData }: { flightData:
       
       const data = await res.json();
       
-      // 🌟 修正盲點：如果 backend 回傳 400/500 Error，主動掉入 Catch block
       if (!res.ok) {
         throw new Error(data.error || `HTTP Error ${res.status}`);
       }
@@ -43,7 +51,6 @@ export default function NotamTab({ flightData, updateFlightData }: { flightData:
       setGeneratedResult(data.text);
     } catch (e: any) {
       console.error("AI Generation Failed:", e);
-      // 將 Error 顯示出來，不再死得不明不白
       setGeneratedResult(`❌ ERROR: ${e.message || "Failed to generate NOTAM. Please check API Key or backend logs."}`);
     } finally {
       setIsGenerating(false);
