@@ -78,3 +78,8 @@ export const B773_BHNQ: AircraftAHM560 = {
     { weight: 140364, index: -409 }
   ]
 };
+
+export const AIRCRAFT_REGISTRY: Record<string, AircraftAHM560> = {
+  "B-HNQ": B773_BHNQ,
+  // "B-KPA": B77W_BKPA, // 👈 遲啲新機復活，直接喺度塞入嚟，成個系統完全唔使大改！
+};

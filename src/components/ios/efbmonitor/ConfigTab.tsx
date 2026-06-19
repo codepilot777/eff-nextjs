@@ -1,18 +1,24 @@
 "use client";
-import { useState } from "react";
-import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
+import { useState, useEffect } from "react"; // 🌟 加咗 useEffect
+import { useFlightData } from "@/hooks/useFlightData"; 
 
-// 🌟 Props 大清洗：剷走晒 flightData 同 updateFlightData
 export default function ConfigTab() {
-  
-  // 🌟 從天上直接抽取 Data 同 Update Function (自帶樂觀更新！)
   const { flightData, updateFlightData } = useFlightData();
 
   const [sbUser, setSbUser] = useState("EFFSIM");
   const [isFetchingUpdate, setIsFetchingUpdate] = useState(false);
   const [pendingUpdateData, setPendingUpdateData] = useState<any>(null);
 
-  // 🌟 防呆保護：未 Load 到 Data 就唔好 Render
+  // 🐞 加咗呢段 Debug Code：每當 flightData 更新，就會印出嚟
+  useEffect(() => {
+    if (flightData) {
+      console.log("✈️ [IOS DEBUG] 睇下個 FlightData 結構:", flightData);
+      // 💡 提示：打開 F12 Console，點開個 Object
+      // 睇吓 ZFW 係咪叫 flightData.weight_zfw_ofp 
+      // 睇吓 Fuel 係咪叫 flightData.raw_simbrief.fuel.plan_ramp
+    }
+  }, [flightData]);
+
   if (!flightData) return null;
 
   const unescapeHTML = (str: string) => {
