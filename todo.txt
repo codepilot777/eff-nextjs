@@ -10,5 +10,65 @@ Trainee View:
     Even Refuel accpeted, 都可以clickalbe 開fuel receipt modal
     
 
-E-tech Log
+E-tech 
+
+Navlog
+  達到cruising level 後顯示criusing level 上下level 的風, 不再係FL150, FL200
   
+---
+
+EFB & Instructor IOS Project - Master TODO List
+🛠️ Phase 1: 聯動天地線打通 (Connection POC)
+[ ] 本地端部署 ngrok：喺跑 P3D 隻電腦下載 ngrok.exe，綁定 Token。
+
+[ ] 開啟 ngrok 隧道：執行 ngrok http 2048，獲取臨時 https://xxxx.ngrok-free.app 加密網址。
+
+[ ] 更新 Next.js 前端 Hook：將 usePrepar3D.ts 內嘅網址換成 wss://xxxx.ngrok-free.app/fsuipc。
+
+[ ] 雲端部署測試：Git Push 上 Vercel，用 iPad 經 5G/Wi-Fi 打開網頁，測試 P3D LINK ACTIVE 粒綠燈有冇順利着起。
+
+🛩️ Phase 2: PMDG 777 航電對接準備 (Aircraft SDK Setup)
+[ ] 激活 PMDG 數據廣播：去 P3D 電腦嘅 PMDG_777X_Options.ini，寫入 [SDK] EnableDataBroadcast=1。
+
+[ ] 封裝發送 Control Code 邏輯：喺 usePrepar3D.ts 入面，除咗寫入 Offset，另外封裝一個專門射 controls.write 同 KEY_ROTOR_BRAKE (66587) 嘅萬能函式。
+
+🎨 Phase 3: Instructor Panel 結構爆改 (UI & Sub-Navigation)
+[ ] 主頁面 3 大 Tabs 切換：將教官頁面分拆為 efb（監視器）、etechlog（行政簽名）、sim control（上帝控制台）。
+
+[ ] 實裝 Sim Control 底部 Sub-Bottom Bar：用數據驅動（Data-driven array），動態 map 出底部 4 個按鈕：📊 Telemetry、✈️ Reposition、⛈️ Weather、🔥 Failures。
+
+[ ] 確認內頁 3:7 排版：確保點擊各個 Section 時，左側/右側的視窗維持完美比例，並加入 overflow-y-auto 防高度溢出。
+
+🚀 Phase 4: Sim Control 四大王牌功能實裝 (待後續 Exhaustive List 補齊)
+[ ] 📊 Telemetry (實時監測)：
+
+[ ] 經 WebSocket 接收 P3D 傳回嘅高度、速度、航向、垂直速度（VS）。
+
+[ ] 製作 Landing VS 監控儀表（監察 Trainee 有冇五星落地）。
+
+[ ] ✈️ Reposition (精準移位)：
+
+[ ] 建立快捷按鈕矩陣：GATE 25、RWY 07R LINE-UP、5 NM FINAL。
+
+[ ] 寫入「先 Pause ➔ 寫經緯度 ➔ Unpause」嘅安全防 Crash 延時移位邏輯。
+
+[ ] ⛈️ Weather (天氣注入)：
+
+[ ] 定義 CAVOK、CAT III、TYPHOON 嘅標準 METAR 字串。
+
+[ ] 實裝一鍵注入 P3D 天氣功能。
+
+[ ] 🔥 Failures (魔鬼故障矩陣)：
+
+[ ] 建立 pmdgFailures.ts 設定檔（預留未來幾百個故障碼嘅 JSON Array）。
+
+[ ] 實裝智能 Search Bar，輸入關鍵字即時 filter 故障。
+
+[ ] 實裝 SAFE/ARM 雙保險 Toggle 掣 與 TRIGGER 紅色火警按鈕。
+
+[ ] 實裝巨型綠色 MASTER RESET ALL FAILURES 掣。
+
+🔒 Phase 5: 雲端架構固化 (Future Production Upgrade - 可選)
+[ ] 購買/綁定自訂 Domain 到 Cloudflare。
+
+[ ] 在 P3D 電腦設定 Cloudflare Tunnel，將臨時 ngrok 網址升級為永久、安全、免開 Port 嘅專屬網址（如 wss://p3d.yourdomain.com）。
