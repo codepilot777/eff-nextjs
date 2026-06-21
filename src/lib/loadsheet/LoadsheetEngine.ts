@@ -111,9 +111,11 @@ export class LoadsheetEngine {
     let indexZFW = this.ahm.basicData.BI + crewPantry.index + water.index;
 
     // 👥 👥 靈魂改造：客艙 Index 加權全部轉為自動動態配算！
+    // 👥 👥 靈魂改造：客艙 Index 加權全部轉為自動動態配算！
     Object.keys(this.ahm.stations.pax).forEach((zoneKey) => {
       const zoneWeight = w.paxWeightsBreakdown[zoneKey] || 0;
-      const factor = this.ahm.stations.pax[zoneKey].indexFactor;
+      // 🌟 加上 (this.ahm.stations.pax as any) 解鎖動態字串索引
+      const factor = (this.ahm.stations.pax as any)[zoneKey].indexFactor; 
       indexZFW += this.getPayloadIndex(zoneWeight, factor);
     });
 
@@ -184,11 +186,12 @@ export class AutoLoader {
     const dynamicPax: Record<string, number> = {};
     let remainingPax = totalPax;
 
-    // 🎯 核心演算法：按字母排序（Zone OA -> OB -> OC...）進行前艙向後艙的遞進式安全填充
+    // 🎯 核心演算法：按字母排序進行前艙向後艙的遞進式安全填充
     const sortedZoneKeys = Object.keys(ahm.stations.pax).sort();
 
     sortedZoneKeys.forEach((zoneKey) => {
-      const maxCapacity = ahm.stations.pax[zoneKey].maxPax;
+      // 🌟 加上 (ahm.stations.pax as any) 解鎖動態字串索引
+      const maxCapacity = (ahm.stations.pax as any)[zoneKey].maxPax;
       const allocatedPax = Math.min(remainingPax, maxCapacity);
       
       // 🌟 同時生成新舊兩種 Key（例如 zoneOA 和 zone0A），雙重保險，絕對不與前端任何 Sliders 打架！

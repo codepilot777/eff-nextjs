@@ -79,6 +79,7 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
     // 🌟 核心聯動點：當工程師按下確定保留的一瞬間，直接將故障脈衝射向模擬機！
     triggerPmdgSystemFailure(mel, defectToDefer?.description || "System Defect");
 
+    setActiveTask(null);
     updateTechLogData({ 
       defects: defects.map((d: any) => d.id === id ? { ...d, id: newId, status: "DEFERRED", deferral_type: type, mel_ref: mel, deferral_reason: reason } : d),
       tl_entries: [...(tl_entries || []), newEntry]

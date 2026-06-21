@@ -2,7 +2,7 @@
 import { useState, Fragment } from "react";
 import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
 // 🌟 引入你的終極註冊表大腦
-import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM"; 
+import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 
 export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveModal }: any) {
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
@@ -330,8 +330,8 @@ LOADSHEETER/${dispatcher}/HKG1576`;
               </div>
               <div className="flex items-center gap-2 bg-[#333] text-white px-2 py-1 rounded">
                  <span className="font-mono text-xs">
-                   {Object.keys(ahm.stations.pax).map(k => `${k.replace("zone","")}${ahm.stations.pax[k].maxPax}`).join(" ")}
-                 </span>
+  {Object.entries(ahm.stations.pax).map(([k, zoneData]: [string, any]) => `${k.replace("zone","")}${zoneData.maxPax}`).join(" ")}
+</span>
               </div>
             </div>
           </div>
