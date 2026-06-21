@@ -1,6 +1,6 @@
 "use client";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
-
+import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 // 🌟 Props 大清洗：只保留 setActiveModal
 export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveModal: any }) {
   
@@ -19,6 +19,37 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
 
   const arrIcao = flightData?.arr_icao || dest.icao_code || 'RJBB';
   const paxTot = (flightData?.pax_f || 0) + (flightData?.pax_j || 0) + (flightData?.pax_w || 0) + (flightData?.pax_y || 0);
+
+  // 🌟 1. 確保拿到當前飛機大腦
+  const currentReg = flightData?.aircraft_reg || "B-HNQ";
+  const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
+
+  // 🌟 2. 獲取最新的 Payload Snapshot
+  const activeSnapshot = flightData?.final_snapshot || flightData?.prelim_snapshot || flightData?.ezfw_snapshot;
+
+  // 🌟 3. 動態計算當前航班的實際艙等分布 (J / W / Y)
+  const classCounts: Record<string, number> = { J: 0, W: 0, Y: 0 };
+  
+  if (activeSnapshot) {
+    // 如果有 Snapshot，跟從物理引擎分區計算
+    Object.entries(ahm.stations.pax).forEach(([zoneKey, zoneInfo]: [string, any]) => {
+      const short = zoneKey.replace("zone", "");
+      const count = Number(activeSnapshot.pax?.[short] || activeSnapshot.pax?.[zoneKey] || 0);
+      const primaryClass = zoneInfo.primaryClass || "Y";
+      classCounts[primaryClass] += count;
+    });
+  } else {
+    // 補底防呆：如果未有任何 Loadsheet Snapshot，直接讀 SimBrief 嘅生肉數據
+    classCounts.J = flightData?.pax_j || 0;
+    classCounts.W = flightData?.pax_w || 0;
+    classCounts.Y = flightData?.pax_y || 0;
+  }
+
+  // 🌟 4. 拼裝出完美的商業艙等字串 (e.g. "J35 W40 Y140")
+  const dynamicClassStr = Object.keys(classCounts)
+    .filter(cls => ahm.config.includes(cls)) // 只保留飛機 Config 有嘅艙等
+    .map(cls => `${cls}${classCounts[cls]}`)
+    .join(" ");
 
   // =====================================================================
   // 🌟 3. 原本嘅計算邏輯 (修正為使用本地變數)
@@ -102,7 +133,9 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
           <div className="flex items-center leading-none">
             <span className="text-[#8fa0a6] font-sans text-[0.6rem] uppercase tracking-widest w-9">Pax</span>
             <span className="ml-1 font-mono font-bold text-[1rem] text-white w-6 text-right">{paxTot}</span>
-            <span className="ml-3 text-[0.65rem] text-[#8fa0a6] font-mono">J42 Y{paxTot > 42 ? paxTot - 42 : 0}</span>
+            <span className="ml-3 text-[0.65rem] text-[#8fa0a6] font-mono">
+              {dynamicClassStr || "NO PAX DATA"}
+            </span>
           </div>
         </div>
 

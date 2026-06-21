@@ -1,20 +1,59 @@
 "use client";
 import { getCommonFlightInfo } from "@/lib/loadsheet/loadsheetHelpers";
+// 🌟 引入總大腦矩陣
+import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 
 export function RightHeader({ flightData, updateFlightData, calc, limits }: any) {
   const info = getCommonFlightInfo(flightData, calc);
   
+  // 🌟 精確鎖定當前執飛飛機的 AHM
+  const currentReg = flightData?.aircraft_reg || "B-HNQ";
+  const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
+
   // 🌟 從最近的 Snapshot 提取真實的乘客分布
   const activeSnapshot = flightData?.final_snapshot || flightData?.prelim_snapshot || flightData?.ezfw_snapshot;
-  const actualPaxJ = activeSnapshot?.pax?.OA || 0;
-  const actualPaxY = (activeSnapshot?.pax?.OB || 0) + (activeSnapshot?.pax?.OC || 0) + (activeSnapshot?.pax?.OD || 0);
-  const totalPax = actualPaxJ + actualPaxY;
+  
+  // 🎯 1. 實際載客：將所有物理分區（Zones）的人數，按 AHM 定義的 primaryClass 實時加總聚合！
+  let totalPax = 0;
+  
+  // 建立一隻空的計數器，用來裝 J、W、Y 的實時人數
+  const classCounts: Record<string, number> = { J: 0, W: 0, Y: 0 };
+
+  Object.entries(ahm.stations.pax).forEach(([zoneKey, zoneInfo]: [string, any]) => {
+    const short = zoneKey.replace("zone", "");
+    // 撈出這個 Zone 實際上坐咗幾多人
+    const count = Number(activeSnapshot?.pax?.[short] || activeSnapshot?.pax?.[zoneKey] || 0);
+    totalPax += count;
+
+    // 查出這個 Zone 屬於邊個商業艙等 (J / W / Y)
+    const primaryClass = zoneInfo.primaryClass || "Y";
+    
+    // 將人數歸類累加
+    if (classCounts[primaryClass] !== undefined) {
+      classCounts[primaryClass] += count;
+    } else {
+      classCounts["Y"] += count; // 防呆補底
+    }
+  });
+
+  // 根據這架飛機 AHM 實際擁有的商業艙等（Config 字串入面有咩字母），動態輸出對應的實際人數
+  // 例如：B773 (J42Y396) 就只會嘔出 "J20 Y180"；B77W (J45W48Y268) 就會嘔出 "J30 W24 Y150"
+  const actualPaxBreakdown = Object.keys(classCounts)
+    .filter(cls => ahm.config.includes(cls)) // 只保留這架飛機 Config 有定義的艙等
+    .map(cls => `${cls}${classCounts[cls]}`) // 拼裝成 J30 這種格式
+    .join(" ");
+
+  // 🎯 2. 空機配置：理論座位容量 (CAP) 加總
+  const maxCap = Object.values(ahm.stations.pax).reduce((acc, zone) => acc + zone.maxPax, 0);
+
+  // 🎯 3. 核心優化：將原本 Cabin 拆分改為直接讀取 AHM 入面優美嘅官方 Config 配置 (例如 J45W48Y268)
+  // 並加上美化空格，例如 "J45 W48 Y268"
+  const beautifulConfig = ahm.config.replace(/([A-Z])(\d+)/g, "$1$2 ").trim();
 
   const desiredFuelType = flightData?.desired_fuel_type || 'NONE';
   const desiredFuelVal = flightData?.desired_fuel_value || '';
 
   return (
-    // 🌟 縮小 Padding (p-6 -> p-4) 同 Margin (mb-4 -> mb-3) 偷取 vh
     <div className="bg-[#1E1E1E] rounded-xl border border-[#333333] p-4 shadow-lg mb-3 shrink-0 flex flex-row relative overflow-hidden">
       
       {/* 飛機 SVG Watermark */}
@@ -25,7 +64,6 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
       {/* 左半：飛機與座位資訊 */}
       <div className="flex-1 relative z-10 flex flex-col justify-center pr-4">
         <div className="flex items-end gap-5 mb-2">
-          {/* 字體微縮以迎合較小的 container */}
           <span className="text-[2.5rem] font-black text-white tracking-wider leading-none drop-shadow-md">{info.reg_clean}</span>
           <div className="flex flex-col mb-1">
              <span className="text-[#8fa0a6] font-bold text-[0.6rem] uppercase tracking-widest leading-none mb-0.5">CREW</span>
@@ -39,27 +77,27 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
              <span className="text-white text-lg font-mono">{totalPax}</span>
           </div>
           <div className="flex items-center gap-2 bg-[#0a0a0a] px-2 py-0.5 rounded border border-[#333]">
-             <span className="text-white font-mono text-xs">F0 J{actualPaxJ} W0 Y{actualPaxY}</span>
+             {/* 👥 實際分艙搭乘人數 */}
+             <span className="text-white font-mono text-xs">{actualPaxBreakdown || "OA0 OB0 OC0 OD0"}</span>
           </div>
         </div>
         
         <div className="flex items-center gap-5 text-[0.8rem] font-bold text-[#8fa0a6] uppercase tracking-widest">
           <div className="flex items-center gap-2">
              <span>CAP</span>
-             <span className="text-white text-lg font-mono">438</span>
+             <span className="text-white text-lg font-mono">{maxCap}</span>
           </div>
           <div className="flex items-center gap-2 bg-[#333] text-white px-2 py-0.5 rounded">
-             <span className="font-mono text-xs">F0 J42 W0 Y396</span>
+             {/* 🌟 修正點：這裡忠實呈現官方註冊表定義嘅 Config配置 (如 J42 Y396) */}
+             <span className="font-mono text-xs">{beautifulConfig}</span>
           </div>
         </div>
       </div>
 
-      {/* 右半：Setup & Limits 操控區 */}
+      {/* 右半：Setup & Limits 操控區 (維持不變) */}
       <div className="w-[460px] shrink-0 relative z-10 border-l border-[#333] pl-4 flex flex-col justify-center">
-        
         <div className="flex justify-between items-center mb-1.5">
           <span className="text-[0.9rem] font-bold text-white uppercase tracking-widest">Weight Limit</span>
-          
           <div onClick={() => updateFlightData({is_custom_weight: !limits.isCustomWt, final_fuel_accepted: false})} className="flex items-center gap-1.5 cursor-pointer bg-[#0a0a0a] border border-[#333] rounded-full px-1.5 py-0.5 hover:bg-[#252525] transition-colors">
             <span className={`text-[0.55rem] font-bold uppercase tracking-wider pl-0.5 leading-none transition-colors ${!limits.isCustomWt ? 'text-[#00E676]' : 'text-[#555]'}`}>SYS</span>
             <div className={`w-6 h-3 rounded-full relative transition-colors duration-300 ${limits.isCustomWt ? 'bg-[#FF9100]' : 'bg-[#555]'}`}>
@@ -70,10 +108,7 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
         </div>
         
         <div className="flex items-stretch gap-2">
-          {/* Main Box (Padding 同 Gap 縮減) */}
           <div className="flex-1 bg-[#0a0a0a] px-3 py-2 rounded-lg border border-[#333] shadow-inner flex flex-col gap-2">
-            
-            {/* Row 1: Desired Fuel */}
             <div className="flex gap-2">
               <div className="flex-[1.2] flex flex-col gap-0.5">
                  <label className="text-[0.55rem] text-[#8fa0a6] uppercase tracking-widest font-bold">Desired Fuel</label>
@@ -100,10 +135,7 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
               </div>
             </div>
             
-            {/* Row 2: Weight Limits Layout */}
             <div className="flex flex-col gap-1.5 border-t border-[#222] pt-2">
-              
-              {/* Top Row for limits: MTOW (Aligned Right) */}
               <div className="flex justify-end">
                 <div className="flex flex-col gap-0.5 items-end">
                    <label className="text-[0.5rem] text-[#8fa0a6] uppercase tracking-widest font-bold leading-none">MTOW</label>
@@ -118,7 +150,6 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
                 </div>
               </div>
 
-              {/* Bottom Row for limits: Margin (Left), MLAW (Right) */}
               <div className="flex justify-between items-center">
                 <div className="flex flex-col gap-0.5">
                    <label className="text-[0.5rem] text-[#8fa0a6] uppercase tracking-widest font-bold leading-none">LW Margin</label>
@@ -144,11 +175,9 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
                    </div>
                 </div>
               </div>
-
             </div>
           </div>
 
-          {/* 🌟 擴大後的 MZFW Outlier */}
           <div className="w-[75px] flex flex-col items-center justify-center gap-1 border-l border-[#333] pl-3">
              <label className="text-[0.65rem] text-[#8fa0a6] uppercase tracking-widest font-bold text-center leading-tight">MZFW</label>
              <div className="flex flex-col items-center w-full">

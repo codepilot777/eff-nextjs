@@ -1,6 +1,7 @@
 "use client";
 import { useState, Fragment } from "react";
 import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
+import { buildEnginePayload } from "@/lib/loadsheet/loadsheetHelpers";
 // 🌟 引入你的終極註冊表大腦
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 
@@ -43,29 +44,11 @@ export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveMo
   // 計算最終生效的 MLAW (扣除 Margin)
   const effectiveMlaw = dispMlaw - dispMlawMargin;
 
-  // 🌟 核心重構：Payload 轉換器徹底動態化，遍歷 AHM 的客艙所有 Zone
-  const buildEnginePayload = (snapshot: any) => {
-    if (!snapshot) return null;
+  const revisedTaxiKg = calc?.currTaxi 
+    ? Math.round(calc.currTaxi * 1000) 
+    : (flightData?.fuel_taxi_ofp ? Math.round(flightData.fuel_taxi_ofp * 1000) : 200);
 
-    const dynamicPaxObj: Record<string, number> = {};
-    Object.keys(ahm.stations.pax).forEach(zoneKey => {
-      const shortKey = zoneKey.replace("zone", ""); // 兼容舊版 "OA" 或新版 "zoneOA" 命名
-      dynamicPaxObj[zoneKey] = Number(snapshot.pax?.[shortKey]) || Number(snapshot.pax?.[zoneKey]) || 0;
-    });
-
-    return {
-      pax: dynamicPaxObj,
-      paxWeights: { J: 85, Y: 81 }, 
-      cargo: { hold1: Number(snapshot.cargo?.h1)||0, hold2: Number(snapshot.cargo?.h2)||0, hold3: Number(snapshot.cargo?.h3)||0, hold4: Number(snapshot.cargo?.h4)||0, bulk: Number(snapshot.cargo?.bulk)||0 },
-      waterFraction: Number(flightData?.water_fraction) || 15, 
-      fuel: {
-        takeoff: (Number(snapshot.fuel?.left)||0) + (Number(snapshot.fuel?.center)||0) + (Number(snapshot.fuel?.right)||0),
-        trip: flightData?.fuel_trip_ofp ? Number(flightData.fuel_trip_ofp) * 1000 : 18500,
-        isStandard: false,
-        tanks: { leftMain: Number(snapshot.fuel?.left)||0, center: Number(snapshot.fuel?.center)||0, rightMain: Number(snapshot.fuel?.right)||0 }
-      }
-    };
-  };
+  
 
   // 🌟 判斷當前 Stage 狀態與獲取該 Stage 的 ZFW / PAX
   let currentStage = "AWAITING";
@@ -78,22 +61,24 @@ export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveMo
     currentStage = `FINAL ${(flightData?.final_ls_version || 1).toString().padStart(2, '0')}`;
     stageBg = flightData?.pilots_signed_final ? "bg-[#C6FF00]" : "bg-[#2979FF]"; 
     stageText = flightData?.pilots_signed_final ? "text-black" : "text-white";
-    const p = buildEnginePayload(flightData.final_snapshot);
+    // 🌟 傳入 revisedTaxiKg
+    const p = buildEnginePayload(flightData.final_snapshot, flightData, revisedTaxiKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   } else if (flightData?.prelim_ls_sent) {
     currentStage = `PRELIM ${(flightData?.prelim_ls_version || 1).toString().padStart(2, '0')}`;
     stageBg = "bg-[#FF9100]"; stageText = "text-black";
-    const p = buildEnginePayload(flightData.prelim_snapshot);
+    // 🌟 傳入 revisedTaxiKg
+    const p = buildEnginePayload(flightData.prelim_snapshot, flightData, revisedTaxiKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   } else if (flightData?.azf_sent) {
     currentStage = "AZF";
     stageBg = "bg-[#00E676]"; stageText = "text-black";
-    const p = buildEnginePayload(flightData.azf_snapshot);
+    const p = buildEnginePayload(flightData.azf_snapshot, flightData, revisedTaxiKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   } else if (flightData?.ezfw_sent) {
     currentStage = "EZFW";
     stageBg = "bg-[#00bfa5]"; stageText = "text-black";
-    const p = buildEnginePayload(flightData.ezfw_snapshot);
+    const p = buildEnginePayload(flightData.ezfw_snapshot, flightData, revisedTaxiKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   }
 
@@ -192,7 +177,7 @@ LOADSHEETER/${dispatcher}/HKG1576`;
   };
 
   const getAzfText = () => {
-    const azfPayload = buildEnginePayload(flightData?.azf_snapshot);
+    const azfPayload = buildEnginePayload(flightData?.azf_snapshot, flightData, revisedTaxiKg);
     if (!azfPayload) return "LOADING SNAPSHOT...";
     const azfEngine = new LoadsheetEngine(ahm, azfPayload);
     const w = azfEngine.calculateWeights();
@@ -201,7 +186,7 @@ LOADSHEETER/${dispatcher}/HKG1576`;
   };
 
   const getEzfwText = () => {
-    const ezfwPayload = buildEnginePayload(flightData?.ezfw_snapshot);
+    const ezfwPayload = buildEnginePayload(flightData?.ezfw_snapshot, flightData, revisedTaxiKg);
     if (!ezfwPayload) return "LOADING SNAPSHOT...";
     const ezfwEngine = new LoadsheetEngine(ahm, ezfwPayload);
     const w = ezfwEngine.calculateWeights();
@@ -445,13 +430,13 @@ LOADSHEETER/${dispatcher}/HKG1576`;
             {[...(flightData?.final_history || [])].reverse().map((doc: any, reverseIndex: number) => {
               const isLatest = reverseIndex === 0;
               const isRejected = !isLatest || flightData?.final_ls_rejected;
-              const payloadObj = buildEnginePayload(doc.snapshot);
+              const payloadObj = buildEnginePayload(doc.snapshot, flightData, revisedTaxiKg);
               const engine = new LoadsheetEngine(ahm, payloadObj!);
               const text = generateLSText("FINAL", doc.version, doc.snapshot, engine, payloadObj);
               const latestPrelim = flightData?.prelim_history?.[flightData.prelim_history.length - 1];
               let pText = "";
               if (latestPrelim && isLatest) {
-                const pPayload = buildEnginePayload(latestPrelim.snapshot);
+                const pPayload = buildEnginePayload(latestPrelim.snapshot, flightData, revisedTaxiKg);
                 const pEngine = new LoadsheetEngine(ahm, pPayload!);
                 pText = generateLSText("PRELIM", latestPrelim.version, latestPrelim.snapshot, pEngine, pPayload);
               }
@@ -488,7 +473,7 @@ LOADSHEETER/${dispatcher}/HKG1576`;
             {[...(flightData?.prelim_history || [])].reverse().map((doc: any, reverseIndex: number) => {
               const isLatest = reverseIndex === 0;
               const isRejected = !isLatest || flightData?.prelim_ls_rejected;
-              const payloadObj = buildEnginePayload(doc.snapshot);
+              const payloadObj = buildEnginePayload(doc.snapshot, flightData, revisedTaxiKg);
               const engine = new LoadsheetEngine(ahm, payloadObj!);
               const text = generateLSText("PRELIM", doc.version, doc.snapshot, engine, payloadObj);
 

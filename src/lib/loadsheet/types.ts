@@ -20,8 +20,8 @@ export interface AircraftAHM560 {
     macLength: number;
   };
   stations: {
-    // 🌟 關鍵修改：用 Record<string, ...> 解鎖，允許 zoneOE, zoneOF 等任意擴充！
-    pax: Record<string, { indexFactor: number; maxPax: number }>;
+    // 🌟 核心升級：加入 primaryClass 屬性，定義該區主要坐咩人
+    pax: Record<string, { indexFactor: number; maxPax: number; primaryClass: "J" | "W" | "Y" }>;
     
     cargo: {
       hold1: { indexFactor: number; maxWeight: number };

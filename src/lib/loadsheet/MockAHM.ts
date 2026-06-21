@@ -23,10 +23,11 @@ export const B773_BHNQ: AircraftAHM560 = {
   // 左邊 (-) 負數, 右邊 (+) 正數
   stations: {
     pax: {
-      zoneOA: { indexFactor: -5, maxPax: 42 },   // Row 11-18
-      zoneOB: { indexFactor: -2, maxPax: 60 },   // Row 39-53
-      zoneOC: { indexFactor: 1,  maxPax: 150 },  // Row 54-67
-      zoneOD: { indexFactor: 4,  maxPax: 186 }   // Row 68-80
+      // 🌟 定義 B-HNQ 的艙等映射
+      zoneOA: { indexFactor: -5, maxPax: 42, primaryClass: "J" },  // 42 個 Business
+      zoneOB: { indexFactor: -2, maxPax: 60, primaryClass: "Y" },  // 經濟艙開始
+      zoneOC: { indexFactor: 1,  maxPax: 150, primaryClass: "Y" }, 
+      zoneOD: { indexFactor: 4,  maxPax: 186, primaryClass: "Y" }  
     },
     cargo: {
       hold1: { indexFactor: -6, maxWeight: 15105 },
@@ -99,28 +100,14 @@ export const B77W_BKPA: AircraftAHM560 = {
       "macLength": 8.2
     },
     "stations": {
-      "pax": {
-        "zoneOA": {
-          "indexFactor": -5.0,
-          "maxPax": 53
-        },
-        "zoneOB": {
-          "indexFactor": -3.0,
-          "maxPax": 34
-        },
-        "zoneOC": {
-          "indexFactor": -2.0,
-          "maxPax": 48
-        },
-        "zoneOD": {
-          "indexFactor": 1.0,
-          "maxPax": 80
-        },
-        "zoneOE": {
-          "indexFactor": 4.0,
-          "maxPax": 73
-        }
-      },
+      pax: {
+      // 🌟 定義 B-KPA 的艙等映射 (微調了人數以符合 361 總和)
+      zoneOA: { indexFactor: -5.0, maxPax: 45, primaryClass: "J" }, // 45 個 Business
+      zoneOB: { indexFactor: -3.0, maxPax: 48, primaryClass: "W" }, // 48 個 PEY
+      zoneOC: { indexFactor: -2.0, maxPax: 78, primaryClass: "Y" }, // 經濟艙開始
+      zoneOD: { indexFactor: 1.0,  maxPax: 100, primaryClass: "Y" },
+      zoneOE: { indexFactor: 4.0,  maxPax: 90, primaryClass: "Y" }
+    },
       "cargo": {
         "hold1": {
           "indexFactor": -6.0,

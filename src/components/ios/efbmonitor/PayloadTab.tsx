@@ -14,7 +14,10 @@ import SimSyncController from "./payload-tab/SimSyncController";
 
 export default function PayloadTab() {
   const { flightData, updateFlightData, calc } = useFlightData();
-  const [isInitialized, setIsInitialized] = useState(false);
+
+  // 🌟 新增：智能追蹤鎖 (追蹤 Target ZFW 同 Fuel Order 嘅變化)
+  const loadedZfwRef = useRef<number>(0);
+  const loadedFuelOrderRef = useRef<number>(0);
   
   // 🌟 模擬機連動狀態控制
   const [isSimSyncing, setIsSimSyncing] = useState(false);
@@ -56,13 +59,12 @@ export default function PayloadTab() {
     }
   };
 
-  // 🌟 卸載組件時全自動清空計時器，防範記憶體洩漏
   useEffect(() => {
     return () => { if (refuelTimer.current) clearInterval(refuelTimer.current); };
   }, []);
 
   // ==========================================
-  // 🌟 核心黑魔法：PMDG 實時跨界同步引擎 (含實時加油)
+  // 🌟 核心黑魔法：PMDG 實時跨界同步引擎
   // ==========================================
   const handleSyncToPmdgSim = () => {
     if (isSimSyncing) return;
@@ -73,22 +75,19 @@ export default function PayloadTab() {
     // 📦 1. 抽離並組裝客艙總重量生肉
     const calculatedPaxWeights: Record<string, number> = {};
     Object.entries(payload.pax).forEach(([zoneKey, count]) => {
-      const standardWeight = (zoneKey === "zoneOA" || zoneKey === "zone0A") ? 85 : 81;
+      // 🌟 核心修改：動態讀取 AHM 定義的 primaryClass 來決定重量 (85kg 或 81kg)
+      const zoneClass = (ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y";
+      const standardWeight = zoneClass === "J" ? 85 : 81;
       calculatedPaxWeights[zoneKey] = count * standardWeight;
     });
 
     const efbLoadingPayload = {
       paxWeights: calculatedPaxWeights,
       cargoWeights: {
-        hold1: payload.cargo.h1,
-        hold2: payload.cargo.h2,
-        hold3: payload.cargo.h3,
-        hold4: payload.cargo.h4,
-        bulk: payload.cargo.bulk
+        hold1: payload.cargo.h1, hold2: payload.cargo.h2, hold3: payload.cargo.h3, hold4: payload.cargo.h4, bulk: payload.cargo.bulk
       }
     };
 
-    // 2. 🧮 通過我們的跨界配載大腦，降維打擊成 PMDG FMC 專屬站點
     const pmdgPayloadOutput = adaptEfbPayloadToPmdg(efbLoadingPayload, currentReg);
 
     console.log("%c📦 [ADAPTER PASSED] EFB Layout successfully adaptive-mapped to PMDG Stations:", "color: #2979FF; font-weight: bold;");
@@ -102,35 +101,21 @@ export default function PayloadTab() {
       "TOTAL SIM PAYLOAD TRAFFIC": `${pmdgPayloadOutput.totalPayloadKg} KG`
     });
 
-    // 🚀 [FSUIPC EXECUTOR] 注入實體重量
-    console.log("%c📡 [FSUIPC CMD] Injecting Payload Weights into PMDG offset address...", "color: #white; font-weight: bold;");
-    // // await fsuipc.writeAircraftPayload(pmdgPayloadOutput); 
-
-    // 3. ⛽ 核心分支：判斷是否啟動「實時加油阻尼時鐘」
     const targetTotalFuel = payload.fuel.left + payload.fuel.center + payload.fuel.right;
     
     if (!useRealTimeFuel) {
-      // 🔴 A. 瞬間灌滿模式
       console.log(`%c⛽ [FUEL INSTANT] Direct-writing total fuel request: ${targetTotalFuel} KG`, "color: #FF9100; font-weight: bold;");
-      console.log(`   -> Left Main: ${payload.fuel.left}kg | Center: ${payload.fuel.center}kg | Right Main: ${payload.fuel.right}kg`);
-      
-      // // await fsuipc.writeFuelTanks({ left: payload.fuel.left, center: payload.fuel.center, right: payload.fuel.right });
-      
       setIsSimSyncing(false);
       alert("Immediate synchronization completed to PMDG via console!");
     } else {
-      // 🟢 B. 實時高壓加油模擬模式
-      let currentFuelPumped = 0; // 從 0 KG 開始灌起
+      let currentFuelPumped = 0;
       setSimCurrentFuel(0);
 
       console.log(`%c⛽ [REFUELLING STARTED] High-pressure hydrants connected. Target Block Fuel: ${targetTotalFuel} KG`, "color: #FFD600; font-weight: bold; font-size: 14px;");
 
       refuelTimer.current = setInterval(() => {
-        // 🚀 加油速率設定：每 200 毫秒跳 450 KG（大約每分鐘 2.2 噸，教官上課體感極佳）
         currentFuelPumped += 450;
-
         if (currentFuelPumped >= targetTotalFuel) {
-          // 到達終點，鎖死誤差
           currentFuelPumped = targetTotalFuel;
           setSimCurrentFuel(targetTotalFuel);
           clearInterval(refuelTimer.current!);
@@ -139,99 +124,118 @@ export default function PayloadTab() {
           alert("Real-time refuelling simulation loop finished successfully!");
         } else {
           setSimCurrentFuel(currentFuelPumped);
-          
-          // 📐 動態防抓狂配油算法：實時切分當前累計灌進去的油應該去邊個 Tank
           const tickFuelSplit = distributeFuel(currentFuelPumped);
-          
-          console.log(
-            `%c⚡ [PUMP TICK] Total Flowing: ${currentFuelPumped} kg (${((currentFuelPumped/targetTotalFuel)*100).toFixed(0)}%) ` +
-            `| L_MAIN: ${tickFuelSplit.left}kg | CTR: ${tickFuelSplit.center}kg | R_MAIN: ${tickFuelSplit.right}kg`,
-            "color: #8fa0a6;"
-          );
-
-          // 📡 每 200ms 將實時分佈數據，源源不絕透過 FSUIPC 射入 FS 大腦
-          // // await fsuipc.writeFuelTanks({ left: tickFuelSplit.left, center: tickFuelSplit.center, right: tickFuelSplit.right });
+          console.log(`%c⚡ [PUMP TICK] Total Flowing: ${currentFuelPumped} kg (${((currentFuelPumped/targetTotalFuel)*100).toFixed(0)}%) | L_MAIN: ${tickFuelSplit.left}kg | CTR: ${tickFuelSplit.center}kg | R_MAIN: ${tickFuelSplit.right}kg`, "color: #8fa0a6;");
         }
       }, 200);
     }
   };
 
   // ==========================================
-  // 🌟 以下維持原有完整的 3 大核心大腦 (保持不變)
+  // 🌟 自動配載器 (完全對齊極簡版 DOW 與艙等屬性)
   // ==========================================
-  const getEngineDOW = () => {
-    const dummyPax: Record<string, number> = {};
-    Object.keys(ahm.stations.pax).forEach(k => { dummyPax[k] = 0; });
-    const tempEngine = new LoadsheetEngine(ahm, {
-      pax: dummyPax, paxWeights: { J: 85, Y: 81 },
-      cargo: { hold1: 0, hold2: 0, hold3: 0, hold4: 0, bulk: 0 },
-      waterFraction: Number(flightData?.water_fraction) || 15,
-      fuel: { takeoff: 0, trip: 0, isStandard: false, tanks: { leftMain: 0, center: 0, rightMain: 0 } }
-    });
-    return tempEngine.calculateWeights().DOW;
-  };
-
   const generateExactPayload = (targetZfwKg: number) => {
     const generated = AutoLoader.generatePayload(targetZfwKg, ahm);
-    const engineDOW = getEngineDOW();
+    
+    // 🌟 核心修改：取得極簡空重 (直接用 BW)
+    const engineDOW = ahm.basicData.BW;
+
     const paxWt = Object.entries(generated.pax).reduce((sum, [zoneKey, count]) => {
-      const weight = (zoneKey === "zoneOA" || zoneKey === "zone0A") ? 85 : 81;
-      // 🌟 修正：用 Number() 強制轉型，或者寫成 (count as number) 塞住 TS 把口
+      // 🌟 核心修改：動態讀取 AHM 定義的 primaryClass 來決定重量
+      const zoneClass = (ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y";
+      const weight = zoneClass === "J" ? 85 : 81;
       return sum + (Number(count) * weight);
     }, 0);
+    
     const reqCargo = Math.max(0, targetZfwKg - engineDOW - paxWt);
-    const h1 = Math.round(reqCargo * 0.35); const h2 = Math.round(reqCargo * 0.35); const h3 = Math.round(reqCargo * 0.15);
-    const h4 = Math.round(reqCargo * 0.10); const bulk = Math.max(0,reqCargo - h1 - h2 - h3 - h4);
+    const h1 = Math.round(reqCargo * 0.35); 
+    const h2 = Math.round(reqCargo * 0.35); 
+    const h3 = Math.round(reqCargo * 0.15);
+    const h4 = Math.round(reqCargo * 0.10); 
+    const bulk = Math.max(0, reqCargo - h1 - h2 - h3 - h4);
+    
     const normalizedPax: Record<string, number> = {};
     Object.keys(ahm.stations.pax).forEach(k => {
-      const oldKey = k.replace("zoneOA", "zone0A").replace("zoneOB", "zone0B").replace("zoneOC", "zone0C").replace("zoneOD", "zone0D");
-      normalizedPax[k] = generated.pax[k] || generated.pax[oldKey] || 0;
+      normalizedPax[k] = generated.pax[k] || 0;
     });
-    return { pax: normalizedPax, cargo: { h1, h2, h3, h4, bulk } };
+
+    return { 
+      pax: normalizedPax, 
+      cargo: { h1, h2, h3, h4, bulk } 
+    };
   };
 
+  // ==========================================
+  // 🌟 1. 系統自動 Preload 邏輯 (智能解鎖版)
+  // ==========================================
   useEffect(() => {
-    if (!flightData || !flightData.weight_zfw_ofp || isInitialized) return;
+    if (!flightData || !flightData.weight_zfw_ofp) return;
+
+    if (loadedZfwRef.current === targetZFW) return;
+
     const hasSavedPayload = flightData.pax_y > 0 || flightData.cargo_hold_1 > 0;
+
     if (hasSavedPayload) {
-      const restoredPax: Record<string, number> = {}; const zoneKeys = Object.keys(ahm.stations.pax);
+      const restoredPax: Record<string, number> = {}; 
+      const zoneKeys = Object.keys(ahm.stations.pax);
       if (zoneKeys[0]) restoredPax[zoneKeys[0]] = flightData.pax_f || 0;
       if (zoneKeys[1]) restoredPax[zoneKeys[1]] = flightData.pax_j || 0;
       if (zoneKeys[2]) restoredPax[zoneKeys[2]] = flightData.pax_w || 0;
       if (zoneKeys[3]) restoredPax[zoneKeys[3]] = flightData.pax_y || 0;
       if (zoneKeys[4]) restoredPax[zoneKeys[4]] = 0;
+      
       setPayload({
         pax: restoredPax,
         cargo: { h1: flightData.cargo_hold_1 || 0, h2: flightData.cargo_hold_2 || 0, h3: flightData.cargo_hold_3 || 0, h4: flightData.cargo_hold_4 || 0, bulk: flightData.cargo_bulk || 0 },
         fuel: { finalOrder: flightData.final_fuel_request ? flightData.final_fuel_request * 1000 : standbyFuelKg, uplift: flightData.actual_uplift ? flightData.actual_uplift * 1000 : 0, left: flightData.fuel_left_main || distributeFuel(standbyFuelKg).left, center: flightData.fuel_center || distributeFuel(standbyFuelKg).center, right: flightData.fuel_right_main || distributeFuel(standbyFuelKg).right }
       });
     } else {
-      const exactData = generateExactPayload(targetZFW); const initialFuel = distributeFuel(standbyFuelKg);
-      setPayload({ pax: exactData.pax, cargo: exactData.cargo, fuel: { finalOrder: standbyFuelKg, uplift: 0, left: initialFuel.left, center: initialFuel.center, right: initialFuel.right } });
+      const exactData = generateExactPayload(targetZFW); 
+      const initialFuel = distributeFuel(standbyFuelKg);
+      setPayload({ 
+        pax: exactData.pax, 
+        cargo: exactData.cargo, 
+        fuel: { finalOrder: standbyFuelKg, uplift: 0, left: initialFuel.left, center: initialFuel.center, right: initialFuel.right } 
+      });
     }
-    setIsInitialized(true);
-  }, [flightData, isInitialized, targetZFW, standbyFuelKg, ahm]);
+    
+    loadedZfwRef.current = targetZFW;
+  }, [flightData, targetZFW, standbyFuelKg, ahm]); 
 
+  // 🌟 追蹤學員 Final Fuel Request 變更
   useEffect(() => {
-    if (flightData?.final_fuel_request && isInitialized) {
-      const traineeOrderKg = Math.round(flightData.final_fuel_request * 1000);
-      if (traineeOrderKg !== payload.fuel.finalOrder) {
-        const dist = distributeFuel(traineeOrderKg);
-        setPayload(prev => ({ ...prev, fuel: { ...prev.fuel, finalOrder: traineeOrderKg, left: dist.left, center: dist.center, right: dist.right } }));
-      }
+    if (!flightData?.final_fuel_request) return;
+    
+    const traineeOrderKg = Math.round(flightData.final_fuel_request * 1000);
+    
+    if (traineeOrderKg !== loadedFuelOrderRef.current && traineeOrderKg !== payload.fuel.finalOrder) {
+      const dist = distributeFuel(traineeOrderKg);
+      setPayload(prev => ({ ...prev, fuel: { ...prev.fuel, finalOrder: traineeOrderKg, left: dist.left, center: dist.center, right: dist.right } }));
+      
+      loadedFuelOrderRef.current = traineeOrderKg;
     }
-  }, [flightData?.final_fuel_request, isInitialized]);
+  }, [flightData?.final_fuel_request]);
 
-  // 物理引擎大腦
+  // ==========================================
+  // 🌟 2. 實時物理引擎大腦
+  // ==========================================
+  
+  const revisedTaxiKg = (calc?.currTaxi || flightData?.fuel_taxi_ofp || 0.2) * 1000;
+  const blockFuelKg = (Number(payload.fuel.left) || 0) + (Number(payload.fuel.center) || 0) + (Number(payload.fuel.right) || 0);
+  const takeoffFuelKg = Math.max(0, blockFuelKg - revisedTaxiKg);
+
   const enginePayload = {
-    pax: payload.pax as any, paxWeights: { J: 85, Y: 81 },
+    pax: payload.pax as any, 
+    paxWeights: { J: 85, Y: 81 }, // 這兩個基數保留給 LoadsheetEngine 調用
     cargo: { hold1: Number(payload.cargo.h1) || 0, hold2: Number(payload.cargo.h2) || 0, hold3: Number(payload.cargo.h3) || 0, hold4: Number(payload.cargo.h4) || 0, bulk: Number(payload.cargo.bulk) || 0 },
     waterFraction: Number(flightData?.water_fraction) || 15,
-    fuel: { takeoff: (Number(payload.fuel.left) || 0) + (Number(payload.fuel.center) || 0) + (Number(payload.fuel.right) || 0), trip: flightData?.fuel_trip_ofp ? Number(flightData.fuel_trip_ofp) * 1000 : 18500, isStandard: false, tanks: { leftMain: Number(payload.fuel.left) || 0, center: Number(payload.fuel.center) || 0, rightMain: Number(payload.fuel.right) || 0 } }
+    fuel: { takeoff: takeoffFuelKg, trip: flightData?.fuel_trip_ofp ? Number(flightData.fuel_trip_ofp) * 1000 : 18500, isStandard: false, tanks: { leftMain: Number(payload.fuel.left) || 0, center: Number(payload.fuel.center) || 0, rightMain: Number(payload.fuel.right) || 0 } }
   };
 
   const engine = new LoadsheetEngine(ahm, enginePayload as any);
-  const weights = engine.calculateWeights(); const cg = engine.calculateCG(); const limits = engine.checkLimits();
+  const weights = engine.calculateWeights(); 
+  const cg = engine.calculateCG(); 
+  const limits = engine.checkLimits();
   
   const safeZFW = weights?.ZFW ? (weights.ZFW / 1000).toFixed(1) : "0.0";
   const safeLIZFW = cg?.LIZFW ? cg.LIZFW.toFixed(0) : "0"; 
