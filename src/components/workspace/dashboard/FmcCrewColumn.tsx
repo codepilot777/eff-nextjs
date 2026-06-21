@@ -143,7 +143,7 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
 
           <div className="flex flex-col">
             <span className="text-[#8fa0a6] text-[0.6rem] font-bold tracking-wide leading-tight mb-0.5">TOC</span>
-            <span className="font-mono text-[0.8rem] leading-none">{cruiseAlt.replace('F', '')}</span>
+            <span className="font-mono text-[0.8rem] leading-none">{cruiseAlt.replace('FL', '')}</span>
           </div>
           <div className="flex flex-col">
             <span className="text-[#8fa0a6] text-[0.6rem] font-bold tracking-wide leading-tight mb-0.5">TOC Temp</span>

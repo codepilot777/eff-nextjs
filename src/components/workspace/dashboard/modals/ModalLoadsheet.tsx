@@ -1,10 +1,15 @@
 "use client";
 import { useState, Fragment } from "react";
 import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
-import { B773_BHNQ } from "@/lib/loadsheet/MockAHM"; 
+// 🌟 引入你的終極註冊表大腦
+import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM"; 
 
 export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveModal }: any) {
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
+
+  // 🌟 核心動態定錨：獲取目前執飛的飛機註冊號，查出專屬 AHM 大腦
+  const currentReg = flightData?.aircraft_reg || "B-HNQ";
+  const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
 
   // 從 OFP 提取 UTC 時間作為文檔日期
   const stdUnix = flightData?.std_unix || 0;
@@ -18,21 +23,16 @@ export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveMo
 
   const dispatcher = flightData?.dispatcher || 'SYSTEM';
   const flight_num_clean = flightData?.flight_no?.replace(" ", "") || 'CPA564';
-  const reg_clean = calc?.reg?.replace("-", "") || "BHNQ";
+  const reg_clean = ahm.reg.replace("-", ""); // 🌟 隨 AHM 自動變更
   const crew_fd = flightData?.crew_fd || 2;
   const crew_cc = flightData?.crew_cc || 14;
 
-  // 🌟 PAX 拆解 (供 UI 顯示)
   const paxTot = calc?.paxTot || 0;
-  const paxF = flightData?.pax_f || 0;
-  const paxJ = flightData?.pax_j || 42;
-  const paxW = flightData?.pax_w || 0;
-  const paxY = flightData?.pax_y || Math.max(0, paxTot - paxF - paxJ - paxW);
 
-  // 🌟 Weight Limits 邏輯
-  const sysMtow = B773_BHNQ.limits.MTOW / 1000;
-  const sysMlaw = B773_BHNQ.limits.MLAW / 1000;
-  const sysMzfw = B773_BHNQ.limits.MZFW / 1000;
+  // 🌟 Weight Limits 邏輯動態自適應
+  const sysMtow = ahm.limits.MTOW / 1000;
+  const sysMlaw = ahm.limits.MLAW / 1000;
+  const sysMzfw = ahm.limits.MZFW / 1000;
 
   const isCustomWt = flightData?.is_custom_weight || false;
   const dispMtow = isCustomWt ? (flightData?.custom_mtow || sysMtow) : sysMtow;
@@ -43,10 +43,18 @@ export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveMo
   // 計算最終生效的 MLAW (扣除 Margin)
   const effectiveMlaw = dispMlaw - dispMlawMargin;
 
+  // 🌟 核心重構：Payload 轉換器徹底動態化，遍歷 AHM 的客艙所有 Zone
   const buildEnginePayload = (snapshot: any) => {
     if (!snapshot) return null;
+
+    const dynamicPaxObj: Record<string, number> = {};
+    Object.keys(ahm.stations.pax).forEach(zoneKey => {
+      const shortKey = zoneKey.replace("zone", ""); // 兼容舊版 "OA" 或新版 "zoneOA" 命名
+      dynamicPaxObj[zoneKey] = Number(snapshot.pax?.[shortKey]) || Number(snapshot.pax?.[zoneKey]) || 0;
+    });
+
     return {
-      pax: { zoneOA: Number(snapshot.pax?.OA)||0, zoneOB: Number(snapshot.pax?.OB)||0, zoneOC: Number(snapshot.pax?.OC)||0, zoneOD: Number(snapshot.pax?.OD)||0 },
+      pax: dynamicPaxObj,
       paxWeights: { J: 85, Y: 81 }, 
       cargo: { hold1: Number(snapshot.cargo?.h1)||0, hold2: Number(snapshot.cargo?.h2)||0, hold3: Number(snapshot.cargo?.h3)||0, hold4: Number(snapshot.cargo?.h4)||0, bulk: Number(snapshot.cargo?.bulk)||0 },
       waterFraction: Number(flightData?.water_fraction) || 15, 
@@ -71,25 +79,25 @@ export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveMo
     stageBg = flightData?.pilots_signed_final ? "bg-[#C6FF00]" : "bg-[#2979FF]"; 
     stageText = flightData?.pilots_signed_final ? "text-black" : "text-white";
     const p = buildEnginePayload(flightData.final_snapshot);
-    if (p) { const e = new LoadsheetEngine(B773_BHNQ, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
+    if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   } else if (flightData?.prelim_ls_sent) {
     currentStage = `PRELIM ${(flightData?.prelim_ls_version || 1).toString().padStart(2, '0')}`;
     stageBg = "bg-[#FF9100]"; stageText = "text-black";
     const p = buildEnginePayload(flightData.prelim_snapshot);
-    if (p) { const e = new LoadsheetEngine(B773_BHNQ, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
+    if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   } else if (flightData?.azf_sent) {
     currentStage = "AZF";
     stageBg = "bg-[#00E676]"; stageText = "text-black";
     const p = buildEnginePayload(flightData.azf_snapshot);
-    if (p) { const e = new LoadsheetEngine(B773_BHNQ, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
+    if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   } else if (flightData?.ezfw_sent) {
     currentStage = "EZFW";
     stageBg = "bg-[#00bfa5]"; stageText = "text-black";
     const p = buildEnginePayload(flightData.ezfw_snapshot);
-    if (p) { const e = new LoadsheetEngine(B773_BHNQ, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
+    if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   }
 
-  // 🌟 Loadsheet Text 生成 (已完美還原原版格式 + 注入動態 Weight Limits)
+  // 🌟 核心亮點：Loadsheet 艙單文字工廠全自動動態拼裝！
   const generateLSText = (type: string, version: number, snapshot: any, engine: any, payload: any) => {
     if (!engine || !snapshot || !payload) return "";
     const w = engine.calculateWeights();
@@ -103,11 +111,25 @@ export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveMo
     const lTow = marginTOW === minMargin ? "L" : " ";
     const lLaw = marginLAW === minMargin ? "L" : " ";
 
+    // 🎯 動態生成客艙人數段落 (例如 "OA/020 OB/042 OC/015 ...")
+    const dynamicPaxLine = Object.keys(ahm.stations.pax).map(zoneKey => {
+      const short = zoneKey.replace("zone", "");
+      const count = snapshot.pax?.[short] || snapshot.pax?.[zoneKey] || 0;
+      return `${short}/${count.toString().padEnd(3)}`;
+    }).join(" ");
+
+    // 🎯 動態生成總人數後的艙等縮寫段落
+    const dynamicPaxBreakdown = Object.keys(ahm.stations.pax).map(zoneKey => {
+      const short = zoneKey.replace("zone", "");
+      const count = snapshot.pax?.[short] || snapshot.pax?.[zoneKey] || 0;
+      return `${short}${count.toString().padStart(3, '0')}`;
+    }).join("  ");
+
     return `LDS/${reg_clean}/${flight_num_clean}
 LOADSHEET                   ${type}  ${version.toString().padStart(2, '0')}
 ${flight_num_clean}/${date_str_ls}
 ${calc?.depIata || 'HKG'}  ${calc?.arrIata || 'KIX'}  ${flight_num_clean}/${day_str}                ${reg_clean}
-J42 Y396      ${crew_fd}/${crew_cc}                ${date_str_ls}
+${ahm.config.slice(0,3)} ${ahm.config.slice(3)}      ${crew_fd}/${crew_cc}                ${date_str_ls}
 
 ZFW ACT ${w.ZFW.toString().padEnd(8)}  MAX ${dispMzfw * 1000}  ${lZfw}   ${marginZFW}
 TO FUEL ${payload.fuel.takeoff.toString().padEnd(8)}
@@ -116,17 +138,17 @@ TRIP FUEL ${payload.fuel.trip.toString().padEnd(8)}
 LAW ACT ${w.LAW.toString().padEnd(8)}  MAX ${effectiveMlaw * 1000}  ${lLaw}   ${marginLAW}
 
 BALANCE AND SEATING
-BW  ${B773_BHNQ.basicData.BW}      DOW ${w.DOW}
-BI  ${B773_BHNQ.basicData.BI.toFixed(2)}      DOI 741.09
+BW  ${ahm.basicData.BW}      DOW ${w.DOW}
+BI  ${ahm.basicData.BI.toFixed(2)}      DOI 741.09
 LIZFW   ${cg.LIZFW.toFixed(2)}  MACZFW  ${cg.MACZFW.toFixed(2)}
 LITOW   ${cg.LITOW.toFixed(2)}  MATOW   ${cg.MACTOW.toFixed(2)}
 LILAW   ${cg.LILAW.toFixed(2)}  MACLAW  ${cg.MACLAW.toFixed(2)}
 
 STAB TO ${cg.stabTrim}
-0A/${snapshot.pax.OA.toString().padEnd(3)} 0B/${snapshot.pax.OB.toString().padEnd(3)} 0C/${snapshot.pax.OC.toString().padEnd(3)} 0D/${snapshot.pax.OD.toString().padEnd(3)}
+${dynamicPaxLine}
 T${(w.totalCargoWeight).toString().padEnd(5)} .1/${snapshot.cargo.h1.toString().padEnd(4)} .2/${snapshot.cargo.h2.toString().padEnd(4)} .3/${snapshot.cargo.h3.toString().padEnd(4)} .4/${snapshot.cargo.h4.toString().padEnd(4)} .5/${snapshot.cargo.bulk.toString().padEnd(4)}
 
-${calc?.arrIata || 'KIX'}  J${snapshot.pax.OA.toString().padStart(3, '0')}    Y${(snapshot.pax.OB + snapshot.pax.OC + snapshot.pax.OD).toString().padStart(3, '0')}
+${calc?.arrIata || 'KIX'}  ${dynamicPaxBreakdown}
 TTL PAX ${w.paxCount.toString().padEnd(5)}  UNDERLOAD   ${marginZFW}
 
 CMDR NAME
@@ -134,7 +156,7 @@ SIGN
 
 SI
 NOTOC: NO
-PANTRY CODE:        77P-A
+PANTRY CODE:        ${ahm.acType === "B77W" ? "77J-A" : "77P-A"}
 SERVICE WEIGHT ADJUSTMENT/INDEX ADD
 POTABLE WATER       ${flightData?.water_fraction || 15}/16   ${Math.round(((flightData?.water_fraction || 15)/16)*100)}  PCT
 
@@ -172,7 +194,7 @@ LOADSHEETER/${dispatcher}/HKG1576`;
   const getAzfText = () => {
     const azfPayload = buildEnginePayload(flightData?.azf_snapshot);
     if (!azfPayload) return "LOADING SNAPSHOT...";
-    const azfEngine = new LoadsheetEngine(B773_BHNQ, azfPayload);
+    const azfEngine = new LoadsheetEngine(ahm, azfPayload);
     const w = azfEngine.calculateWeights();
     const tow_reqd = Math.round(w.ZFW + (calc?.currReqdBase || 0) * 1000);
     return `AZF/${reg_clean}/${flight_num_clean}\n- PAX/ ${w.paxCount}\n- CGO/ ${w.totalCargoWeight}\n- ZFW/ ${w.ZFW}\n- CRW/ ${crew_fd}/${crew_cc}\n- TOW/ ${tow_reqd}\n- DEP/ ${(flightData?.std_z || '0000').replace('Z', '')}\n- SEC/ ${calc?.depIata || 'HKG'}-${calc?.arrIata || 'KIX'}\n\nFLT STATUS: closed\nLCO: ${dispatcher}\n\nSI`;
@@ -181,14 +203,38 @@ LOADSHEETER/${dispatcher}/HKG1576`;
   const getEzfwText = () => {
     const ezfwPayload = buildEnginePayload(flightData?.ezfw_snapshot);
     if (!ezfwPayload) return "LOADING SNAPSHOT...";
-    const ezfwEngine = new LoadsheetEngine(B773_BHNQ, ezfwPayload);
+    const ezfwEngine = new LoadsheetEngine(ahm, ezfwPayload);
     const w = ezfwEngine.calculateWeights();
     const snapshot = flightData.ezfw_snapshot;
     const estZfwKg = Math.round((flightData?.weight_zfw_ofp || 0.0) * 1000);
-    const pax_j = snapshot.pax.OA;
-    const pax_y = snapshot.pax.OB + snapshot.pax.OC + snapshot.pax.OD;
+
+    // 🎯 動態拼裝 EZFW 的客艙人數縮寫 (例如 "OA020OB042...")
+    const dynamicEzfwPaxStr = Object.keys(ahm.stations.pax).map(zoneKey => {
+      const short = zoneKey.replace("zone", "");
+      const count = snapshot.pax?.[short] || snapshot.pax?.[zoneKey] || 0;
+      return `${short}${count}`;
+    }).join("");
     
-    return `EZFW ${flight_num_clean}/${date_str_ezfw} ${reg_clean} J${pax_j}Y${pax_y}\n${crew_fd}/${crew_cc} ${calc?.depIata || 'HKG'}${calc?.arrIata || 'KIX'}\n\nPASSENGER           ${w.totalPaxWeight.toString().padEnd(6)} KG\nCARGO               ${w.totalCargoWeight.toString().padEnd(6)} KG\nTTL TRAFFIC LOAD    ${(w.totalPaxWeight + w.totalCargoWeight).toString().padEnd(6)} KG\n\nJ${pax_j}  Y${pax_y}\nDOW                 ${w.DOW.toString().padEnd(6)} KG\nEST ZFW             ${estZfwKg.toString().padEnd(6)} KG\n\nLCO: ${dispatcher}\nSI\nLATEST EZFW`;
+    return `EZFW ${flight_num_clean}/${date_str_ezfw} ${reg_clean} ${dynamicEzfwPaxStr}\n${crew_fd}/${crew_cc} ${calc?.depIata || 'HKG'}${calc?.arrIata || 'KIX'}\n\nPASSENGER           ${w.totalPaxWeight.toString().padEnd(6)} KG\nCARGO               ${w.totalCargoWeight.toString().padEnd(6)} KG\nTTL TRAFFIC LOAD    ${(w.totalPaxWeight + w.totalCargoWeight).toString().padEnd(6)} KG\n\n${dynamicEzfwPaxStr}\nDOW                 ${w.DOW.toString().padEnd(6)} KG\nEST ZFW             ${estZfwKg.toString().padEnd(6)} KG\n\nLCO: ${dispatcher}\nSI\nLATEST EZFW`;
+  };
+
+  // 動態獲取頂部 Header 所需的客艙數據字串
+  const getHeaderPaxBreakdown = (snapshotSource: any) => {
+    return Object.keys(ahm.stations.pax).map(zoneKey => {
+      const short = zoneKey.replace("zone", "");
+      let count = 0;
+      if (snapshotSource) {
+        count = snapshotSource.pax?.[short] || snapshotSource.pax?.[zoneKey] || 0;
+      } else {
+        // 補底：若無快照則讀取 flightData 標準欄位
+        const keys = Object.keys(ahm.stations.pax);
+        if (zoneKey === keys[0]) count = flightData?.pax_f || 0;
+        else if (zoneKey === keys[1]) count = flightData?.pax_j || 0;
+        else if (zoneKey === keys[2]) count = flightData?.pax_w || 0;
+        else if (zoneKey === keys[3]) count = flightData?.pax_y || 0;
+      }
+      return `${short}${count.toString().padStart(2, '0')}`;
+    }).join(" ");
   };
 
   const desiredFuelType = flightData?.desired_fuel_type || 'NONE';
@@ -247,10 +293,9 @@ LOADSHEETER/${dispatcher}/HKG1576`;
       {/* ========================================== */}
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
         
-        {/* 🌟 右邊上半截：飛機資訊 + Setup & Limits */}
+        {/* 右邊上半截：飛機資訊 + Setup & Limits */}
         <div className="bg-[#1E1E1E] rounded-2xl border border-[#333333] p-6 shadow-lg mb-4 shrink-0 flex flex-row relative overflow-hidden">
           
-          {/* 超有型隱藏版飛機 SVG Watermark */}
           <svg className="absolute -bottom-16 -right-10 w-[350px] h-[350px] text-[#ffffff] opacity-[0.03] transform -rotate-[25deg] pointer-events-none" fill="currentColor" viewBox="0 0 512 512">
             <path d="M497.39 361.8l-112-48a24 24 0 0 0-28 6.9l-49.6 60.6A370.66 370.66 0 0 1 130.6 204.11l60.6-49.6a23.94 23.94 0 0 0 6.9-28l-48-112A24.16 24.16 0 0 0 122.6.61l-104 24A24 24 0 0 0 0 48c0 256.5 207.9 464 464 464a24 24 0 0 0 23.4-18.6l24-104a24.29 24.29 0 0 0-14.01-27.6z"/>
           </svg>
@@ -270,19 +315,23 @@ LOADSHEETER/${dispatcher}/HKG1576`;
                  <span>PAX</span>
                  <span className="text-white text-xl font-mono">{paxTot}</span>
               </div>
+              {/* 🌟 亮點修改：隨不同 Stage 歷史或空重，動態渲染 F J W Y E 等分區徽章 */}
               <div className="flex items-center gap-2 bg-[#0a0a0a] px-2 py-1 rounded border border-[#333]">
-                 {/* UI 維持 F J W Y 格式顯示 */}
-                 <span className="text-white font-mono text-xs">F{paxF.toString().padStart(2,'0')} J{paxJ.toString().padStart(2,'0')} W{paxW.toString().padStart(2,'0')} Y{paxY.toString().padStart(3,'0')}</span>
+                 <span className="text-white font-mono text-xs">
+                   {getHeaderPaxBreakdown(flightData?.final_ls_sent ? flightData.final_snapshot : (flightData?.prelim_ls_sent ? flightData.prelim_snapshot : null))}
+                 </span>
               </div>
             </div>
             
             <div className="flex items-center gap-6 text-sm font-bold text-[#8fa0a6] uppercase tracking-widest">
               <div className="flex items-center gap-2">
                  <span>CAP</span>
-                 <span className="text-white text-xl font-mono">438</span>
+                 <span className="text-white text-xl font-mono">{Object.values(ahm.stations.pax).reduce((a,b)=>a+b.maxPax, 0)}</span>
               </div>
               <div className="flex items-center gap-2 bg-[#333] text-white px-2 py-1 rounded">
-                 <span className="font-mono text-xs">F0 J42 W0 Y396</span>
+                 <span className="font-mono text-xs">
+                   {Object.keys(ahm.stations.pax).map(k => `${k.replace("zone","")}${ahm.stations.pax[k].maxPax}`).join(" ")}
+                 </span>
               </div>
             </div>
           </div>
@@ -291,8 +340,6 @@ LOADSHEETER/${dispatcher}/HKG1576`;
           <div className="w-[500px] shrink-0 relative z-10 border-l border-[#333] pl-6 ml-2 flex flex-col justify-center">
             <div className="flex justify-between items-center mb-2.5">
               <span className="text-[0.95rem] font-bold text-white uppercase tracking-widest">Weight Limit</span>
-              
-              {/* Weight Limit Toggle */}
               <div onClick={() => updateFlightData({is_custom_weight: !isCustomWt, final_fuel_accepted: false})} className="flex items-center gap-1.5 cursor-pointer bg-[#0a0a0a] border border-[#333] rounded-full px-2 py-1 hover:bg-[#252525] transition-colors">
                 <span className={`text-[0.55rem] font-bold uppercase tracking-wider pl-0.5 leading-none transition-colors ${!isCustomWt ? 'text-[#00E676]' : 'text-[#555]'}`}>SYS</span>
                 <div className={`w-6 h-3.5 rounded-full relative transition-colors duration-300 ${isCustomWt ? 'bg-[#FF9100]' : 'bg-[#555]'}`}>
@@ -303,10 +350,7 @@ LOADSHEETER/${dispatcher}/HKG1576`;
             </div>
             
             <div className="flex items-stretch gap-3">
-              {/* Main Box */}
               <div className="flex-1 bg-[#0a0a0a] p-3 rounded-xl border border-[#333] shadow-inner flex flex-col gap-3">
-                
-                {/* Row 1: Desired Fuel */}
                 <div className="flex gap-2">
                   <div className="flex-[1.2] flex flex-col gap-1">
                      <label className="text-[0.55rem] text-[#8fa0a6] uppercase tracking-widest font-bold">Desired Fuel</label>
@@ -333,10 +377,7 @@ LOADSHEETER/${dispatcher}/HKG1576`;
                   </div>
                 </div>
                 
-                {/* Row 2: Weight Limits Grid */}
                 <div className="grid grid-cols-2 gap-y-2 gap-x-4 border-t border-[#222] pt-3">
-                  
-                  {/* Left Column */}
                   <div className="flex flex-col gap-1 justify-center">
                      <label className="text-[0.55rem] text-[#8fa0a6] uppercase tracking-widest font-bold">LW Margin</label>
                      <div className="flex items-center gap-1">
@@ -349,7 +390,6 @@ LOADSHEETER/${dispatcher}/HKG1576`;
                      </div>
                   </div>
                   
-                  {/* Right Column (Top) */}
                   <div className="flex flex-col gap-1 items-end">
                      <label className="text-[0.55rem] text-[#8fa0a6] uppercase tracking-widest font-bold">MTOW</label>
                      <div className="flex items-center gap-1">
@@ -362,7 +402,6 @@ LOADSHEETER/${dispatcher}/HKG1576`;
                      </div>
                   </div>
 
-                  {/* Right Column (Bottom) */}
                   <div className="col-start-2 flex flex-col gap-1 items-end">
                      <label className="text-[0.55rem] text-[#8fa0a6] uppercase tracking-widest font-bold">MLAW</label>
                      <div className="flex items-center gap-1">
@@ -375,10 +414,8 @@ LOADSHEETER/${dispatcher}/HKG1576`;
                      </div>
                   </div>
                 </div>
-
               </div>
 
-              {/* MZFW Outlier */}
               <div className="w-[60px] flex flex-col items-center justify-center gap-1 border-l border-[#333] pl-3">
                  <label className="text-[0.6rem] text-[#8fa0a6] uppercase tracking-widest font-bold text-center leading-tight">MZFW</label>
                  <div className="flex flex-col items-center gap-0.5 w-full">
@@ -390,7 +427,6 @@ LOADSHEETER/${dispatcher}/HKG1576`;
                    <span className="text-[#8fa0a6] font-bold text-[0.55rem]">Tons</span>
                  </div>
               </div>
-
             </div>
           </div>
         </div>
@@ -410,13 +446,13 @@ LOADSHEETER/${dispatcher}/HKG1576`;
               const isLatest = reverseIndex === 0;
               const isRejected = !isLatest || flightData?.final_ls_rejected;
               const payloadObj = buildEnginePayload(doc.snapshot);
-              const engine = new LoadsheetEngine(B773_BHNQ, payloadObj!);
+              const engine = new LoadsheetEngine(ahm, payloadObj!);
               const text = generateLSText("FINAL", doc.version, doc.snapshot, engine, payloadObj);
               const latestPrelim = flightData?.prelim_history?.[flightData.prelim_history.length - 1];
               let pText = "";
               if (latestPrelim && isLatest) {
                 const pPayload = buildEnginePayload(latestPrelim.snapshot);
-                const pEngine = new LoadsheetEngine(B773_BHNQ, pPayload!);
+                const pEngine = new LoadsheetEngine(ahm, pPayload!);
                 pText = generateLSText("PRELIM", latestPrelim.version, latestPrelim.snapshot, pEngine, pPayload);
               }
 
@@ -453,7 +489,7 @@ LOADSHEETER/${dispatcher}/HKG1576`;
               const isLatest = reverseIndex === 0;
               const isRejected = !isLatest || flightData?.prelim_ls_rejected;
               const payloadObj = buildEnginePayload(doc.snapshot);
-              const engine = new LoadsheetEngine(B773_BHNQ, payloadObj!);
+              const engine = new LoadsheetEngine(ahm, payloadObj!);
               const text = generateLSText("PRELIM", doc.version, doc.snapshot, engine, payloadObj);
 
               return (
@@ -502,9 +538,7 @@ LOADSHEETER/${dispatcher}/HKG1576`;
         </div>
       </div>
       
-      {/* ========================================== */}
-      {/* 確認彈窗 Sub-Modal (磨砂玻璃風格) */}
-      {/* ========================================== */}
+      {/* 確認彈窗 Sub-Modal */}
       {showFinalConfirm && (
         <div className="absolute inset-[-1.5rem] z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md animate-fade-in rounded-2xl">
           <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-[340px] p-6 shadow-2xl flex flex-col relative">

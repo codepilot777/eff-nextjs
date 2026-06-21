@@ -1,3 +1,5 @@
+// src/utils/macroBuilder.ts
+
 import { CDU } from "@/data/pmdgCommands";
 import { PmdgPayloadOutput } from "./payloadAdapter";
 
@@ -74,8 +76,55 @@ export function buildFullPayloadMacro(payload: PmdgPayloadOutput): number[] {
  */
 export function buildFuelMacro(totalFuelTons: string | number): number[] {
   console.log(`👻 [Ghost Pilot] Compiling Fuel Macro for ${totalFuelTons}T...`);
-  // 通常 PMDG 777 Fuel 頁面，入 Total KGS / LBS 係喺 LSK 1L
-  // 假設我哋打 "42400" (kg) 落 LSK 1L
   const fuelKg = Math.round(Number(totalFuelTons) * 1000);
   return buildTypingSequence(fuelKg, CDU.L1);
+}
+
+/**
+ * 🚨 🌟 新增連技：生成 MEL / 系統故障注入序列 (FMC Ghost Hand Hand)
+ * 作用：在背景自動狂撳 FMC 實體硬鍵，走入 FS ACTIONS -> FAILURES 激活對應系統故障
+ * @param ataCode 缺陷保留的 ATA 章節編碼 (例如 "49-11-01")
+ */
+export function buildFailureMacro(ataCode: string): number[] {
+  console.log(`👻 [Ghost Pilot] Compiling Failure Macro for ATA ${ataCode}...`);
+  
+  // 基礎定錨步法：點擊 MENU ➔ 點擊 LSK 6R (FS ACTIONS) ➔ 點擊 LSK 4L (FAILURES)
+  const sequence: number[] = [CDU.MENU, CDU.R6, CDU.L4];
+  
+  const cleanAta = ataCode.trim();
+
+  // 🎯 根據工程師簽發的 ATA 章節，規劃幽靈手要在 FMC 內部盲摸按鍵嘅路徑
+  if (cleanAta.startsWith("49")) {
+    sequence.push(
+      CDU.L3, // 1. 點擊進入 APU 系統故障分頁
+      CDU.L1, // 2. 點擊選中 APU GENERATOR 項目
+      CDU.L6  // 3. 點擊 LSK 6L 將故障狀態由 OFF 改為 ACTIVE 觸發斷電！
+    );
+  } else if (cleanAta.startsWith("21")) {
+    sequence.push(
+      CDU.L1, // 1. 點擊進入 AIR / PNEUMATIC 系統分頁
+      CDU.L2, // 2. 點擊 L PACK VALVE 項目
+      CDU.L6  // 3. 點擊 LSK 6L 激活空調組件失效
+    );
+  } else if (cleanAta.startsWith("32")) {
+    sequence.push(
+      CDU.L5, // 1. 點擊進入 LANDING GEAR 起落架分頁
+      CDU.L4, // 2. 點擊 BRAKE TEMP SENSOR 煞車感應器
+      CDU.L6  // 3. 點擊 LSK 6L 激活超溫報警故障
+    );
+  } else if (cleanAta.startsWith("24")) {
+    sequence.push(
+      CDU.L2, // 1. 點擊進入 ELECTRICAL 電氣分頁
+      CDU.L1, // 2. 點擊 LEFT IDG DISCONNECT 左發電機斷開
+      CDU.L6  // 3. 點擊 LSK 6L 激活硬件損壞
+    );
+  } else {
+    // 補底通用步法：只進去 Failures 頁面
+    sequence.push(CDU.L4);
+  }
+
+  // 🧹 靈異畫面淨空：做完衰嘢之後，自動幫教官把 FMC 切換返去 LEGS 飛行員工作頁，不留任何穿幫痕跡！
+  sequence.push(CDU.LEGS);
+
+  return sequence;
 }

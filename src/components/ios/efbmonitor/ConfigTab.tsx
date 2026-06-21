@@ -9,16 +9,6 @@ export default function ConfigTab() {
   const [isFetchingUpdate, setIsFetchingUpdate] = useState(false);
   const [pendingUpdateData, setPendingUpdateData] = useState<any>(null);
 
-  // 🐞 加咗呢段 Debug Code：每當 flightData 更新，就會印出嚟
-  useEffect(() => {
-    if (flightData) {
-      console.log("✈️ [IOS DEBUG] 睇下個 FlightData 結構:", flightData);
-      // 💡 提示：打開 F12 Console，點開個 Object
-      // 睇吓 ZFW 係咪叫 flightData.weight_zfw_ofp 
-      // 睇吓 Fuel 係咪叫 flightData.raw_simbrief.fuel.plan_ramp
-    }
-  }, [flightData]);
-
   if (!flightData) return null;
 
   const unescapeHTML = (str: string) => {

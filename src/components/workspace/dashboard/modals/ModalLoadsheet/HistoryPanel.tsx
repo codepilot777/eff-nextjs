@@ -1,12 +1,17 @@
 "use client";
 import { Fragment } from "react";
 import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
-import { B773_BHNQ } from "@/lib/loadsheet/MockAHM";
+// 🌟 核心修改：剷走 B773_BHNQ，改為引入 AIRCRAFT_REGISTRY 總表
+import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import { buildEnginePayload, generateLSText, getAzfText, getEzfwText } from "@/lib/loadsheet/loadsheetHelpers";
 
 export function HistoryPanel({ flightData, calc, setActiveModal, limits, setShowFinalConfirm }: any) {
 
-  // Highlight Token 演算法
+  // 🌟 動態定錨：獲取目前執飛的飛機註冊號，查出專屬 AHM 大腦
+  const currentReg = flightData?.aircraft_reg || "B-HNQ";
+  const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
+
+  // Highlight Token 演算法 (保持原樣)
   const renderHighlightedFinal = (newText: string, oldText: string) => {
     if (!oldText || !newText) return newText;
     const newLines = newText.split('\n');
@@ -48,14 +53,16 @@ export function HistoryPanel({ flightData, calc, setActiveModal, limits, setShow
           const isRejected = !isLatest || flightData?.final_ls_rejected;
           
           const payloadObj = buildEnginePayload(doc.snapshot, flightData);
-          const engine = new LoadsheetEngine(B773_BHNQ, payloadObj!);
+          // 🎯 核心修改：將寫死的 B773_BHNQ 換成動態 ahm
+          const engine = new LoadsheetEngine(ahm, payloadObj!);
           const text = generateLSText("FINAL", doc.version, doc.snapshot, engine, payloadObj, flightData, calc, limits);
 
           const latestPrelim = flightData?.prelim_history?.[flightData.prelim_history.length - 1];
           let pText = "";
           if (latestPrelim && isLatest) {
             const pPayload = buildEnginePayload(latestPrelim.snapshot, flightData);
-            const pEngine = new LoadsheetEngine(B773_BHNQ, pPayload!);
+            // 🎯 核心修改：將寫死的 B773_BHNQ 換成動態 ahm
+            const pEngine = new LoadsheetEngine(ahm, pPayload!);
             pText = generateLSText("PRELIM", latestPrelim.version, latestPrelim.snapshot, pEngine, pPayload, flightData, calc, limits);
           }
 
@@ -93,7 +100,8 @@ export function HistoryPanel({ flightData, calc, setActiveModal, limits, setShow
           const isRejected = !isLatest || flightData?.prelim_ls_rejected;
           
           const payloadObj = buildEnginePayload(doc.snapshot, flightData);
-          const engine = new LoadsheetEngine(B773_BHNQ, payloadObj!);
+          // 🎯 核心修改：將寫死的 B773_BHNQ 換成動態 ahm
+          const engine = new LoadsheetEngine(ahm, payloadObj!);
           const text = generateLSText("PRELIM", doc.version, doc.snapshot, engine, payloadObj, flightData, calc, limits);
 
           return (
@@ -120,7 +128,7 @@ export function HistoryPanel({ flightData, calc, setActiveModal, limits, setShow
           );
         })}
 
-        {/* 🌟 AZF DATASHEET */}
+        {/* 🌟 AZF DATASHEET (保持動態注入) */}
         {flightData?.azf_sent && (
           <div className="bg-[#1E1E1E] border border-[#333333] rounded-2xl p-5 w-[460px] flex-shrink-0 flex flex-col h-full min-h-0 shadow-lg">
             <h4 className="text-[#00E676] border-b border-[#333] pb-3 mt-0 font-sans text-[1.05rem] font-bold tracking-widest shrink-0 uppercase">AZF DATASHEET</h4>
@@ -130,7 +138,7 @@ export function HistoryPanel({ flightData, calc, setActiveModal, limits, setShow
           </div>
         )}
 
-        {/* 🌟 EZFW DATASHEET */}
+        {/* 🌟 EZFW DATASHEET (保持動態注入) */}
         {flightData?.ezfw_sent && (
           <div className="bg-[#1E1E1E] border border-[#333333] rounded-2xl p-5 w-[460px] flex-shrink-0 flex flex-col h-full min-h-0 shadow-lg">
             <h4 className="text-white border-b border-[#333] pb-3 mt-0 font-sans text-[1.05rem] font-bold tracking-widest shrink-0 uppercase">EZFW DATASHEET</h4>

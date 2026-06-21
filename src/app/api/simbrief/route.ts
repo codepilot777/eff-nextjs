@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     }
 
     const gen = sbData.general || {};
+    const aircraft = sbData.aircraft || {};
     const orig = sbData.origin || {};
     const dest = sbData.destination || {};
     const fuel = sbData.fuel || {};
@@ -53,8 +54,8 @@ export async function POST(request: Request) {
     // 🌟 完美重構的 Flight Data Schema (支援 V1, V2, V3 歷史)
     const flightData = {
       flight_no: finalFlightNo,
-      aircraft_reg: gen.aircraft_reg || "B-HNQ",
-      aircraft_type: gen.icao_aircraft || "B773",
+      aircraft_reg: aircraft.reg || "B-HNQ",
+      aircraft_type: aircraft.icao_code || "B773",
       route_id: gen.route || "DCT",
       dep_icao: orig.icao_code || "VHHH",
       arr_icao: dest.icao_code || "RJBB",

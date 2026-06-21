@@ -28,21 +28,13 @@ EFB & Instructor IOS Project - Master TODO List
 [ ] 雲端部署測試：Git Push 上 Vercel，用 iPad 經 5G/Wi-Fi 打開網頁，測試 P3D LINK ACTIVE 粒綠燈有冇順利着起。
 
 🛩️ Phase 2: PMDG 777 航電對接準備 (Aircraft SDK Setup)
-[ ] 激活 PMDG 數據廣播：去 P3D 電腦嘅 PMDG_777X_Options.ini，寫入 [SDK] EnableDataBroadcast=1。
 
 [ ] 封裝發送 Control Code 邏輯：喺 usePrepar3D.ts 入面，除咗寫入 Offset，另外封裝一個專門射 controls.write 同 KEY_ROTOR_BRAKE (66587) 嘅萬能函式。
-
-🎨 Phase 3: Instructor Panel 結構爆改 (UI & Sub-Navigation)
-[ ] 主頁面 3 大 Tabs 切換：將教官頁面分拆為 efb（監視器）、etechlog（行政簽名）、sim control（上帝控制台）。
-
-[ ] 實裝 Sim Control 底部 Sub-Bottom Bar：用數據驅動（Data-driven array），動態 map 出底部 4 個按鈕：📊 Telemetry、✈️ Reposition、⛈️ Weather、🔥 Failures。
-
-[ ] 確認內頁 3:7 排版：確保點擊各個 Section 時，左側/右側的視窗維持完美比例，並加入 overflow-y-auto 防高度溢出。
 
 🚀 Phase 4: Sim Control 四大王牌功能實裝 (待後續 Exhaustive List 補齊)
 [ ] 📊 Telemetry (實時監測)：
 
-[ ] 經 WebSocket 接收 P3D 傳回嘅高度、速度、航向、垂直速度（VS）。
+[X] 經 WebSocket 接收 P3D 傳回嘅高度、速度、航向、垂直速度（VS）。
 
 [ ] 製作 Landing VS 監控儀表（監察 Trainee 有冇五星落地）。
 
@@ -54,9 +46,6 @@ EFB & Instructor IOS Project - Master TODO List
 
 [ ] ⛈️ Weather (天氣注入)：
 
-[ ] 定義 CAVOK、CAT III、TYPHOON 嘅標準 METAR 字串。
-
-[ ] 實裝一鍵注入 P3D 天氣功能。
 
 [ ] 🔥 Failures (魔鬼故障矩陣)：
 
@@ -72,3 +61,18 @@ EFB & Instructor IOS Project - Master TODO List
 [ ] 購買/綁定自訂 Domain 到 Cloudflare。
 
 [ ] 在 P3D 電腦設定 Cloudflare Tunnel，將臨時 ngrok 網址升級為永久、安全、免開 Port 嘅專屬網址（如 wss://p3d.yourdomain.com）。
+
+Phase 5: 真機實測與系統對接 (等待 PC 新牛歸位)
+[ ] 🔧 硬件換血與除塵：更換全新 1000W ATX 3.0 火牛、金手指擦膠除塵、重新駁線。
+
+[ ] 📡 FSUIPC 聯機驗證：測試 InitModal 的動態 Payload/Fuel 連技與 FMC 自動打字。
+
+📊 Phase 6: eTechLog / PADD / SNN 數據庫深度自動化
+
+[ ] 🗄️ Real MEL Manual Parser：
+
+提取真實 B777 MEL 手冊的條款、修復時限（Cat A/B/C/D）及 AMM (M) 維修程序文本。
+
+[ ] 🔧 升級 Engineer 簽發流 (PADD 轉 SNN 自動化)：
+
+[PMDG 底層連動]：根據 MEL 條款，直接透過 FSUIPC 觸發 PMDG 內置故障（如 APU Core Fail），確保 EICAS STATUS 頁面完美還原真實白字 Status Message。

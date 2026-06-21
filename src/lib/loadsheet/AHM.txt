@@ -1,0 +1,24 @@
+Aircraft Maximum Weight
+
+Basic Weight & Index – 77J
+
+Potable Water
+
+
+Forward Cargo Hold – Compartment 1 & 2
+
+AFT Cargo Hold - Compartment 3 & 4
+
+Bulk Cargo Hold – Compartment 5
+
+Applicable to B777-300ER (All Configuration)
+Standard Fuel Loading index table for S.G. 0.78/0.80/0.82 kg/Litre
+
+Individual Fuel Tank Index Table
+Main Tank Left or Right
+
+Applicable to B777-300ER (All Configuration) Individual Fuel Tank Index Table
+Center Tank
+
+
+Applicable to B777-300ER Configuration J45W488Y268 (77J)

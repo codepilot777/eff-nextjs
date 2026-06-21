@@ -1,16 +1,20 @@
 "use client";
 import React from "react";
-import { B773_BHNQ } from "@/lib/loadsheet/MockAHM";
-import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
+// 🌟 核心修改：改為引入 AIRCRAFT_REGISTRY 總表
+import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
+import { useFlightData } from "@/hooks/useFlightData";
 
-// 🌟 Props 大清洗：只保留 setActiveModal，其他全部飛走！
 export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: any }) {
   
-  // 🌟 一句說話，喺天上攞晒所有最新鮮嘅 Data！
+  // 一句說話，從大腦抽取所需狀態
   const { flightData, calc, handlers } = useFlightData();
 
   // 如果 data 仲未 ready (防呆)
   if (!flightData || !calc || !handlers) return null;
+
+  // 🌟 核心動態定錨：獲取目前執飛的飛機註冊號，查出專屬 limits
+  const currentReg = flightData?.aircraft_reg || "B-HNQ";
+  const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
 
   // ==========================================
   // 1. Time / Endurance 計算邏輯 (保留純 UI 顯示用)
@@ -50,16 +54,16 @@ export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: a
   const totalMins = reqdMins + tankMins + extraMins;
 
   // ==========================================
-  // 2. Structural Margin 計算邏輯
+  // 2. Structural Margin 計算邏輯 (🌟 徹底告別硬編碼！)
   // ==========================================
   const zfwVal = calc.showRevVal ? (calc.actualZfw > 0 ? calc.actualZfw : calc.ofpZfw) : calc.ofpZfw;
-  const marginZfw = zfwVal - (B773_BHNQ.limits.MZFW / 1000);
+  const marginZfw = zfwVal - (ahm.limits.MZFW / 1000); // 👈 動態扣減當前機型的最大無油重量
 
   const towVal = calc.showRevVal ? calc.currTow : (flightData?.weight_tow_ofp || 0);
-  const marginTow = towVal - (B773_BHNQ.limits.MTOW / 1000);
+  const marginTow = towVal - (ahm.limits.MTOW / 1000); // 👈 動態扣減當前機型的最大起飛重量
 
   const lwVal = calc.showRevVal ? calc.currLw : (flightData?.weight_lw_ofp || 0);
-  const marginLw = lwVal - (B773_BHNQ.limits.MLAW / 1000);
+  const marginLw = lwVal - (ahm.limits.MLAW / 1000); // 👈 動態扣減當前機型的最大落地重量
 
   const getMarginStr = (m: number) => m > 0 ? `+${m.toFixed(1)}` : m.toFixed(1);
   const getMarginColor = (m: number) => m > 0 ? 'text-[#FF1744] font-black' : 'text-[#8fa0a6]';
@@ -115,7 +119,10 @@ export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: a
         
         {/* Header & Toggle Switch */}
         <div className="flex justify-between items-center px-4 pt-4 pb-3 border-b border-[#333] shrink-0">
-          <h2 className="text-[1.05rem] font-bold leading-none">Fuel & Weight</h2>
+          {/* 🌟 UI 加強：高調展示當前正在運算的飛機註冊號與機型 */}
+          <h2 className="text-[1.05rem] font-bold leading-none flex items-center gap-2">
+            Fuel & Weight <span className="text-[0.7rem] bg-[#333] text-[#00E676] px-1.5 py-0.5 rounded font-mono">{ahm.reg}</span>
+          </h2>
           <div onClick={handlers.handleManualToggle} className="flex items-center gap-2 cursor-pointer bg-[#0a0a0a] border border-[#333] rounded-full px-2 py-1 hover:bg-[#252525] transition-colors">
             <span className={`text-[0.55rem] font-bold uppercase tracking-wider pl-1 leading-none transition-colors ${!calc.isManual ? 'text-white' : 'text-[#555]'}`}>Auto</span>
             <div className={`w-8 h-4 rounded-full relative transition-colors duration-300 ${calc.isManual ? 'bg-[#00E676]' : 'bg-[#555]'}`}>
@@ -160,7 +167,6 @@ export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: a
                   ALTN<br/>
                   <select 
                      value={calc.selectedAltn} 
-                     // 🌟 呢度唯一要改嘅位：因為 updateFlightData 無再傳入嚟，所以用 handlers 嚟改佢
                      onChange={(e) => handlers.handleFuelInput('selected_altn', e.target.value)} 
                      className="bg-transparent font-bold outline-none cursor-pointer appearance-none text-center">
                     {(calc.altnOptions || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}

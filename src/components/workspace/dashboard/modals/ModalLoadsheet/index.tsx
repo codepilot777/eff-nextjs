@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { B773_BHNQ } from "@/lib/loadsheet/MockAHM";
+// 🌟 核心修改：引入總註冊表大腦，剷走單一機型
+import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import { LeftPanel } from "./LeftPanel";
 import { RightHeader } from "./RightHeader";
 import { HistoryPanel } from "./HistoryPanel";
@@ -9,10 +10,14 @@ export function ModalLoadsheet(props: any) {
   const { flightData, updateFlightData, setActiveModal } = props;
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
 
-  // 🌟 統一計算 Weight Limits (確保 Header 同 Loadsheet 文本 100% 同步)
-  const sysMtow = B773_BHNQ.limits.MTOW / 1000;
-  const sysMlaw = B773_BHNQ.limits.MLAW / 1000;
-  const sysMzfw = B773_BHNQ.limits.MZFW / 1000;
+  // 🌟 核心動態定錨：獲取目前執飛的飛機註冊號，查出專屬 limits
+  const currentReg = flightData?.aircraft_reg || "B-HNQ";
+  const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
+
+  // 🌟 統一計算 Weight Limits (隨 ahm 自動變更，確保 Header 同 Loadsheet 文本 100% 同步)
+  const sysMtow = ahm.limits.MTOW / 1000;
+  const sysMlaw = ahm.limits.MLAW / 1000;
+  const sysMzfw = ahm.limits.MZFW / 1000;
 
   const isCustomWt = flightData?.is_custom_weight || false;
   const dispMtow = isCustomWt ? (flightData?.custom_mtow || sysMtow) : sysMtow;
@@ -22,7 +27,7 @@ export function ModalLoadsheet(props: any) {
 
   const effectiveMlaw = dispMlaw - dispMlawMargin;
 
-  // 打包好 Limits 傳落去
+  // 打包好 Limits 傳落去 (交由子組件動態渲染)
   const limits = { isCustomWt, dispMtow, dispMlaw, dispMlawMargin, dispMzfw, effectiveMlaw };
 
   return (
@@ -40,7 +45,7 @@ export function ModalLoadsheet(props: any) {
       {/* 🌟 最終確認彈窗 (最高層級覆蓋) */}
       {showFinalConfirm && (
         <div className="absolute inset-[-1.5rem] z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md animate-fade-in rounded-2xl">
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-[340px] p-6 shadow-2xl flex flex-col relative">
+          <div className="bg-[#1a1a1a] border border-[#33 ] rounded-2xl w-[340px] p-6 shadow-2xl flex flex-col relative">
             <button onClick={() => setShowFinalConfirm(false)} className="absolute top-4 right-4 text-[#8fa0a6] hover:text-white font-black text-xl transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#333]">✕</button>
             <p className="text-sm font-bold text-white mb-6 mt-4 text-center leading-relaxed font-sans">
               Confirm the data of loadsheet<br/>

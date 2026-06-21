@@ -1,9 +1,15 @@
 "use client";
 import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
-import { B773_BHNQ } from "@/lib/loadsheet/MockAHM";
+// 🌟 核心修改：引入總註冊表大腦，取代單一機型
+import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import { buildEnginePayload } from "@/lib/loadsheet/loadsheetHelpers";
 
 export function LeftPanel({ flightData, calc }: any) {
+  
+  // 🌟 核心動態定錨：獲取目前執飛的飛機註冊號，查出專屬 AHM
+  const currentReg = flightData?.aircraft_reg || "B-HNQ";
+  const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
+
   let currentStage = "AWAITING";
   let stageZfw = 0;
   let stagePax = 0;
@@ -15,22 +21,26 @@ export function LeftPanel({ flightData, calc }: any) {
     stageBg = flightData?.pilots_signed_final ? "bg-[#C6FF00]" : "bg-[#2979FF]"; 
     stageText = flightData?.pilots_signed_final ? "text-black" : "text-white";
     const p = buildEnginePayload(flightData.final_snapshot, flightData);
-    if (p) { const e = new LoadsheetEngine(B773_BHNQ, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
+    // 🎯 核心修改：將寫死的 B773_BHNQ 換成動態 ahm 大腦
+    if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   } else if (flightData?.prelim_ls_sent) {
     currentStage = `PRELIM ${(flightData?.prelim_ls_version || 1).toString().padStart(2, '0')}`;
     stageBg = "bg-[#FF9100]"; stageText = "text-black";
     const p = buildEnginePayload(flightData.prelim_snapshot, flightData);
-    if (p) { const e = new LoadsheetEngine(B773_BHNQ, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
+    // 🎯 核心修改：將寫死的 B773_BHNQ 換成動態 ahm 大腦
+    if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   } else if (flightData?.azf_sent) {
     currentStage = "AZF";
     stageBg = "bg-[#00E676]"; stageText = "text-black";
     const p = buildEnginePayload(flightData.azf_snapshot, flightData);
-    if (p) { const e = new LoadsheetEngine(B773_BHNQ, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
+    // 🎯 核心修改：將寫死的 B773_BHNQ 換成動態 ahm 大腦
+    if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   } else if (flightData?.ezfw_sent) {
     currentStage = "EZFW";
     stageBg = "bg-[#00bfa5]"; stageText = "text-black";
     const p = buildEnginePayload(flightData.ezfw_snapshot, flightData);
-    if (p) { const e = new LoadsheetEngine(B773_BHNQ, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
+    // 🎯 核心修改：將寫死的 B773_BHNQ 換成動態 ahm 大腦
+    if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   }
 
   return (
