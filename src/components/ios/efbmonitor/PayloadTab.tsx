@@ -137,20 +137,21 @@ export default function PayloadTab() {
   const generateExactPayload = (targetZfwKg: number) => {
     const generated = AutoLoader.generatePayload(targetZfwKg, ahm);
     
-    // 🌟 核心修改：取得極簡空重 (直接用 BW)
-    const engineDOW = ahm.basicData.BW;
+    // 🌟 核心升級：精確讀取真實 DOW 作為減數基底
+    const crewPantryWeight = ahm.acType === "B77W" ? 7549 : 8652;
+    const waterWeight = 805;
+    const engineDOW = ahm.basicData.BW + crewPantryWeight + waterWeight;
 
     const paxWt = Object.entries(generated.pax).reduce((sum, [zoneKey, count]) => {
-      // 🌟 核心修改：動態讀取 AHM 定義的 primaryClass 來決定重量
       const zoneClass = (ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y";
       const weight = zoneClass === "J" ? 85 : 81;
       return sum + (Number(count) * weight);
     }, 0);
     
     const reqCargo = Math.max(0, targetZfwKg - engineDOW - paxWt);
-    const h1 = Math.round(reqCargo * 0.35); 
+    const h1 = Math.round(reqCargo * 0.15); // 對齊 Aft Bias 貨艙權重
     const h2 = Math.round(reqCargo * 0.35); 
-    const h3 = Math.round(reqCargo * 0.15);
+    const h3 = Math.round(reqCargo * 0.35);
     const h4 = Math.round(reqCargo * 0.10); 
     const bulk = Math.max(0, reqCargo - h1 - h2 - h3 - h4);
     
@@ -202,19 +203,35 @@ export default function PayloadTab() {
     loadedZfwRef.current = targetZFW;
   }, [flightData, targetZFW, standbyFuelKg, ahm]); 
 
-  // 🌟 追蹤學員 Final Fuel Request 變更
+  // 🌟 追蹤學員 Final Fuel Request 變更 (升級版：自動預填 Uplift)
   useEffect(() => {
     if (!flightData?.final_fuel_request) return;
     
+    // 學員要的總油量 (Tons 轉成 KG)
     const traineeOrderKg = Math.round(flightData.final_fuel_request * 1000);
     
     if (traineeOrderKg !== loadedFuelOrderRef.current && traineeOrderKg !== payload.fuel.finalOrder) {
       const dist = distributeFuel(traineeOrderKg);
-      setPayload(prev => ({ ...prev, fuel: { ...prev.fuel, finalOrder: traineeOrderKg, left: dist.left, center: dist.center, right: dist.right } }));
+      
+      // 🎯 核心核心：全自動幫教官計算 Uplift = 學員總要油量 - 機上現有殘油 (FOB)
+      // 用 Math.max 防止算出來是負數
+      const computedUplift = Math.max(0, traineeOrderKg - fobKg);
+      
+      setPayload(prev => ({ 
+        ...prev, 
+        fuel: { 
+          ...prev.fuel, 
+          finalOrder: traineeOrderKg, 
+          left: dist.left, 
+          center: dist.center, 
+          right: dist.right,
+          uplift: computedUplift // 👈 完美預填！教官唔需要再揼計數機
+        } 
+      }));
       
       loadedFuelOrderRef.current = traineeOrderKg;
     }
-  }, [flightData?.final_fuel_request]);
+  }, [flightData?.final_fuel_request, fobKg]); // 🌟 記得將 fobKg 加到依賴陣列，確保殘油更新時會實時連動！
 
   // ==========================================
   // 🌟 2. 實時物理引擎大腦
@@ -242,16 +259,75 @@ export default function PayloadTab() {
   const safeMACZFW = cg?.MACZFW ? cg.MACZFW.toFixed(1) : "0.0"; 
   const safeMACTOW = cg?.MACTOW ? cg.MACTOW.toFixed(1) : "0.0";
 
+  // src/components/ios/efbmonitor/PayloadTab.tsx 內部
+
   const handleTransmit = (docType: string) => {
-    const updates: any = {}; const zoneKeys = Object.keys(ahm.stations.pax);
-    if (zoneKeys[0]) updates.pax_f = payload.pax[zoneKeys[0]]; if (zoneKeys[1]) updates.pax_j = payload.pax[zoneKeys[1]]; if (zoneKeys[2]) updates.pax_w = payload.pax[zoneKeys[2]]; if (zoneKeys[3]) updates.pax_y = payload.pax[zoneKeys[3]];
-    updates.cargo_hold_1 = payload.cargo.h1; updates.cargo_hold_2 = payload.cargo.h2; updates.cargo_hold_3 = payload.cargo.h3; updates.cargo_hold_4 = payload.cargo.h4; updates.cargo_bulk = payload.cargo.bulk;
+    const updates: any = {}; 
+    const zoneKeys = Object.keys(ahm.stations.pax);
+    
+    if (zoneKeys[0]) updates.pax_f = payload.pax[zoneKeys[0]]; 
+    if (zoneKeys[1]) updates.pax_j = payload.pax[zoneKeys[1]]; 
+    if (zoneKeys[2]) updates.pax_w = payload.pax[zoneKeys[2]]; 
+    if (zoneKeys[3]) updates.pax_y = payload.pax[zoneKeys[3]];
+    
+    updates.cargo_hold_1 = payload.cargo.h1; 
+    updates.cargo_hold_2 = payload.cargo.h2; 
+    updates.cargo_hold_3 = payload.cargo.h3; 
+    updates.cargo_hold_4 = payload.cargo.h4; 
+    updates.cargo_bulk = payload.cargo.bulk;
+    
     const currentSnapshot = { pax: payload.pax, cargo: payload.cargo, fuel: payload.fuel };
+    
     if (docType === "EZFW") { updates.ezfw_sent = true; updates.ezfw_snapshot = currentSnapshot; }
     if (docType === "AZF") { updates.azf_sent = true; updates.azf_snapshot = currentSnapshot; }
-    if (docType === "PRELIM") { updates.prelim_ls_sent = true; const ver = flightData?.prelim_ls_version || 1; updates.prelim_history = [...(flightData?.prelim_history || []), { version: ver, snapshot: currentSnapshot }]; updates.fuel_left_main = payload.fuel.left; updates.fuel_center = payload.fuel.center; updates.fuel_right_main = payload.fuel.right; }
-    if (docType === "FINAL") { updates.final_ls_sent = true; const ver = flightData?.final_ls_version || 1; updates.final_history = [...(flightData?.final_history || []), { version: ver, snapshot: currentSnapshot }]; }
-    if (docType === "FUEL_RECEIPT") { updates.fuel_receipt_sent = true; updates.actual_uplift = payload.fuel.uplift / 1000; updates.fuel_left_main = payload.fuel.left; updates.fuel_center = payload.fuel.center; updates.fuel_right_main = payload.fuel.right; updates.final_fuel_request = payload.fuel.finalOrder / 1000; updates.fuel_is_standard = false; }
+    
+    // ==========================================
+    // 🚨 修正點 1：PRELIM 發送時的版本控制
+    // ==========================================
+    if (docType === "PRELIM") { 
+      updates.prelim_ls_sent = true; 
+      const ver = flightData?.prelim_ls_version || 1; 
+      updates.prelim_history = [...(flightData?.prelim_history || []), { version: ver, snapshot: currentSnapshot }]; 
+      
+      // 🌟 核心修復：下一次發送時，版本號必須自動 +1
+      updates.prelim_ls_version = ver + 1;
+      
+      // 🌟 核心修復：既然已經發送了修正版，就要自動撤銷被拒絕的狀態，並清空原因
+      updates.prelim_ls_rejected = false;
+      updates.prelim_ls_reject_reason = "";
+      
+      updates.fuel_left_main = payload.fuel.left; 
+      updates.fuel_center = payload.fuel.center; 
+      updates.fuel_right_main = payload.fuel.right; 
+    }
+    
+    // ==========================================
+    // 🚨 修正點 2：FINAL 發送時的版本控制 (未雨綢繆，一併修正)
+    // ==========================================
+    if (docType === "FINAL") { 
+      updates.final_ls_sent = true; 
+      const ver = flightData?.final_ls_version || 1; 
+      updates.final_history = [...(flightData?.final_history || []), { version: ver, snapshot: currentSnapshot }]; 
+      
+      // 🌟 核心修復：Final 版本號同步自增 +1
+      updates.final_ls_version = ver + 1;
+      
+      // 🌟 核心修復：撤銷 Final 被拒絕狀態，並且因為是全新版本，需要機長重新簽署
+      updates.final_ls_rejected = false;
+      updates.final_ls_reject_reason = "";
+      updates.pilots_signed_final = false; 
+    }
+    
+    if (docType === "FUEL_RECEIPT") { 
+      updates.fuel_receipt_sent = true; 
+      updates.actual_uplift = payload.fuel.uplift / 1000; 
+      updates.fuel_left_main = payload.fuel.left; 
+      updates.fuel_center = payload.fuel.center; 
+      updates.fuel_right_main = payload.fuel.right; 
+      updates.final_fuel_request = payload.fuel.finalOrder / 1000; 
+      updates.fuel_is_standard = false; 
+    }
+    
     updateFlightData(updates);
     alert(`${docType} snapshot transmitted to EFB!`);
   };

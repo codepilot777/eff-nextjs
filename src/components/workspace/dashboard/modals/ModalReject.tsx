@@ -4,7 +4,12 @@ import { useState } from "react";
 export function ModalReject({ flightData, updateFlightData, setActiveModal, type }: any) {
   const [rejectReason, setRejectReason] = useState("");
   const isFinal = type === "FINAL";
-  const version = isFinal ? (flightData?.final_ls_version || 1) : (flightData?.prelim_ls_version || 1);
+  
+  // 🌟 核心修正：從歷史陣列中抽取出真正「最後發送」的版本號，防止點錯相
+  const activeFinalVer = flightData?.final_history?.[flightData.final_history.length - 1]?.version || 1;
+  const activePrelimVer = flightData?.prelim_history?.[flightData.prelim_history.length - 1]?.version || 1;
+  
+  const version = isFinal ? activeFinalVer : activePrelimVer;
   const formattedVersion = version.toString().padStart(2, '0');
 
   const handleSubmit = () => {
@@ -38,6 +43,7 @@ export function ModalReject({ flightData, updateFlightData, setActiveModal, type
            </div>
            <div>
              <h3 className="text-white font-bold tracking-widest uppercase text-[1.1rem] leading-none">Reject Loadsheet</h3>
+             {/* 🌟 依家呢度會完美顯示 Reject PRELIM V01，唔會再偷跑去 V02 */}
              <span className="text-[#FF1744] text-[0.75rem] font-bold tracking-widest uppercase mt-1.5 block">{type} V{formattedVersion}</span>
            </div>
         </div>

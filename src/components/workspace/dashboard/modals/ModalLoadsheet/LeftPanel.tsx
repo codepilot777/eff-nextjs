@@ -20,28 +20,32 @@ export function LeftPanel({ flightData, calc }: any) {
   let stageText = "text-[#8fa0a6]";
 
   if (flightData?.final_ls_sent) {
-    currentStage = `FINAL ${(flightData?.final_ls_version || 1).toString().padStart(2, '0')}`;
+    const activeVer = flightData?.final_history?.[flightData.final_history.length - 1]?.version || 1;
+    currentStage = `FINAL ${activeVer.toString().padStart(2, '0')}`;
+    
     stageBg = flightData?.pilots_signed_final ? "bg-[#C6FF00]" : "bg-[#2979FF]"; 
     stageText = flightData?.pilots_signed_final ? "text-black" : "text-white";
-    // 🎯 FINAL 用 Revised Taxi
     const p = buildEnginePayload(flightData.final_snapshot, flightData, revisedTaxiKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
+  
   } else if (flightData?.prelim_ls_sent) {
-    currentStage = `PRELIM ${(flightData?.prelim_ls_version || 1).toString().padStart(2, '0')}`;
+    // 🎯 核心修正：從歷史陣列中抽取出真正「最後發送」的版本號
+    const activeVer = flightData?.prelim_history?.[flightData.prelim_history.length - 1]?.version || 1;
+    currentStage = `PRELIM ${activeVer.toString().padStart(2, '0')}`;
+    
     stageBg = "bg-[#FF9100]"; stageText = "text-black";
-    // 🎯 PRELIM 用 Revised Taxi
     const p = buildEnginePayload(flightData.prelim_snapshot, flightData, revisedTaxiKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
+  
   } else if (flightData?.azf_sent) {
     currentStage = "AZF";
     stageBg = "bg-[#00E676]"; stageText = "text-black";
-    // 🎯 AZF 用 OFP Taxi
     const p = buildEnginePayload(flightData.azf_snapshot, flightData, ofpTaxiKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
+  
   } else if (flightData?.ezfw_sent) {
     currentStage = "EZFW";
     stageBg = "bg-[#00bfa5]"; stageText = "text-black";
-    // 🎯 EZFW 用 OFP Taxi
     const p = buildEnginePayload(flightData.ezfw_snapshot, flightData, ofpTaxiKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   }

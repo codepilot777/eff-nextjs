@@ -1,10 +1,13 @@
 "use client";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import { buildEnginePayload, generateLSText, getAzfText, getEzfwText } from "@/lib/loadsheet/loadsheetHelpers";
 
 export function HistoryPanel({ flightData, calc, setActiveModal, limits, setShowFinalConfirm }: any) {
+
+  // 🌟 喺 HistoryPanel 頂部加入這個 State
+  const [localConfirmVer, setLocalConfirmVer] = useState<number | null>(null);
 
   // 🌟 動態定錨：獲取目前執飛的飛機註冊號，查出專屬 AHM 大腦
   const currentReg = flightData?.aircraft_reg || "B-HNQ";
@@ -83,7 +86,13 @@ export function HistoryPanel({ flightData, calc, setActiveModal, limits, setShow
                   ) : flightData?.pilots_signed_final ? (
                     <div className="w-full py-2.5 bg-[#C6FF00] text-black rounded-lg font-bold text-[0.7rem] uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm">✓ Acknowledged by {flightData?.captain || 'COMMANDER'}</div>
                   ) : (
-                    <button onClick={() => setShowFinalConfirm(true)} className="w-full py-2.5 bg-[#2979FF] text-white rounded-lg font-black text-[0.7rem] hover:bg-blue-600 shadow-md uppercase tracking-widest transition-colors">Accept Final V{doc.version.toString().padStart(2, '0')}</button>
+                    // 🌟 將原本的 setShowFinalConfirm(true) 換成紀錄當前卡片的 version！
+<button 
+  onClick={() => setLocalConfirmVer(doc.version)} 
+  className="w-full py-2.5 bg-[#2979FF] text-white rounded-lg font-black text-[0.7rem] hover:bg-blue-600 shadow-md uppercase tracking-widest transition-colors"
+>
+  Accept Final V{doc.version.toString().padStart(2, '0')}
+</button>
                   )
                 ) : (
                   <button disabled className="w-full py-2.5 bg-[#0a0a0a] border border-[#333] text-[#666] rounded-lg font-bold text-[0.7rem] uppercase tracking-widest cursor-not-allowed">SUPERSEDED</button>
@@ -153,6 +162,44 @@ export function HistoryPanel({ flightData, calc, setActiveModal, limits, setShow
         )}
 
       </div>
+      {/* ============================================================================ */}
+      {/* 🌟 終極大絕：直接喺卡片清單底層攔截彈窗！徹底封殺跨時空讀到 02 嘅 Bug */}
+      {/* ============================================================================ */}
+      {localConfirmVer !== null && (
+        <div className="absolute inset-[-1.5rem] z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md animate-fade-in rounded-2xl">
+          <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-[340px] p-6 shadow-2xl flex flex-col relative text-sans text-left">
+            <button 
+              onClick={() => setLocalConfirmVer(null)} 
+              className="absolute top-4 right-4 text-[#8fa0a6] hover:text-white font-black text-xl transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#333]"
+            >
+              ✕
+            </button>
+            
+            <p className="text-sm font-bold text-white mb-6 mt-4 text-center leading-relaxed font-sans">
+              Confirm the data of loadsheet<br/>
+              {/* 🎯 絕對真理：彈窗字樣直接鎖死當前點擊嘅 localConfirmVer，神仙都改佢唔到！ */}
+              <span className="text-[#2979FF] text-xl font-black block mt-2">
+                FINAL {localConfirmVer.toString().padStart(2, '0')}
+              </span>
+            </p>
+            
+            <div className="flex flex-col gap-3 font-sans">
+              <button 
+                onClick={() => { setLocalConfirmVer(null); updateFlightData({ pilots_signed_final: true }); }} 
+                className="w-full bg-[#C6FF00] text-black font-black uppercase tracking-widest text-[0.7rem] px-4 py-3.5 rounded-lg shadow-md hover:bg-[#b0e600] transition-colors"
+              >
+                Accept
+              </button>
+              <button 
+                onClick={() => { setLocalConfirmVer(null); setActiveModal('RejectFinal'); }} 
+                className="w-full text-[#FF1744] bg-[#FF1744]/10 border border-[#FF1744]/50 font-black uppercase tracking-widest text-[0.7rem] px-4 py-3.5 rounded-lg hover:bg-[#FF1744] hover:text-white transition-colors"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

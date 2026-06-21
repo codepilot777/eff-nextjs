@@ -57,19 +57,36 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
   const lastUpdated = flightData?.sta_z?.replace('Z', 'z') || "0323z"; 
   const displayZfw = calc.actualZfw > 0 ? calc.actualZfw.toFixed(1) : (calc.ofpZfw?.toFixed(1) || '0.0');
 
+  let dynamicPaxTot = 0;
+  if (activeSnapshot?.pax) {
+    // 讀取 Snapshot 裡面所有分區的實際人數加總
+    Object.values(activeSnapshot.pax).forEach((count: any) => {
+      dynamicPaxTot += Number(count) || 0;
+    });
+  } else {
+    // 防呆補底：讀取 SimBrief 生肉
+    dynamicPaxTot = (flightData?.pax_f || 0) + (flightData?.pax_j || 0) + (flightData?.pax_w || 0) + (flightData?.pax_y || 0);
+  }
+
   const crewFd = flightData?.crew_fd || 2;
   const crewCc = flightData?.crew_cc || 13;
   const totalCrew = crewFd + crewCc;
-  const totalPob = paxTot + totalCrew; // 👈 換上本地 paxTot
-
-  const finalVer = (flightData?.final_ls_version || 1).toString().padStart(2, '0');
-  const prelimVer = (flightData?.prelim_ls_version || 1).toString().padStart(2, '0');
+  
+  // 🎯 真實 POB 誕生！
+  const totalPob = dynamicPaxTot + totalCrew;
+  // 👈 換上本地 paxTot
 
   const planeWatermark = (
     <svg className="absolute bottom-1 left-2 w-16 h-16 text-[#333] opacity-50 transform -rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   );
+
+  const activeFinalVer = flightData?.final_history?.[flightData.final_history.length - 1]?.version || 1;
+  const finalVer = activeFinalVer.toString().padStart(2, '0');
+
+  const activePrelimVer = flightData?.prelim_history?.[flightData.prelim_history.length - 1]?.version || 1;
+  const prelimVer = activePrelimVer.toString().padStart(2, '0');
 
   let stageName = "AWAITING";
   let percent = 0;
@@ -132,7 +149,7 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
           </div>
           <div className="flex items-center leading-none">
             <span className="text-[#8fa0a6] font-sans text-[0.6rem] uppercase tracking-widest w-9">Pax</span>
-            <span className="ml-1 font-mono font-bold text-[1rem] text-white w-6 text-right">{paxTot}</span>
+            <span className="ml-1 font-mono font-bold text-[1rem] text-white w-6 text-right">{dynamicPaxTot}</span>
             <span className="ml-3 text-[0.65rem] text-[#8fa0a6] font-mono">
               {dynamicClassStr || "NO PAX DATA"}
             </span>
