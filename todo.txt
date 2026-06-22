@@ -73,6 +73,4 @@ Phase 5: 真機實測與系統對接 (等待 PC 新牛歸位)
 
 提取真實 B777 MEL 手冊的條款、修復時限（Cat A/B/C/D）及 AMM (M) 維修程序文本。
 
-[ ] 🔧 升級 Engineer 簽發流 (PADD 轉 SNN 自動化)：
-
 [PMDG 底層連動]：根據 MEL 條款，直接透過 FSUIPC 觸發 PMDG 內置故障（如 APU Core Fail），確保 EICAS STATUS 頁面完美還原真實白字 Status Message。

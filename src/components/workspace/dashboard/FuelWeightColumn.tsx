@@ -121,7 +121,7 @@ export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: a
         <div className="flex justify-between items-center px-4 pt-4 pb-3 border-b border-[#333] shrink-0">
           {/* 🌟 UI 加強：高調展示當前正在運算的飛機註冊號與機型 */}
           <h2 className="text-[1.05rem] font-bold leading-none flex items-center gap-2">
-            Fuel & Weight <span className="text-[0.7rem] bg-[#333] text-[#00E676] px-1.5 py-0.5 rounded font-mono">{ahm.reg}</span>
+            Fuel & Weight
           </h2>
           <div onClick={handlers.handleManualToggle} className="flex items-center gap-2 cursor-pointer bg-[#0a0a0a] border border-[#333] rounded-full px-2 py-1 hover:bg-[#252525] transition-colors">
             <span className={`text-[0.55rem] font-bold uppercase tracking-wider pl-1 leading-none transition-colors ${!calc.isManual ? 'text-white' : 'text-[#555]'}`}>Auto</span>

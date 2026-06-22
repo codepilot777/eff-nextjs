@@ -54,7 +54,6 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
   // =====================================================================
   // 🌟 3. 原本嘅計算邏輯 (修正為使用本地變數)
   // =====================================================================
-  const lastUpdated = flightData?.sta_z?.replace('Z', 'z') || "0323z"; 
   const displayZfw = calc.actualZfw > 0 ? calc.actualZfw.toFixed(1) : (calc.ofpZfw?.toFixed(1) || '0.0');
 
   let dynamicPaxTot = 0;
@@ -136,7 +135,6 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
         <div className="flex justify-between items-center mb-1 border-b border-[#333] pb-1.5">
           <div className="flex items-baseline gap-2">
             <h2 className="text-[1.05rem] font-bold text-white leading-none">Loadsheet</h2>
-            <span className="text-[0.6rem] text-[#8fa0a6] leading-none font-mono tracking-widest">{lastUpdated}</span>
           </div>
           <span className="text-[#8fa0a6] text-lg font-light leading-none">›</span>
         </div>
