@@ -2,6 +2,7 @@
 "use client";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import { useFlightData } from "@/hooks/useFlightData";
+import { useSim } from "@/hooks/useSim";
 // 🌟 引入剛剛解耦出來的缺陷詳情管家
 import { DefectDetailManager } from "./DefectDetailManager";
 import { 
@@ -10,10 +11,12 @@ import {
   TaskDiversion, TaskDidNotDepart 
 } from "./forms";
 import { buildFailureMacro } from "@/services/dynamicMacroBuilder";
+import { fireCDUMacro } from "@/services/pmdgService";
 
 export default function TechLogRightPanel({ tlData, flightData, roleMode, activeTask, setActiveTask, selectedEntry, showInFlightMenu, setShowInFlightMenu, updateTechLogData, defects }: any) {
   
   const { calc } = useFlightData(); // 接通核心計算大腦
+  const { sendToFSUIPC, isConnected} = useSim();
   const { tl_flight_started: isStarted, tl_entries } = tlData;
 
   // 1. 全動態機型定錨
@@ -28,7 +31,7 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
   // =====================================================
   // 🚨 🌟 新增：PMDG 777 系統故障動態注入器 (SimConnect / FSUIPC)
   // =====================================================
-  const triggerPmdgSystemFailure = (ataCode: string, defectDesc: string) => {
+  const triggerPmdgSystemFailure = async (ataCode: string, defectDesc: string) => {
     // 🚀 一行代碼，直接呼叫 Macro 工廠嘔出 Event ID 數值陣列 (number[])
     const pmdgEventSequence = buildFailureMacro(ataCode);
 
@@ -37,7 +40,14 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
     console.log(`   -> Generated Token IDs: [${pmdgEventSequence.join(", ")}]`);
 
     // 🚀 火牛通網後直接解除註釋，一秒灌入 FSUIPC 後端：
-    // // await fsuipcService.sendEventSequence(pmdgEventSequence);
+    if (!isConnected) {
+      console.warn("⚠️ [DATA LINK DISCONNECTED] WebSocket not open. Aborting stream to PMDG.");
+      return;
+    }
+
+    // 🎯 終極一擊：直接把 sendToFSUIPC 傳入 fireCDUMacro！
+    // 它會全自動：包裝 JSON -> 先發 param -> 再發 control -> 延時 150ms -> 循環發下一粒
+    await fireCDUMacro(sendToFSUIPC, pmdgEventSequence);
   };
   // -----------------------------------------------------
   // 🔧 封裝底層更新邏輯 (維持純數據管道，不干涉 UI)
