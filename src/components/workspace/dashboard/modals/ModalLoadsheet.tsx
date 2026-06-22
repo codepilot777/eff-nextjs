@@ -58,7 +58,8 @@ export function ModalLoadsheet({ flightData, updateFlightData, calc, setActiveMo
           calc={calc} 
           setActiveModal={setActiveModal} 
           limits={limitsForHistory} 
-          setShowFinalConfirm={setShowFinalConfirm} 
+          setShowFinalConfirm={setShowFinalConfirm}
+          updateFlightData={updateFlightData}
         />
       </div>
       

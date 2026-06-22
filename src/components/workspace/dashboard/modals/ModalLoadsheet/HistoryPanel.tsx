@@ -4,7 +4,7 @@ import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import { buildEnginePayload, generateLSText, getAzfText, getEzfwText } from "@/lib/loadsheet/loadsheetHelpers";
 
-export function HistoryPanel({ flightData, calc, setActiveModal, limits, setShowFinalConfirm }: any) {
+export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModal, limits, setShowFinalConfirm }: any) {
 
   // 🌟 喺 HistoryPanel 頂部加入這個 State
   const [localConfirmVer, setLocalConfirmVer] = useState<number | null>(null);
