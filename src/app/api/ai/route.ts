@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { promptType, plainText, stdZ, staZ } = await request.json();
+    const { promptType, plainText, stdZ, staZ, dayStr } = await request.json();
 
     if (!plainText) {
       return NextResponse.json({ error: 'Missing plainText' }, { status: 400 });
@@ -26,7 +26,7 @@ Format the output strictly as follows:
 METAR: [Raw METAR string]
 TAF: [Raw TAF string]
 Do not include any conversational filler or markdown formatting. Use current aviation weather encoding rules.
-Flight STD: ${stdZ}, STA: ${staZ}.
+Flight STD: ${stdZ}, STA: ${staZ}, Date: ${dayStr}
 Text to convert: ${plainText}`;
     } else {
       systemPrompt = plainText;

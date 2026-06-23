@@ -1,21 +1,26 @@
 "use client";
 import { useState } from "react";
-import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
+import { useFlightData } from "@/hooks/useFlightData";
 
-// 🌟 Props 大清洗：剷走晒 flightData 同 updateFlightData
 export default function WxTab() {
-  
-  // 🌟 從天上直接抽取 Data 同 Update Function (自帶樂觀更新！)
   const { flightData, updateFlightData } = useFlightData();
 
   const [aiPrompt, setAiPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedResult, setGeneratedResult] = useState("");
+  
+  // 🌟 升級 1：將單一 Result 拆分做 METAR, TAF 同 Error State
+  const [generatedMetar, setGeneratedMetar] = useState("");
+  const [generatedTaf, setGeneratedTaf] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  
+  // 🌟 升級 2：加入 Copy 狀態管理
+  const [copyStatus, setCopyStatus] = useState<"METAR" | "TAF" | null>(null);
 
-  // 🌟 防呆保護：未 Load 到 Data 就唔好 Render
   if (!flightData) return null;
 
   const rawAlternates = flightData?.raw_simbrief?.alternate ? (Array.isArray(flightData.raw_simbrief.alternate) ? flightData.raw_simbrief.alternate : [flightData.raw_simbrief.alternate]) : (flightData?.alternates || []);
+  const dateObj = flightData?.std_unix ? new Date(flightData.std_unix * 1000) : new Date();
+  const dayStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit' });
 
   const getWx = (overrideValue: string | undefined, rawValue: string | undefined) => {
     if (overrideValue && overrideValue !== "NIL") return overrideValue;
@@ -26,35 +31,56 @@ export default function WxTab() {
   const handleGenerate = async () => {
     if (!aiPrompt) return;
     setIsGenerating(true);
-    setGeneratedResult(""); // 清除舊結果
+    setErrorMsg("");
+    setGeneratedMetar(""); 
+    setGeneratedTaf("");
     
     try {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // 🌟 對應後端的 "WX" promptType
         body: JSON.stringify({ 
           promptType: "WX", 
           plainText: aiPrompt, 
           stdZ: flightData?.std_z || "0000Z", 
-          staZ: flightData?.sta_z || "0000Z" 
+          staZ: flightData?.sta_z || "0000Z",
+          dayStr: dayStr || "01"
         })
       });
       
       const data = await res.json();
       
-      // 🌟 主動捕捉 HTTP Error
       if (!res.ok) {
         throw new Error(data.error || `HTTP Error ${res.status}`);
       }
       
-      setGeneratedResult(data.text);
+      // 🌟 智能分拆器：自動識別 TAF 關鍵字，將生肉完美劏開兩截
+      const rawText = data.text || "";
+      if (rawText.includes("TAF")) {
+        // 利用正則表達式，在 "TAF" 前面切開
+        const parts = rawText.split(/(?=TAF\s)/);
+        // 清理 METAR 前面的多餘標籤 (如果有)
+        setGeneratedMetar(parts[0].replace(/^METAR\s*[:\-]*\s*/i, '').trim());
+        setGeneratedTaf(parts[1].trim());
+      } else {
+        // 如果 AI 只嘔出 METAR
+        setGeneratedMetar(rawText.replace(/^METAR\s*[:\-]*\s*/i, '').trim());
+      }
+      
     } catch (e: any) {
       console.error("AI WX Generation Failed:", e);
-      setGeneratedResult(`❌ ERROR: ${e.message || "Failed to generate Weather. Please check API Key or backend logs."}`);
+      setErrorMsg(`❌ ERROR: ${e.message || "Failed to generate Weather. Please check API Key or backend logs."}`);
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // 🌟 升級 3：一鍵 Copy 核心邏輯
+  const handleCopy = (type: "METAR" | "TAF", text: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopyStatus(type);
+    setTimeout(() => setCopyStatus(null), 2000); // 2 秒後回復原本 icon
   };
 
   const handleSave = () => {
@@ -97,7 +123,7 @@ export default function WxTab() {
         <button 
           onClick={handleGenerate} 
           disabled={isGenerating} 
-          className={`w-full py-3 rounded-lg font-black tracking-widest uppercase transition-all ${
+          className={`w-full py-3 rounded-lg font-black tracking-widest uppercase transition-all mb-4 ${
             isGenerating 
               ? "bg-[#00bfa5]/20 text-[#00bfa5] border border-[#00bfa5]/50 cursor-not-allowed" 
               : "bg-[#00bfa5] text-black hover:bg-[#00E676] shadow-[0_0_15px_rgba(0,191,165,0.3)]"
@@ -106,14 +132,54 @@ export default function WxTab() {
           {isGenerating ? "⏳ GENERATING FROM GEMINI..." : "✨ GENERATE METAR & TAF"}
         </button>
         
-        {generatedResult && (
-          <textarea 
-            readOnly 
-            value={generatedResult} 
-            className={`w-full bg-[#0a0a0a] border rounded-lg p-3 text-sm font-mono h-28 mt-4 resize-none ${
-              generatedResult.startsWith('❌') ? 'border-[#FF1744] text-[#FF1744]' : 'border-[#00E676] text-[#00E676]'
-            }`} 
-          />
+        {/* ❌ 錯誤信息顯示 */}
+        {errorMsg && (
+          <div className="w-full bg-[#FF1744]/10 border border-[#FF1744] text-[#FF1744] rounded-lg p-3 text-sm font-mono mt-2">
+            {errorMsg}
+          </div>
+        )}
+
+        {/* 🌟 分拆後的 METAR & TAF 面板 */}
+        {(generatedMetar || generatedTaf) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            
+            {/* METAR Block */}
+            <div className="relative group">
+              <span className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1.5 text-[0.65rem] font-bold text-[#00bfa5] tracking-widest uppercase z-10">Generated METAR</span>
+              <textarea 
+                readOnly 
+                value={generatedMetar} 
+                className="w-full bg-[#0a0a0a] border border-[#00E676] text-[#00E676] rounded-lg p-4 pt-5 text-xs font-mono h-32 resize-none shadow-inner" 
+              />
+              <button 
+                onClick={() => handleCopy("METAR", generatedMetar)}
+                className={`absolute bottom-3 right-3 p-2 rounded-md font-bold text-[0.65rem] uppercase tracking-wider transition-all backdrop-blur-sm border ${
+                  copyStatus === "METAR" ? "bg-[#00E676] text-black border-[#00E676]" : "bg-black/60 text-[#00E676] border-[#00E676]/40 hover:bg-[#00E676]/20"
+                }`}
+              >
+                {copyStatus === "METAR" ? "✓ COPIED" : "📋 COPY"}
+              </button>
+            </div>
+
+            {/* TAF Block */}
+            <div className="relative group">
+              <span className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1.5 text-[0.65rem] font-bold text-[#00bfa5] tracking-widest uppercase z-10">Generated TAF</span>
+              <textarea 
+                readOnly 
+                value={generatedTaf} 
+                className="w-full bg-[#0a0a0a] border border-[#00E676] text-[#00E676] rounded-lg p-4 pt-5 text-xs font-mono h-32 resize-none shadow-inner" 
+              />
+              <button 
+                onClick={() => handleCopy("TAF", generatedTaf)}
+                className={`absolute bottom-3 right-3 p-2 rounded-md font-bold text-[0.65rem] uppercase tracking-wider transition-all backdrop-blur-sm border ${
+                  copyStatus === "TAF" ? "bg-[#00E676] text-black border-[#00E676]" : "bg-black/60 text-[#00E676] border-[#00E676]/40 hover:bg-[#00E676]/20"
+                }`}
+              >
+                {copyStatus === "TAF" ? "✓ COPIED" : "📋 COPY"}
+              </button>
+            </div>
+
+          </div>
         )}
       </div>
 
