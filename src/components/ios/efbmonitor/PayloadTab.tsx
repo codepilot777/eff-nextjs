@@ -334,25 +334,81 @@ export default function PayloadTab() {
 
   return (
     <div className="animate-fade-in flex flex-col gap-6 font-sans text-white">
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1.4fr] gap-6 items-start">
+      {/* 🌟 升級 1：加入 lg:grid-cols-[1fr_1.2fr]，完美迎合 iPad 橫排尺寸 */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] xl:grid-cols-[1fr_1.4fr] gap-6 items-start relative">
         
         {/* 左側：飛機視圖 */}
-        <AircraftVisualizer ahm={ahm} payload={payload} targetZFW={targetZFW} limits={limits} safeZFW={safeZFW} safeLIZFW={safeLIZFW} safeMACZFW={safeMACZFW} safeMACTOW={safeMACTOW} />
+        {/* 🌟 升級 2：加入 sticky top-6，右邊碌嗰陣，架飛機定格不走！ */}
+        <div className="lg:sticky lg:top-6 z-10">
+          <AircraftVisualizer 
+            ahm={ahm} 
+            payload={payload} 
+            targetZFW={targetZFW} 
+            limits={limits} 
+            safeZFW={safeZFW} 
+            safeLIZFW={safeLIZFW} 
+            safeMACZFW={safeMACZFW} 
+            safeMACTOW={safeMACTOW} 
+          />
+        </div>
 
+        {/* 右側：控制面板 */}
         <div className="flex flex-col gap-6">
-          {/* Card 1 */}
-          <PaxCargoEditor ahm={ahm} payload={payload} setPayload={setPayload} targetZFW={targetZFW} generateExactPayload={generateExactPayload} handleTransmit={handleTransmit} />
-          {/* Card 2 */}
-          <FuelManager payload={payload} setPayload={setPayload} flightData={flightData} ofpTotalFuelKg={ofpTotalFuelKg} standbyFuelKg={standbyFuelKg} fobKg={fobKg} traineeFinalFuelKg={traineeFinalFuelKg} handleTransmit={handleTransmit} />
-          {/* Card 3 */}
-          <SimSyncController useRealTimeFuel={useRealTimeFuel} setUseRealTimeFuel={setUseRealTimeFuel} isSimSyncing={isSimSyncing} simCurrentFuel={simCurrentFuel} targetTotalFuel={payload.fuel.left + payload.fuel.center + payload.fuel.right} handleSyncToPmdgSim={handleSyncToPmdgSim} />
+          {/* Card 1: Payload Editor */}
+          <PaxCargoEditor 
+            ahm={ahm} 
+            payload={payload} 
+            setPayload={setPayload} 
+            targetZFW={targetZFW} 
+            generateExactPayload={generateExactPayload} 
+            handleTransmit={handleTransmit} 
+          />
           
-          {/* Card 4 (Document Dispatch) */}
+          {/* Card 2: Fuel Manager */}
+          <FuelManager 
+            payload={payload} 
+            setPayload={setPayload} 
+            flightData={flightData} 
+            ofpTotalFuelKg={ofpTotalFuelKg} 
+            standbyFuelKg={standbyFuelKg} 
+            fobKg={fobKg} 
+            traineeFinalFuelKg={traineeFinalFuelKg} 
+            handleTransmit={handleTransmit} 
+          />
+          
+          {/* Card 3: Sim Sync */}
+          <SimSyncController 
+            useRealTimeFuel={useRealTimeFuel} 
+            setUseRealTimeFuel={setUseRealTimeFuel} 
+            isSimSyncing={isSimSyncing} 
+            simCurrentFuel={simCurrentFuel} 
+            targetTotalFuel={payload.fuel.left + payload.fuel.center + payload.fuel.right} 
+            handleSyncToPmdgSim={handleSyncToPmdgSim} 
+          />
+          
+          {/* Card 4: Document Dispatch */}
           <div className="bg-lido-800 p-6 rounded-xl border border-[#333333] shadow-lg">
-            <h4 className="text-white font-black uppercase tracking-widest text-lg flex items-center gap-2 border-b border-[#333333] pb-3 mb-4"><span className="text-[#FF9100]">4.</span> Document Dispatch</h4>
+            <h4 className="text-white font-black uppercase tracking-widest text-lg flex items-center gap-2 border-b border-[#333333] pb-3 mb-4">
+              <span className="text-[#FF9100]">4.</span> Document Dispatch
+            </h4>
             <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => handleTransmit("PRELIM")} className="bg-[#FF9100]/20 border border-[#FF9100] text-[#FF9100] py-4 rounded-lg font-black tracking-widest text-xs hover:bg-[#FF9100] hover:text-black transition-all">TRANSMIT PRELIM</button>
-              <button onClick={() => handleTransmit("FINAL")} disabled={!flightData?.fuel_receipt_sent} className={`border py-4 rounded-lg font-black tracking-widest text-xs transition-all ${flightData?.fuel_receipt_sent ? 'bg-[#00E676]/20 border-[#00E676] text-[#00E676] hover:bg-[#00E676] hover:text-black' : 'bg-[#333] border-[#444] text-[#666] cursor-not-allowed'}`}>TRANSMIT FINAL</button>
+              <button 
+                onClick={() => handleTransmit("PRELIM")} 
+                className="bg-[#FF9100]/20 border border-[#FF9100] text-[#FF9100] py-4 rounded-lg font-black tracking-widest text-xs hover:bg-[#FF9100] hover:text-black transition-all"
+              >
+                TRANSMIT PRELIM
+              </button>
+              <button 
+                onClick={() => handleTransmit("FINAL")} 
+                disabled={!flightData?.fuel_receipt_sent} 
+                className={`border py-4 rounded-lg font-black tracking-widest text-xs transition-all ${
+                  flightData?.fuel_receipt_sent 
+                    ? 'bg-[#00E676]/20 border-[#00E676] text-[#00E676] hover:bg-[#00E676] hover:text-black' 
+                    : 'bg-[#333] border-[#444] text-[#666] cursor-not-allowed'
+                }`}
+              >
+                TRANSMIT FINAL
+              </button>
             </div>
           </div>
         </div>
