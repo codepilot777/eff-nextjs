@@ -1,6 +1,7 @@
 // src/components/techlog/TechLogRightPanel.tsx
 "use client";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
+import { executeDualDispatch } from "@/services/dualDispatchService";
 import { useFlightData } from "@/hooks/useFlightData";
 import { useSim } from "@/hooks/useSim";
 // 🌟 引入剛剛解耦出來的缺陷詳情管家
@@ -70,7 +71,7 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
     setActiveTask(null);
   };
 
-  const handleDeferDefect = (id: string, type: string, mel: string, reason: string) => {
+  const handleDeferDefect = async (id: string, type: string, mel: string, reason: string) => {
     const defectToDefer = defects.find((d: any) => d.id === id);
     const numMatch = id.match(/\d+/);
     const num = numMatch ? numMatch[0] : Math.floor(Math.random() * 1000).toString().padStart(3, '0');
@@ -86,15 +87,30 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
       sign: currentSign
     };
 
-    // 🌟 核心聯動點：當工程師按下確定保留的一瞬間，直接將故障脈衝射向模擬機！
-    triggerPmdgSystemFailure(mel, defectToDefer?.description || "System Defect");
-
-    setActiveTask(null);
+    // 1️⃣ 軌道一：UI 狀態與網頁資料庫更新 (先執行，保持網頁流暢)
     updateTechLogData({ 
       defects: defects.map((d: any) => d.id === id ? { ...d, id: newId, status: "DEFERRED", deferral_type: type, mel_ref: mel, deferral_reason: reason } : d),
       tl_entries: [...(tl_entries || []), newEntry]
     });
     setActiveTask(null);
+
+    // 2️⃣ 軌道二：激活雙軌派發 (FSUIPC 物理注入)
+    if (isConnected) {
+      try {
+        const dispatchResult = await executeDualDispatch(mel, sendToFSUIPC);
+        if (dispatchResult.dispatchedToSim) {
+          alert(`🚨 [MCC SIGN-OFF SUCCESS]\n缺陷保留成功！P3D 模擬機已同步爆發物理故障：[${dispatchResult.pmdgTitle}]`);
+        } else {
+          alert(`📄 [MCC SIGN-OFF SUCCESS]\n純文本保留成功！該 MEL (${mel}) 無對應物理故障表現，已跳過 FSUIPC 注入。`);
+        }
+      } catch (error) {
+        console.error("Dual Dispatch Synchro Failed:", error);
+        alert("⚠️ 雙軌派發失敗！無法將故障寫入 P3D，但網頁日誌已更新。");
+      }
+    } else {
+      // 模擬機未連線時的溫馨提示
+      alert(`📄 [MCC SIGN-OFF OFFLINE]\n文本保留成功！(注意：FSUIPC 未連線，故障並未寫入模擬機)`);
+    }
   };
 
   // 靜態簽發調度

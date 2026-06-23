@@ -27,11 +27,9 @@ export function DefectDetailManager({
   onDefer
 }: DefectDetailManagerProps) {
   
-  // 客製化 Dropdown 的展開關閉狀態
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   
-  // 處置 Form 狀態
-  const [engActionType, setEngActionType] = useState(""); // "Clear Defect" 或者是 "Defer Defect"
+  const [engActionType, setEngActionType] = useState(""); 
   const [clearDesc, setClearDesc] = useState("");
   const [deferType, setDeferType] = useState("PADD");
   const [melSearch, setMelSearch] = useState("");
@@ -39,7 +37,6 @@ export function DefectDetailManager({
   const [selectedMel, setSelectedMel] = useState<MelItem | null>(null);
   const [deferReason, setDeferReason] = useState("");
 
-  // 當切換選取不同的缺陷時，全自動重設 Form 運作狀態
   useEffect(() => {
     setEngActionType("");
     setShowActionsMenu(false);
@@ -60,7 +57,6 @@ export function DefectDetailManager({
     return "bg-[#00E676]/20 text-[#00E676] border-[#00E676]/40";
   };
 
-  // 🌟 Bug 2 修正：將函數名稱由 handleSearch 正式更名為 handleMelSearch！
   const handleMelSearch = (val: string) => {
     setMelSearch(val);
     if (val.length >= 2) setMelResults(searchMelItems(val));
@@ -71,7 +67,13 @@ export function DefectDetailManager({
     setSelectedMel(item);
     setMelSearch(item.ataCode);
     setMelResults([]);
-    setDeferReason(`IAW MEL ${item.ataCode} (${item.title}). Deactivation performed: ${item.maintenanceNote}`);
+    
+    // 🌟 優化 Auto-fill：使用更專業簡潔的航空術語，避免超長備註塞爆輸入框
+    let autoFillReason = `Deferred IAW MEL ${item.ataCode} (${item.title}). `;
+    if (item.maintenanceProcedures) autoFillReason += `(M) Procedures complied with. `;
+    if (item.operationalProcedures) autoFillReason += `(O) Procedures apply. `;
+    
+    setDeferReason(autoFillReason);
   };
 
   return (
@@ -132,15 +134,13 @@ export function DefectDetailManager({
           </div>
         )}
 
-        {/* 🔧 4. 🚀 Bug 1 修正：將 sel.status === "OPEN" 升級放寬為 !== "CLEARED" */}
-        {/* 只要該缺陷未被最終 Rectify 關閉（處於 OPEN 或者是 DEFERRED / ADD 狀態），工程師進來都能看見並進行操作！ */}
+        {/* 🔧 4. 維修處置選單 */}
         {roleMode === "ENGINEER" && sel.status !== "CLEARED" && (
           <div className="mt-4 border-t border-[#333] pt-5 flex flex-col gap-4 relative">
             <h4 className="text-[0.65rem] uppercase tracking-widest font-bold text-[#8fa0a6]">
               {sel.status === "DEFERRED" ? "Further Maintenance Action (ADD Review)" : "Maintenance Disposition Action"}
             </h4>
             
-            {/* 客製化 Actions 下拉按鈕 */}
             <div className="relative w-full">
               <button
                 onClick={() => setShowActionsMenu(!showActionsMenu)}
@@ -157,7 +157,6 @@ export function DefectDetailManager({
                 <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-3 h-3 text-[#8fa0a6] transition-transform duration-200 ${showActionsMenu ? 'rotate-180' : ''}`}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
               </button>
               
-              {/* 下拉抽屜清單 */}
               {showActionsMenu && (
                 <div className="absolute left-0 right-0 mt-2 w-full bg-[#1a1a1a] border border-[#333] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden p-1 z-[60] animate-fade-in">
                   <button 
@@ -205,7 +204,6 @@ export function DefectDetailManager({
                   </select>
 
                   <div className="relative">
-                    {/* 🌟 完美聯裝：handleMelSearch 在此流暢對接 */}
                     <input type="text" value={melSearch} onChange={(e) => handleMelSearch(e.target.value)} placeholder="Search MEL Code/System..." className="w-full bg-[#0a0a0a] border border-[#444] p-3.5 rounded-xl text-white text-[0.75rem] font-mono outline-none focus:border-[#FF9100] uppercase" />
                     {melResults.length > 0 && (
                       <div className="absolute left-0 right-0 mt-1 bg-[#252525] border border-[#444] rounded-xl shadow-2xl max-h-40 overflow-y-auto z-50 text-[0.7rem]">
@@ -220,20 +218,47 @@ export function DefectDetailManager({
                   </div>
                 </div>
 
+                {/* 🌟 升級版 MEL 詳細資料面板：全面展現你 Parser 的 3D 數據！ */}
                 {selectedMel && (
-                  <div className="bg-[#0a0a0a] border border-[#FF9100]/30 rounded-xl p-3 text-[0.7rem] font-mono animate-fade-in">
-                    <div className="flex justify-between text-[#FF9100] font-bold mb-1">
-                      <span>VERIFIED CODES: {selectedMel.ataCode}</span>
-                      <span className="bg-[#FF9100]/15 px-1 rounded">CAT {selectedMel.category}</span>
+                  <div className="bg-[#151515] border border-[#FF9100]/40 rounded-xl p-3 text-[0.7rem] font-mono animate-fade-in flex flex-col gap-2 shadow-inner">
+                    
+                    {/* Header: Code & Category */}
+                    <div className="flex justify-between items-center text-[#FF9100] font-black border-b border-[#333] pb-1.5">
+                      <span className="text-sm tracking-widest">{selectedMel.ataCode}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white text-[0.6rem]">INST: {selectedMel.installed} | REQ: {selectedMel.required}</span>
+                        <span className="bg-[#FF9100]/20 text-[#FF9100] px-1.5 py-0.5 rounded">CAT {selectedMel.category}</span>
+                      </div>
                     </div>
-                    <p className="text-white font-bold mb-1 font-sans">{selectedMel.title}</p>
-                    <p className="text-[#8fa0a6] leading-tight font-sans m-0"><span className="text-white font-bold">放行限制度:</span> {selectedMel.remarks}</p>
+                    
+                    <p className="text-white font-bold font-sans m-0 leading-tight">{selectedMel.title}</p>
+                    
+                    {/* Badges: (M) & (O) 醒目提示 */}
+                    <div className="flex gap-2 my-1">
+                      {selectedMel.maintenanceProcedures && <span className="bg-blue-500/10 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded text-[0.6rem] font-bold tracking-wider">(M) PROCEDURE REQ</span>}
+                      {selectedMel.operationalProcedures && <span className="bg-purple-500/10 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded text-[0.6rem] font-bold tracking-wider">(O) PROCEDURE REQ</span>}
+                    </div>
+                    
+                    {/* Remarks: Scrollable Area */}
+                    <div className="bg-black/50 p-2.5 rounded border border-[#222] max-h-24 overflow-y-auto scrollbar-thin scrollbar-thumb-[#444]">
+                      <span className="text-[#8fa0a6] block mb-1 font-bold text-[0.6rem] uppercase tracking-widest">Dispatch Provisos / Remarks</span>
+                      <p className="text-gray-300 whitespace-pre-wrap leading-relaxed m-0 text-[0.65rem]">{selectedMel.remarks || "No provisos listed."}</p>
+                    </div>
+
+                    {/* Maintenance Note Preview (如果有) */}
+                    {selectedMel.maintenanceNote && (
+                      <div className="mt-1 border-l-2 border-blue-500 pl-2">
+                        <span className="text-blue-400 font-bold block text-[0.6rem] tracking-widest mb-0.5">MAINTENANCE INSTRUCTIONS:</span>
+                        <p className="text-gray-400 text-[0.65rem] line-clamp-3 leading-tight m-0">{selectedMel.maintenanceNote}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 <textarea value={deferReason} onChange={(e) => setDeferReason(e.target.value)} placeholder="Justify reason for deferral..." className="w-full h-28 bg-[#0a0a0a] border border-[#444] p-4 rounded-xl text-white font-mono text-[0.75rem] outline-none focus:border-[#FF9100] transition-colors mb-2 resize-none leading-relaxed" />
-                <div className="text-[0.6rem] text-[#8fa0a6] bg-[#0a0a0a] p-2.5 border border-[#222] rounded-lg mb-1 leading-normal">
-                  ⚠️ Limit validation check ({ahm.reg}): ZFW Margin: <span className={getMarginColor(marginZfw)}>{getMarginStr(marginZfw)} T</span>
+                <div className="text-[0.6rem] text-[#8fa0a6] bg-[#0a0a0a] p-2.5 border border-[#222] rounded-lg mb-1 leading-normal flex items-center justify-between">
+                  <span>⚠️ System Limit Check ({ahm.reg})</span>
+                  <span>ZFW Margin: <span className={getMarginColor(marginZfw)}>{getMarginStr(marginZfw)} T</span></span>
                 </div>
                 <button onClick={() => onDefer(sel.id, deferType, melSearch, deferReason)} disabled={!selectedMel} className={`w-full py-4 text-black text-[0.75rem] uppercase tracking-widest font-black rounded-xl transition-all ${selectedMel ? 'bg-[#FF9100] hover:bg-orange-500 shadow-lg' : 'bg-[#333] text-[#666] cursor-not-allowed'}`}>
                   CONFIRM MAINTENANCE DISPOSITION
