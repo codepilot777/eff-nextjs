@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@libsql/client';
+import db, { ensureSchema } from '@/lib/db';
 
 export async function GET(request: Request) {
   // 從 URL 獲取 flight id，例如 /api/flight?id=CPA%20564
@@ -7,12 +7,7 @@ export async function GET(request: Request) {
   const flightKey = searchParams.get('id') || 'CPA 564';
 
   try {
-    // 🌟 連接 Turso 雲端資料庫
-    // (將連線寫入 API 內部，確保 Vercel Serverless Function 每次執行都有正確 Context)
-    const db = createClient({
-      url: process.env.TURSO_DATABASE_URL || "file:eff_database.db",
-      authToken: process.env.TURSO_AUTH_TOKEN,
-    });
+    await ensureSchema();
 
     // 🌟 非同步執行 SQL 查詢
     const result = await db.execute({

@@ -1,33 +1,18 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@libsql/client';
-
-const db = createClient({
-  url: process.env.TURSO_DATABASE_URL || "file:eff_database.db",
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
-
-// 🌟 寫一個包底 Function：確保每次操作前 Table 一定存在
-// 並且將 data 嘅 Type 轉做 SQLite 最穩陣嘅 TEXT
-async function ensureTableExists() {
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS techlogs (
-      reg TEXT PRIMARY KEY,
-      data TEXT
-    )
-  `);
-}
+import db, { ensureSchema } from '@/lib/db';
+import { aircraftRegSchema, techlogPostBodySchema } from '@/lib/validation';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const reg = searchParams.get('reg');
+    const regParam = aircraftRegSchema.safeParse(searchParams.get('reg'));
 
-    if (!reg) {
+    if (!regParam.success) {
       return NextResponse.json({ error: 'Missing reg parameter' }, { status: 400 });
     }
+    const reg = regParam.data;
 
-    // 🌟 每次 GET 前確保 Table 存在
-    await ensureTableExists();
+    await ensureSchema();
 
     const result = await db.execute({
       sql: 'SELECT data FROM techlogs WHERE reg = ?',
@@ -57,10 +42,10 @@ export async function GET(request: Request) {
   tl_prev_dep: "SIN",
   tl_prev_arr: "HKG",
   tl_prev_fob: "10.5",
-  
+
   // 🌟 全新加入：Maintenance Release (CRS) 簽發編號
   crs_id: "CRS-9412-X",
-  
+
   // 🌟 全新加入：當前航班嘅 Pre-flight Engineering Action Log
   tl_entries: [
     {
@@ -176,21 +161,39 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { reg, data } = await request.json();
-
-    if (!reg || !data) {
-      return NextResponse.json({ error: 'Missing reg or data payload' }, { status: 400 });
+    // 🌟 `data` 而家係「部分更新」(patch)，喺 server 端同最新一份 row merge，
+    // 避免教官/機師兩邊同時寫，一方用舊 snapshot 蓋走另一方啱啱寫低嘅欄位
+    const parsed = techlogPostBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Missing reg or data payload', details: parsed.error.issues }, { status: 400 });
     }
+    const { reg, data } = parsed.data;
 
-    // 🌟 每次 POST (Save) 之前都確保 Table 存在，防止 Race Condition
-    await ensureTableExists();
+    await ensureSchema();
 
-    await db.execute({
-      sql: 'REPLACE INTO techlogs (reg, data) VALUES (?, ?)',
-      args: [reg, JSON.stringify(data)]
-    });
+    const tx = await db.transaction('write');
+    try {
+      const result = await tx.execute({
+        sql: 'SELECT data FROM techlogs WHERE reg = ?',
+        args: [reg],
+      });
+      const row = result.rows[0];
+      const current = row && row.data ? JSON.parse(row.data as string) : {};
+      const merged = { ...current, ...data };
 
-    return NextResponse.json({ success: true, message: 'TechLog data synchronized' });
+      await tx.execute({
+        sql: 'REPLACE INTO techlogs (reg, data) VALUES (?, ?)',
+        args: [reg, JSON.stringify(merged)],
+      });
+
+      await tx.commit();
+      return NextResponse.json({ success: true, message: 'TechLog data synchronized', data: merged });
+    } catch (err) {
+      await tx.rollback();
+      throw err;
+    } finally {
+      tx.close();
+    }
   } catch (error) {
     console.error('Techlog POST DB Error:', error);
     return NextResponse.json({ error: 'Internal Server Error', details: String(error) }, { status: 500 });

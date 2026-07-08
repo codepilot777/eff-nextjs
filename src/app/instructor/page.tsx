@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 // 🌟 引入 React Query 核心組件
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -95,11 +94,12 @@ export default function InstructorHub() {
   // ==========================================
   const publishFlightMutation = useMutation({
     mutationFn: async (flightData: any) => {
-      const updatedData = { ...flightData, is_published: true };
+      // 🌟 淨係送個 diff（唔好連成個 flight object 都送去覆寫），
+      // 由 server merge，避免蓋走教官/機師另一邊同一時間寫低嘅欄位
       const res = await fetch('/api/flight/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: flightData._db_id, data: updatedData })
+        body: JSON.stringify({ id: flightData._db_id, data: { is_published: true } })
       });
       if (!res.ok) throw new Error('Failed to publish flight');
       return res.json();
@@ -178,11 +178,15 @@ export default function InstructorHub() {
             </span>
           </h2>
         </div>
-        <Link href="/">
-          <button className="bg-lido-800 border border-[#404040] text-white px-6 py-3 rounded-lg font-bold hover:bg-[#34495e] transition-colors">
-            🚪 LOGOUT
-          </button>
-        </Link>
+        <button
+          onClick={async () => {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            router.push('/');
+          }}
+          className="bg-lido-800 border border-[#404040] text-white px-6 py-3 rounded-lg font-bold hover:bg-[#34495e] transition-colors"
+        >
+          🚪 LOGOUT
+        </button>
       </div>
 
       {/* ========================================== */}

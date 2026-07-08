@@ -1,19 +1,21 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@libsql/client';
+import db, { ensureSchema } from '@/lib/db';
+import { isInstructorAuthed } from '@/lib/auth';
+import { flightDeleteBodySchema } from '@/lib/validation';
 
 export async function POST(request: Request) {
   try {
-    const { id } = await request.json();
-
-    if (!id) {
-      return NextResponse.json({ error: 'Missing flight id' }, { status: 400 });
+    if (!isInstructorAuthed(request)) {
+      return NextResponse.json({ error: 'Instructor login required' }, { status: 401 });
     }
 
-    // 🌟 連接 Turso 雲端資料庫 (Local 開發時如果冇填 ENV，會自動 fallback 用返 file)
-    const db = createClient({
-      url: process.env.TURSO_DATABASE_URL || "file:eff_database.db",
-      authToken: process.env.TURSO_AUTH_TOKEN,
-    });
+    const parsed = flightDeleteBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Missing flight id' }, { status: 400 });
+    }
+    const { id } = parsed.data;
+
+    await ensureSchema();
 
     // 🌟 非同步執行 Delete (args 陣列用來防止 SQL Injection)
     const info = await db.execute({
