@@ -1,13 +1,19 @@
 import { NextResponse } from 'next/server';
 import db, { ensureSchema } from '@/lib/db';
+import { isInstructorAuthed } from '@/lib/auth';
+import { flightDeleteBodySchema } from '@/lib/validation';
 
 export async function POST(request: Request) {
   try {
-    const { id } = await request.json();
+    if (!isInstructorAuthed(request)) {
+      return NextResponse.json({ error: 'Instructor login required' }, { status: 401 });
+    }
 
-    if (!id) {
+    const parsed = flightDeleteBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
       return NextResponse.json({ error: 'Missing flight id' }, { status: 400 });
     }
+    const { id } = parsed.data;
 
     await ensureSchema();
 

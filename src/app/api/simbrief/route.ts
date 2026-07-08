@@ -1,15 +1,23 @@
 import { NextResponse } from 'next/server';
 import db, { ensureSchema } from '@/lib/db';
+import { isInstructorAuthed } from '@/lib/auth';
+import { simbriefBodySchema } from '@/lib/validation';
 
 export async function POST(request: Request) {
   try {
-    const { username, flightNo } = await request.json();
-
-    if (!username) {
-      return NextResponse.json({ error: 'SimBrief Username is required' }, { status: 400 });
+    if (!isInstructorAuthed(request)) {
+      return NextResponse.json({ error: 'Instructor login required' }, { status: 401 });
     }
 
-    const sbUrl = `https://www.simbrief.com/api/xml.fetcher.php?username=${username}&json=1`;
+    const parsed = simbriefBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid request body' }, { status: 400 });
+    }
+    const { username, flightNo } = parsed.data;
+
+    // 🌟 修正：舊版冇 encode username 就直接砌入 URL，
+    // 如果 username 有特殊字符（例如 &）會篡改成個 query string
+    const sbUrl = `https://www.simbrief.com/api/xml.fetcher.php?username=${encodeURIComponent(username)}&json=1`;
     const sbRes = await fetch(sbUrl);
     const sbData = await sbRes.json();
 

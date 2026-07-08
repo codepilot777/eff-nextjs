@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import db, { ensureSchema } from '@/lib/db';
+import { isInstructorAuthed } from '@/lib/auth';
+import { flightUpdateBodySchema, hasProtectedFlightFields } from '@/lib/validation';
 
 export async function POST(request: Request) {
   try {
@@ -7,12 +9,16 @@ export async function POST(request: Request) {
     // 🌟 `data` 而家係一份「部分更新」(patch)，唔再係成個 flight object
     // 咁樣先可以喺 server 端做 merge，避免教官/機師兩個人同時寫，
     // 一方用返舊(stale) snapshot 蓋走咗另一方啱啱寫低嘅欄位
-    const body = await request.json();
-    const { id, data } = body;
+    const parsed = flightUpdateBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid request body', details: parsed.error.issues }, { status: 400 });
+    }
+    const { id, data } = parsed.data;
 
-    // 防呆檢查
-    if (!id || !data) {
-      return NextResponse.json({ error: 'Missing flight id or data payload' }, { status: 400 });
+    // 🌟 is_published/activated_version 呢類欄位淨係教官先可以改，
+    // 其餘 fuel/loadsheet 等欄位保持開放俾機師 workspace 寫入
+    if (hasProtectedFlightFields(data) && !isInstructorAuthed(request)) {
+      return NextResponse.json({ error: 'Instructor login required' }, { status: 401 });
     }
 
     await ensureSchema();

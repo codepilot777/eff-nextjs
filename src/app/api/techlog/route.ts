@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import db, { ensureSchema } from '@/lib/db';
+import { aircraftRegSchema, techlogPostBodySchema } from '@/lib/validation';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const reg = searchParams.get('reg');
+    const regParam = aircraftRegSchema.safeParse(searchParams.get('reg'));
 
-    if (!reg) {
+    if (!regParam.success) {
       return NextResponse.json({ error: 'Missing reg parameter' }, { status: 400 });
     }
+    const reg = regParam.data;
 
     await ensureSchema();
 
@@ -161,11 +163,11 @@ export async function POST(request: Request) {
   try {
     // 🌟 `data` 而家係「部分更新」(patch)，喺 server 端同最新一份 row merge，
     // 避免教官/機師兩邊同時寫，一方用舊 snapshot 蓋走另一方啱啱寫低嘅欄位
-    const { reg, data } = await request.json();
-
-    if (!reg || !data) {
-      return NextResponse.json({ error: 'Missing reg or data payload' }, { status: 400 });
+    const parsed = techlogPostBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Missing reg or data payload', details: parsed.error.issues }, { status: 400 });
     }
+    const { reg, data } = parsed.data;
 
     await ensureSchema();
 

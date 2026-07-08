@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 // 🌟 引入 React Query 核心組件
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -179,11 +178,15 @@ export default function InstructorHub() {
             </span>
           </h2>
         </div>
-        <Link href="/">
-          <button className="bg-lido-800 border border-[#404040] text-white px-6 py-3 rounded-lg font-bold hover:bg-[#34495e] transition-colors">
-            🚪 LOGOUT
-          </button>
-        </Link>
+        <button
+          onClick={async () => {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            router.push('/');
+          }}
+          className="bg-lido-800 border border-[#404040] text-white px-6 py-3 rounded-lg font-bold hover:bg-[#34495e] transition-colors"
+        >
+          🚪 LOGOUT
+        </button>
       </div>
 
       {/* ========================================== */}
