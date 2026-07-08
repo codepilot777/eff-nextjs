@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@libsql/client';
+import db, { ensureSchema } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
@@ -9,11 +9,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing flight id' }, { status: 400 });
     }
 
-    // 🌟 連接 Turso 雲端資料庫 (Local 開發時如果冇填 ENV，會自動 fallback 用返 file)
-    const db = createClient({
-      url: process.env.TURSO_DATABASE_URL || "file:eff_database.db",
-      authToken: process.env.TURSO_AUTH_TOKEN,
-    });
+    await ensureSchema();
 
     // 🌟 非同步執行 Delete (args 陣列用來防止 SQL Injection)
     const info = await db.execute({

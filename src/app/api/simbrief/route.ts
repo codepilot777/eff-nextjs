@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@libsql/client';
+import db, { ensureSchema } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
@@ -122,17 +122,7 @@ export async function POST(request: Request) {
       final_ls_reject_reason: ""
     };
 
-    const db = createClient({
-      url: process.env.TURSO_DATABASE_URL || "file:eff_database.db",
-      authToken: process.env.TURSO_AUTH_TOKEN,
-    });
-    
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS flights (
-        flight_no TEXT PRIMARY KEY,
-        data JSON
-      )
-    `);
+    await ensureSchema();
 
     await db.execute({
       sql: 'REPLACE INTO flights (flight_no, data) VALUES (?, ?)',

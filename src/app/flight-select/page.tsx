@@ -87,15 +87,14 @@ function FlightSelectContent() {
   // 2. React Query: 樂觀更新 Activate 狀態
   const activateMutation = useMutation({
     mutationFn: async ({ id, newVersion }: { id: string, newVersion: number }) => {
-      const flightToUpdate = flights.find((f: any) => f._db_id === id);
-      const updatedData = { ...flightToUpdate, activated_version: newVersion };
+      // 🌟 淨係送個 diff 去 server merge，唔好用本地 flights 快取做 base 去覆寫成個 flight
       const res = await fetch('/api/flight/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, data: updatedData })
+        body: JSON.stringify({ id, data: { activated_version: newVersion } })
       });
       if (!res.ok) throw new Error('Failed to update');
-      return updatedData;
+      return { id, activated_version: newVersion };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['flights', 'available'] });

@@ -23,11 +23,13 @@ export function useFlightData() {
   // 2. 更新資料
   const { mutate: rqUpdateFlightData, isPending: isUpdating } = useMutation({
     mutationFn: async (updates: any) => {
-      const updatedData = { ...flightData, ...updates };
+      // 🌟 淨係送個 diff 去 server，由 server 同最新一份 row merge
+      // (唔好用本地嘅 flightData 做 base 再蓋走成個 blob，
+      // 否則會用 stale snapshot 蓋走教官/機師另一邊啱啱寫低嘅欄位)
       const res = await fetch('/api/flight/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: flightId, data: updatedData })
+        body: JSON.stringify({ id: flightId, data: updates })
       });
       if (!res.ok) throw new Error("Failed to update flight data");
       return res.json();

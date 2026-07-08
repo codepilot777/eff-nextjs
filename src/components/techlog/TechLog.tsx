@@ -75,13 +75,14 @@ export default function TechLog({ forcedRole }: { forcedRole?: string }) {
   // 🌟 3. Update 時 Payload 傳送 reg
   const updateTechLogData = async (updates: any) => {
     isUpdatingTl.current = true;
-    const updated = { ...tlData, ...updates };
-    setTlData(updated);
+    // 本地即刻顯示個合併結果，保持 UI 即時反應
+    setTlData((prev: any) => ({ ...prev, ...updates }));
     try {
+      // 🌟 淨係送個 diff 去 server merge，唔好用本地 tlData 做 base 去覆寫成份 tech log
       await fetch('/api/techlog', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reg: currentReg, data: updated })
+        body: JSON.stringify({ reg: currentReg, data: updates })
       });
     } catch (e) {
       console.error(e);

@@ -1,17 +1,13 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@libsql/client';
+import db, { ensureSchema } from '@/lib/db';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role'); // 可能是 "Trainee" 或 "Instructor"
 
-    // 🌟 連接 Turso 雲端資料庫
-    const db = createClient({
-      url: process.env.TURSO_DATABASE_URL || "file:eff_database.db",
-      authToken: process.env.TURSO_AUTH_TOKEN,
-    });
-    
+    await ensureSchema();
+
     // 🌟 非同步執行 SQL 查詢，取得所有航班記錄
     const result = await db.execute('SELECT flight_no, data FROM flights');
     
