@@ -17,9 +17,35 @@ export default function PaxCargoEditor({ ahm, payload, setPayload, targetZFW, ge
           );
         })}
         <div className="col-span-2 text-[#FF9100] text-xs font-black tracking-widest uppercase mt-2">Cargo (KG)</div>
-        {['h1', 'h2', 'h3', 'h4', 'bulk'].map((h, i) => (
-          <div key={h} className="flex items-center justify-between bg-[#1a1a1a] px-3 py-2 rounded border border-[#404040]"><span className="text-xs text-[#8fa0a6] uppercase">{h === 'bulk' ? 'Bulk' : `Hold ${i+1}`}</span><input type="number" value={payload.cargo[h]} onChange={(e) => setPayload({...payload, cargo: {...payload.cargo, [h]: parseInt(e.target.value) || 0}})} className="bg-transparent border-none text-right text-white w-20 outline-none font-mono text-sm" /></div>
-        ))}
+        {['h1', 'h2', 'h3', 'h4', 'bulk'].map((h, i) => {
+          const holdKey = h === 'bulk' ? 'bulk' : `hold${i + 1}`;
+          const maxWeight = ahm.stations.cargo[holdKey]?.maxWeight;
+          const currentWeight = payload.cargo[h] || 0;
+          return (
+            <div key={h} className="flex flex-col gap-0.5">
+              <div className="flex items-center justify-between bg-[#1a1a1a] px-3 py-2 rounded border border-[#404040]">
+                <span className="text-xs text-[#8fa0a6] uppercase">{h === 'bulk' ? 'Bulk' : `Hold ${i+1}`}</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={maxWeight}
+                  value={payload.cargo[h]}
+                  onChange={(e) => {
+                    const raw = parseInt(e.target.value) || 0;
+                    const clamped = maxWeight != null ? Math.min(maxWeight, Math.max(0, raw)) : Math.max(0, raw);
+                    setPayload({...payload, cargo: {...payload.cargo, [h]: clamped}});
+                  }}
+                  className="bg-transparent border-none text-right text-white w-20 outline-none font-mono text-sm"
+                />
+              </div>
+              {maxWeight != null && (
+                <span className={`text-[0.6rem] text-right pr-1 ${currentWeight > maxWeight ? "text-[#FF1744] font-bold" : "text-[#555]"}`}>
+                  max {maxWeight.toLocaleString()}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
       <div className="grid grid-cols-2 gap-4 border-t border-[#333333] pt-4">
         <button onClick={() => handleTransmit("EZFW")} disabled={isUpdating} className="bg-[#404040] text-white py-3 rounded-lg font-black tracking-widest text-xs hover:bg-[#555] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#404040]">TRANSMIT EZFW</button>

@@ -41,7 +41,6 @@ export interface AircraftAHM560 {
 
 export interface FlightPayload {
   pax: Record<string, number>; // 頭先已經改咗嘅動態人數
-  paxWeights: { J: number; Y: number };
   cargo: { hold1: number; hold2: number; hold3: number; hold4: number; bulk: number };
   waterFraction: number;
   fuel: {

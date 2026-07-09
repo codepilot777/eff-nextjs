@@ -21,7 +21,7 @@ export function useFlightData() {
   });
 
   // 2. 更新資料
-  const { mutate: rqUpdateFlightData, isPending: isUpdating } = useMutation({
+  const { mutate: rqUpdateFlightData, mutateAsync: rqUpdateFlightDataAsync, isPending: isUpdating } = useMutation({
     mutationFn: async (updates: any) => {
       // 🌟 淨係送個 diff 去 server，由 server 同最新一份 row merge
       // (唔好用本地嘅 flightData 做 base 再蓋走成個 blob，
@@ -80,14 +80,15 @@ queryClient.setQueryData(["flight", flightId], { ...(previousData || {}), ...upd
     };
   }, [flightData, calc, rqUpdateFlightData]);
 
-  return { 
-    flightId, 
-    flightData, 
-    updateFlightData: rqUpdateFlightData, 
-    calc, 
-    handlers, 
-    isLoading, 
-    isFetching, 
-    isUpdating 
+  return {
+    flightId,
+    flightData,
+    updateFlightData: rqUpdateFlightData,
+    updateFlightDataAsync: rqUpdateFlightDataAsync,
+    calc,
+    handlers,
+    isLoading,
+    isFetching,
+    isUpdating
   };
 }

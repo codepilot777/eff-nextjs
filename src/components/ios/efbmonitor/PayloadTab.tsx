@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
-import { LoadsheetEngine, AutoLoader } from "@/lib/loadsheet/LoadsheetEngine";
+import { LoadsheetEngine, AutoLoader, PAX_CLASS_WEIGHTS, CREW_PANTRY_REGISTRY, getWaterWeight, getMainTankCapacity } from "@/lib/loadsheet/LoadsheetEngine";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 // 🌟 引入我們先前編寫好的跨界適配器大腦
 import { adaptEfbPayloadToPmdg } from "@/services/payloadAdapter";
@@ -15,7 +15,7 @@ import FuelManager from "./payload-tab/FuelManager";
 import SimSyncController from "./payload-tab/SimSyncController";
 
 export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
-  const { flightData, updateFlightData, calc, isUpdating } = useFlightData();
+  const { flightData, updateFlightData, updateFlightDataAsync, calc, isUpdating } = useFlightData();
 
   // 🌟 新增：智能追蹤鎖 (追蹤 Target ZFW 同 Fuel Order 嘅變化)
   const loadedZfwRef = useRef<number>(0);
@@ -49,7 +49,7 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
   const traineeFinalFuelKg = flightData?.final_fuel_request ? Math.round(flightData.final_fuel_request * 1000) : 0;
 
   const distributeFuel = (val: number) => {
-    const maxMain = 29600;
+    const maxMain = getMainTankCapacity(ahm);
     if (val <= maxMain * 2) {
       const half = Math.round(val / 2);
       return { left: half, center: 0, right: val - half };
@@ -69,9 +69,9 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
       // 📦 1. 抽離並組裝客艙總重量生肉
       const calculatedPaxWeights: Record<string, number> = {};
       Object.entries(payload.pax).forEach(([zoneKey, count]) => {
-        // 🌟 動態讀取 AHM 定義的 primaryClass 來決定重量 (85kg 或 81kg)
-        const zoneClass = (ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y";
-        const standardWeight = zoneClass === "J" ? 85 : 81;
+        // 🌟 動態讀取 AHM 定義的 primaryClass 嚟決定重量，用返單一嘅 PAX_CLASS_WEIGHTS 表
+        const zoneClass = ((ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y") as "J" | "W" | "Y";
+        const standardWeight = PAX_CLASS_WEIGHTS[zoneClass] ?? PAX_CLASS_WEIGHTS.Y;
         calculatedPaxWeights[zoneKey] = count * standardWeight;
       });
 
@@ -104,14 +104,14 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
   const generateExactPayload = (targetZfwKg: number) => {
     const generated = AutoLoader.generatePayload(targetZfwKg, ahm);
     
-    // 🌟 核心升級：精確讀取真實 DOW 作為減數基底
-    const crewPantryWeight = ahm.acType === "B77W" ? 7549 : 8652;
-    const waterWeight = 805;
+    // 🌟 核心升級：精確讀取真實 DOW 作為減數基底（用返同 AutoLoader/engine 一樣嘅 registry，唔再各自硬編碼）
+    const crewPantryWeight = (CREW_PANTRY_REGISTRY[ahm.acType] || CREW_PANTRY_REGISTRY["B773"]).weight;
+    const waterWeight = getWaterWeight(ahm, 15).weight; // 假設飲用水 15/16 滿
     const engineDOW = ahm.basicData.BW + crewPantryWeight + waterWeight;
 
     const paxWt = Object.entries(generated.pax).reduce((sum, [zoneKey, count]) => {
-      const zoneClass = (ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y";
-      const weight = zoneClass === "J" ? 85 : 81;
+      const zoneClass = ((ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y") as "J" | "W" | "Y";
+      const weight = PAX_CLASS_WEIGHTS[zoneClass] ?? PAX_CLASS_WEIGHTS.Y;
       return sum + (Number(count) * weight);
     }, 0);
     
@@ -209,8 +209,7 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
   const takeoffFuelKg = Math.max(0, blockFuelKg - revisedTaxiKg);
 
   const enginePayload = {
-    pax: payload.pax as any, 
-    paxWeights: { J: 85, Y: 81 }, // 這兩個基數保留給 LoadsheetEngine 調用
+    pax: payload.pax as any,
     cargo: { hold1: Number(payload.cargo.h1) || 0, hold2: Number(payload.cargo.h2) || 0, hold3: Number(payload.cargo.h3) || 0, hold4: Number(payload.cargo.h4) || 0, bulk: Number(payload.cargo.bulk) || 0 },
     waterFraction: Number(flightData?.water_fraction) || 15,
     fuel: { takeoff: takeoffFuelKg, trip: flightData?.fuel_trip_ofp ? Number(flightData.fuel_trip_ofp) * 1000 : 18500, isStandard: false, tanks: { leftMain: Number(payload.fuel.left) || 0, center: Number(payload.fuel.center) || 0, rightMain: Number(payload.fuel.right) || 0 } }
@@ -228,8 +227,8 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
 
   // src/components/ios/efbmonitor/PayloadTab.tsx 內部
 
-  const handleTransmit = (docType: string) => {
-    const updates: any = {}; 
+  const handleTransmit = async (docType: string) => {
+    const updates: any = {};
     const zoneKeys = Object.keys(ahm.stations.pax);
     
     if (zoneKeys[0]) updates.pax_f = payload.pax[zoneKeys[0]]; 
@@ -295,8 +294,23 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
       updates.fuel_is_standard = false; 
     }
     
-    updateFlightData(updates);
-    alert(`${docType} snapshot transmitted to EFB!`);
+    // 🌟 PRELIM/FINAL 係真正嘅派發文件，超重/CG 爆晒都可以照送（呢個係訓練工具，
+    // 教官可能刻意整個超重 scenario 考機師識唔識察覺），但一定要問清楚先，唔可以靜靜雞漏咗警告
+    if ((docType === "PRELIM" || docType === "FINAL") && !limits.isValid) {
+      const failed = Object.entries(limits.errors)
+        .filter(([, v]) => v)
+        .map(([k]) => k)
+        .join(", ");
+      if (!confirm(`⚠️ This loadsheet exceeds limits (${failed}). Transmit anyway?`)) return;
+    }
+
+    try {
+      await updateFlightDataAsync(updates);
+      alert(`${docType} snapshot transmitted to EFB!`);
+    } catch (error) {
+      console.error(`Failed to transmit ${docType}:`, error);
+      alert(`⚠️ Failed to transmit ${docType}: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
   return (
