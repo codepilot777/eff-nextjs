@@ -3,6 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { searchMelItems, getMelItem, MelItem } from "@/lib/mel/melRegistry";
 
+// 🌟 真實嘅標準 MEL 分類補救期限（唔係亂作，係航空業界通用嘅 A/B/C/D 分類）
+const MEL_CATEGORY_DEADLINES: Record<string, string> = {
+  A: "AS SPECIFIED",
+  B: "3 DAYS",
+  C: "10 DAYS",
+  D: "120 DAYS",
+};
+
 interface DefectDetailManagerProps {
   selectedEntry: string;
   defects: any[];
@@ -51,6 +59,10 @@ export function DefectDetailManager({
   const sel = defects.find((d: any) => d.id === selectedEntry);
   if (!sel) return <div className="text-gray-500 font-mono text-xs">Entry Not Found.</div>;
 
+  // 🌟 由真實 MEL registry 查返呢條 defect 對應嘅分類，先至知道真正嘅補救期限
+  const deferredMelInfo = sel.mel_ref ? getMelItem(sel.mel_ref) : null;
+  const deadlineText = deferredMelInfo ? (MEL_CATEGORY_DEADLINES[deferredMelInfo.category] || "N/A") : "N/A";
+
   const getStatusBadge = (status: string) => {
     if (status === "OPEN") return "bg-[#FF1744]/20 text-[#FF1744] border-[#FF1744]/40";
     if (status === "DEFERRED") return "bg-[#FF9100]/20 text-[#FF9100] border-[#FF9100]/40";
@@ -94,20 +106,20 @@ export function DefectDetailManager({
         {/* 📊 1. 航空級元數據面板 */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-[#0a0a0a] p-4 border border-[#252525] rounded-xl font-mono text-[0.7rem]">
           <div><span className="text-[#8fa0a6] block mb-0.5">REPORTED BY</span><span className="text-white font-sans font-bold">{sel.reported_by || "FLT CREW"}</span></div>
-          <div><span className="text-[#8fa0a6] block mb-0.5">LOG DATE/TIME</span><span className="text-white font-bold">{sel.reported_time || "11:45Z"}</span></div>
-          <div><span className="text-[#8fa0a6] block mb-0.5">FLIGHT PHASE</span><span className="text-yellow-500 font-bold">{sel.flight_phase || "TRANSIT"}</span></div>
-          
+          <div><span className="text-[#8fa0a6] block mb-0.5">LOG DATE/TIME</span><span className="text-white font-bold">{sel.reported_time || sel.time || "N/A"}</span></div>
+          <div><span className="text-[#8fa0a6] block mb-0.5">FLIGHT PHASE</span><span className="text-yellow-500 font-bold">{sel.flight_phase || "N/A"}</span></div>
+
           {sel.status === "DEFERRED" && (
             <>
               <div className="border-t border-[#222] pt-2"><span className="text-[#FF9100] block mb-0.5">MEL REFERENCE</span><span className="text-white font-bold">{sel.mel_ref || "N/A"}</span></div>
               <div className="border-t border-[#222] pt-2"><span className="text-[#FF9100] block mb-0.5">DEFERRAL TYPE</span><span className="text-white font-bold">{sel.deferral_type || "PADD"}</span></div>
-              <div className="border-t border-[#222] pt-2"><span className="text-[#FF9100] block mb-0.5">DEADLINE</span><span className="text-red-400 font-bold">CAT C (10 DAYS)</span></div>
+              <div className="border-t border-[#222] pt-2"><span className="text-[#FF9100] block mb-0.5">DEADLINE</span><span className="text-red-400 font-bold">{deferredMelInfo ? `CAT ${deferredMelInfo.category} (${deadlineText})` : "N/A"}</span></div>
             </>
           )}
           {sel.status === "CLEARED" && (
             <div className="col-span-2 sm:col-span-3 border-t border-[#222] pt-2 flex justify-between items-center">
-              <div><span className="text-[#00E676] block mb-0.5">RELEASE TO SERVICE REF</span><span className="text-white font-bold">CRS-9821-E</span></div>
-              <div className="text-right text-[#8fa0a6]">Rectified by System Eng</div>
+              <div><span className="text-[#00E676] block mb-0.5">CLEARED BY</span><span className="text-white font-bold">{sel.cleared_by || "N/A"}</span></div>
+              <div className="text-right text-[#8fa0a6]">{sel.cleared_time ? `at ${sel.cleared_time}` : ""}</div>
             </div>
           )}
         </div>
@@ -260,7 +272,10 @@ export function DefectDetailManager({
                   <span>⚠️ System Limit Check ({ahm.reg})</span>
                   <span>ZFW Margin: <span className={getMarginColor(marginZfw)}>{getMarginStr(marginZfw)} T</span></span>
                 </div>
-                <button onClick={() => onDefer(sel.id, deferType, melSearch, deferReason)} disabled={!selectedMel} className={`w-full py-4 text-black text-[0.75rem] uppercase tracking-widest font-black rounded-xl transition-all ${selectedMel ? 'bg-[#FF9100] hover:bg-orange-500 shadow-lg' : 'bg-[#333] text-[#666] cursor-not-allowed'}`}>
+                {/* 🌟 修復：以前 send melSearch（自由輸入嘅文字），撳咗個 MEL 之後仲可以改
+                    個輸入框，令實際送出嘅同畫面顯示緊嘅 MEL 詳情唔一致。而家送 selectedMel.ataCode，
+                    即係實際顯示緊嗰條——按鈕本身已經 disabled={!selectedMel}，所以呢度一定唔會係 null */}
+                <button onClick={() => onDefer(sel.id, deferType, selectedMel!.ataCode, deferReason)} disabled={!selectedMel} className={`w-full py-4 text-black text-[0.75rem] uppercase tracking-widest font-black rounded-xl transition-all ${selectedMel ? 'bg-[#FF9100] hover:bg-orange-500 shadow-lg' : 'bg-[#333] text-[#666] cursor-not-allowed'}`}>
                   CONFIRM MAINTENANCE DISPOSITION
                 </button>
               </div>

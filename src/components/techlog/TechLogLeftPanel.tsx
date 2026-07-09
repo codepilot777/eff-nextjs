@@ -30,36 +30,31 @@ export default function TechLogLeftPanel({ tlData, roleMode, setActiveTask, setS
         
         <div className="flex flex-col gap-3">
           <div className="flex justify-between items-center border-b border-dashed border-[#333] pb-2">
-            <span className="text-[#8fa0a6] text-[0.75rem] font-bold">EDTO Transit</span> 
+            <span className="text-[#8fa0a6] text-[0.75rem] font-bold">EDTO Transit</span>
             <span className={`text-[0.7rem] font-black uppercase tracking-widest px-2 py-0.5 rounded ${isChecks ? 'bg-[#00E676]/10 text-[#00E676] border border-[#00E676]/30' : 'bg-[#FF9100]/10 text-[#FF9100] border border-[#FF9100]/30'}`}>
               {isChecks ? 'Completed' : 'Required'}
             </span>
           </div>
           <div className="flex justify-between items-center border-b border-dashed border-[#333] pb-2">
-            <span className="text-[#8fa0a6] text-[0.75rem] font-bold">Daily Check</span> 
-            <span className="text-white font-mono text-[0.75rem] font-bold">{isChecks ? '24h 00m' : '0h 45m'}</span>
+            <span className="text-[#8fa0a6] text-[0.75rem] font-bold">Daily Check</span>
+            <span className={`text-[0.7rem] font-black uppercase tracking-widest px-2 py-0.5 rounded ${isChecks ? 'bg-[#00E676]/10 text-[#00E676] border border-[#00E676]/30' : 'bg-[#FF9100]/10 text-[#FF9100] border border-[#FF9100]/30'}`}>
+              {isChecks ? 'Completed' : 'Required'}
+            </span>
           </div>
           <div className="flex justify-between items-center border-b border-dashed border-[#333] pb-2">
-            <span className="text-[#8fa0a6] text-[0.75rem] font-bold">Weekly Check</span> 
-            <span className="text-white font-mono text-[0.75rem] font-bold">{isChecks ? '7d 00m' : '4d 12h'}</span>
+            <span className="text-[#8fa0a6] text-[0.75rem] font-bold">Weekly Check</span>
+            <span className={`text-[0.7rem] font-black uppercase tracking-widest px-2 py-0.5 rounded ${isChecks ? 'bg-[#00E676]/10 text-[#00E676] border border-[#00E676]/30' : 'bg-[#FF9100]/10 text-[#FF9100] border border-[#FF9100]/30'}`}>
+              {isChecks ? 'Completed' : 'Required'}
+            </span>
           </div>
         </div>
-        
+
         {roleMode === "ENGINEER" && !isChecks && (
           <button onClick={() => setActiveTask("maint_check")} className="w-full mt-4 py-3 bg-[#0a0a0a] border border-[#444] text-[#e2e8f0] rounded-xl font-bold hover:bg-[#252525] hover:text-white transition-colors text-[0.75rem] uppercase tracking-widest flex justify-center items-center gap-2">
             <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.83-5.83M15.17 11.42a4.5 4.5 0 11-6.34-6.34 4.5 4.5 0 016.34 6.34zM10 14H6l-3 3v3h3l3-3v-4z" /></svg>
             Maintenance Check
           </button>
         )}
-        
-        {/* Notices to Crew (警告框) */}
-        <div className="mt-5 bg-[#FF9100]/10 border border-[#FF9100]/30 rounded-lg p-3 flex items-start gap-3">
-          <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-[#FF9100] shrink-0 mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-          <div className="flex flex-col">
-            <strong className="text-[#FF9100] text-[0.65rem] uppercase tracking-widest mb-1">Notices to Crew</strong>
-            <span className="text-[#e2e8f0] font-mono text-[0.75rem] leading-snug">[MSG 01] EXTRA POTABLE WATER UPLIFT REQUIRED.</span>
-          </div>
-        </div>
       </div>
 
       {/* 🌟 2. Tasks / Actions */}
@@ -85,7 +80,7 @@ export default function TechLogLeftPanel({ tlData, roleMode, setActiveTask, setS
                   <button onClick={() => setActiveTask("acceptance")} className="w-full py-3.5 bg-[#C6FF00] text-black font-black rounded-xl hover:bg-[#a8db00] transition-colors shadow-[0_4px_15px_rgba(198,255,0,0.3)] text-[0.75rem] uppercase tracking-widest">
                     Commander's Acceptance
                   </button>
-                  <button onClick={() => { updateTechLogData({tl_prepared: false, tl_fuel_record_completed: false, tl_accept: false}); setActiveTask(null); }} className="w-full py-3 mt-1 bg-transparent border border-[#FF1744]/50 text-[#FF1744] text-[0.65rem] font-bold rounded-xl hover:bg-[#FF1744]/10 transition-colors uppercase tracking-widest">
+                  <button onClick={() => { if (!confirm("Cancel the prepared flight? Progress on Prepare Flight/Fuel Record will be lost.")) return; updateTechLogData({data: {tl_prepared: false, tl_fuel_record_completed: false, tl_accept: false}}); setActiveTask(null); }} className="w-full py-3 mt-1 bg-transparent border border-[#FF1744]/50 text-[#FF1744] text-[0.65rem] font-bold rounded-xl hover:bg-[#FF1744]/10 transition-colors uppercase tracking-widest">
                     Cancel Prepared Flight
                   </button>
                 </>
@@ -104,7 +99,7 @@ export default function TechLogLeftPanel({ tlData, roleMode, setActiveTask, setS
                   </button>
                 )}
                 {openEntries.length === 0 && !isDefects && (
-                  <button onClick={() => updateTechLogData({tl_defects: true})} className="w-full py-3.5 bg-transparent border border-[#555] text-[#e2e8f0] font-bold rounded-xl hover:border-[#00E676] hover:bg-[#00E676]/10 hover:text-[#00E676] transition-colors text-[0.75rem] uppercase tracking-widest flex items-center justify-center gap-2">
+                  <button onClick={() => updateTechLogData({signOffDefects: true})} className="w-full py-3.5 bg-transparent border border-[#555] text-[#e2e8f0] font-bold rounded-xl hover:border-[#00E676] hover:bg-[#00E676]/10 hover:text-[#00E676] transition-colors text-[0.75rem] uppercase tracking-widest flex items-center justify-center gap-2">
                     <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                     Sign Off Defects Log
                   </button>

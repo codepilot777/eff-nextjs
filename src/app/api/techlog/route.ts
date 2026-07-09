@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import db, { ensureSchema } from '@/lib/db';
-import { aircraftRegSchema, techlogPostBodySchema } from '@/lib/validation';
+import { aircraftRegSchema, requiresInstructorAuth, techlogPostBodySchema } from '@/lib/validation';
+import { isInstructorAuthed } from '@/lib/auth';
+import { applyTechLogDirectives } from '@/lib/techlog/directives';
 
 export async function GET(request: Request) {
   try {
@@ -161,13 +163,20 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    // 🌟 `data` 而家係「部分更新」(patch)，喺 server 端同最新一份 row merge，
-    // 避免教官/機師兩邊同時寫，一方用舊 snapshot 蓋走另一方啱啱寫低嘅欄位
+    // 🌟 `data` + directive 欄位（defectUpdate/defectAppend/tlEntryAppend/...）
+    // 喺 server 端同最新一份 row merge，避免教官/機師兩邊同時寫，一方用舊 snapshot
+    // 蓋走另一方啱啱寫低嘅欄位（包括 defects/tl_entries/flights 呢啲 array）
     const parsed = techlogPostBodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
       return NextResponse.json({ error: 'Missing reg or data payload', details: parsed.error.issues }, { status: 400 });
     }
-    const { reg, data } = parsed.data;
+    const { reg, ...patch } = parsed.data;
+
+    // 🌟 ENGINEER 專屬動作（release/checks/fluids/CRS/sign-off/clear-defer defect）
+    // 一定要教官登入先做得，唔再淨係靠前端隱藏返啲掣
+    if (requiresInstructorAuth(patch) && !isInstructorAuthed(request)) {
+      return NextResponse.json({ error: 'Instructor login required' }, { status: 401 });
+    }
 
     await ensureSchema();
 
@@ -179,7 +188,7 @@ export async function POST(request: Request) {
       });
       const row = result.rows[0];
       const current = row && row.data ? JSON.parse(row.data as string) : {};
-      const merged = { ...current, ...data };
+      const merged = applyTechLogDirectives(current, patch);
 
       await tx.execute({
         sql: 'REPLACE INTO techlogs (reg, data) VALUES (?, ?)',

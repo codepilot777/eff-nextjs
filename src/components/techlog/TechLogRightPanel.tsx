@@ -16,7 +16,7 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
   
   const { calc } = useFlightData(); // 接通核心計算大腦
   const { sendToFSUIPC, isConnected} = useSim();
-  const { tl_flight_started: isStarted, tl_entries } = tlData;
+  const { tl_flight_started: isStarted } = tlData;
 
   // 1. 全動態機型定錨
   const currentReg = flightData?.aircraft_reg || "B-HNQ";
@@ -31,6 +31,8 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
   // 🔧 封裝底層更新邏輯 (維持純數據管道，不干涉 UI)
   // -----------------------------------------------------
   const handleClearDefect = (id: string, actionDesc: string) => {
+    if (!confirm(`Sign Certificate of Release to Service for defect ${id}? This cannot be undone.`)) return;
+
     const defectToClear = defects.find((d: any) => d.id === id);
     const newEntry = {
       id: `ENT-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -41,14 +43,18 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
       desc: actionDesc || "Defect rectified and tested IAW AMM. Ops normal.",
       sign: currentSign
     };
-    updateTechLogData({ 
-      defects: defects.map((d: any) => d.id === id ? { ...d, status: "CLEARED", action_desc: actionDesc } : d),
-      tl_entries: [...(tl_entries || []), newEntry] 
+    // 🌟 用 defectUpdate directive 淨係改呢一條 defect，唔再send成個 defects array，
+    // 避免蓋走另一邊（機師/教官）啱啱同時寫低嘅其他 defect 改動
+    updateTechLogData({
+      defectUpdate: { id, changes: { status: "CLEARED", action_desc: actionDesc, cleared_by: currentSign, cleared_time: getCurrentTime() } },
+      tlEntryAppend: newEntry,
     });
     setActiveTask(null);
   };
 
   const handleDeferDefect = async (id: string, type: string, mel: string, reason: string) => {
+    if (!confirm(`Defer defect ${id} as ${type} under MEL ${mel}?`)) return;
+
     const defectToDefer = defects.find((d: any) => d.id === id);
     const numMatch = id.match(/\d+/);
     const num = numMatch ? numMatch[0] : Math.floor(Math.random() * 1000).toString().padStart(3, '0');
@@ -65,9 +71,9 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
     };
 
     // 1️⃣ 軌道一：UI 狀態與網頁資料庫更新 (先執行，保持網頁流暢)
-    updateTechLogData({ 
-      defects: defects.map((d: any) => d.id === id ? { ...d, id: newId, status: "DEFERRED", deferral_type: type, mel_ref: mel, deferral_reason: reason } : d),
-      tl_entries: [...(tl_entries || []), newEntry]
+    updateTechLogData({
+      defectUpdate: { id, changes: { id: newId, status: "DEFERRED", deferral_type: type, mel_ref: mel, deferral_reason: reason } },
+      tlEntryAppend: newEntry,
     });
     setActiveTask(null);
 
@@ -95,20 +101,22 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
   // 靜態簽發調度
   const handleCompleteChecks = () => {
     const newEntry = { id: `ENT-${Math.floor(1000 + Math.random() * 9000)}`, time: getCurrentTime(), action: "MAINTENANCE CHECK", ref: "N/A", desc: "Transit Check completed IAW AMM.", sign: currentSign };
-    updateTechLogData({ tl_checks: true, tl_entries: [...(tl_entries || []), newEntry] });
+    updateTechLogData({ data: { tl_checks: true }, tlEntryAppend: newEntry });
     setActiveTask(null);
   };
 
   const handleCompleteFluids = () => {
     const newEntry = { id: `SRV-${Math.floor(1000 + Math.random() * 9000)}`, time: getCurrentTime(), action: "SERVICING UPLIFT", ref: "N/A", desc: "Routine fluids uplift recorded and verified.", sign: currentSign };
-    updateTechLogData({ tl_fluids: true, tl_entries: [...(tl_entries || []), newEntry] });
+    updateTechLogData({ data: { tl_fluids: true }, tlEntryAppend: newEntry });
     setActiveTask(null);
   };
 
   const handleReleaseAircraft = () => {
+    if (!confirm("Sign the Certificate of Release to Service for this aircraft? This cannot be undone.")) return;
+
     const crsId = `CRS-${Math.floor(1000 + Math.random() * 9000)}-X`;
     const newEntry = { id: `ENT-${Math.floor(1000 + Math.random() * 9000)}`, time: getCurrentTime(), action: "AIRCRAFT RELEASED", ref: crsId, desc: "Certificate of Release to Service (CRS) signed and issued.", sign: currentSign };
-    updateTechLogData({ tl_release: true, crs_id: crsId, tl_entries: [...(tl_entries || []), newEntry] });
+    updateTechLogData({ data: { tl_release: true, crs_id: crsId }, tlEntryAppend: newEntry });
     setActiveTask(null);
   };
 

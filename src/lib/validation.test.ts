@@ -4,6 +4,7 @@ import {
   flightUpdateBodySchema,
   hasProtectedFlightFields,
   loginBodySchema,
+  requiresInstructorAuth,
   simbriefBodySchema,
   techlogPostBodySchema,
 } from './validation';
@@ -42,6 +43,65 @@ describe('techlogPostBodySchema', () => {
     expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', data: { tl_prepared: true } }).success).toBe(true);
     expect(techlogPostBodySchema.safeParse({ reg: '', data: {} }).success).toBe(false);
     expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', data: 'nope' }).success).toBe(false);
+  });
+
+  it('defaults data to {} so a directive-only patch is valid on its own', () => {
+    const result = techlogPostBodySchema.safeParse({ reg: 'B-HNQ', signOffDefects: true });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.data).toEqual({});
+  });
+
+  it('accepts each directive shape', () => {
+    expect(techlogPostBodySchema.safeParse({
+      reg: 'B-HNQ',
+      defectUpdate: { id: 'A1', changes: { status: 'CLEARED' } },
+    }).success).toBe(true);
+    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', defectAppend: { id: 'A2' } }).success).toBe(true);
+    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', tlEntryAppend: { id: 'ENT-1' } }).success).toBe(true);
+    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', tlEntriesReset: true }).success).toBe(true);
+    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', flightsPrepend: { id: 'SEC-1' } }).success).toBe(true);
+    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', signOffDefects: true }).success).toBe(true);
+  });
+
+  it('rejects tlEntriesReset/signOffDefects set to false (must be the true literal or absent)', () => {
+    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', tlEntriesReset: false }).success).toBe(false);
+    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', signOffDefects: false }).success).toBe(false);
+  });
+
+  it('rejects defects/tl_entries/flights smuggled inside data (the array-replacement bypass)', () => {
+    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', data: { defects: [] } }).success).toBe(false);
+    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', data: { tl_entries: [] } }).success).toBe(false);
+    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', data: { flights: [] } }).success).toBe(false);
+  });
+});
+
+describe('requiresInstructorAuth', () => {
+  it('gates release/checks/fluids/CRS writes', () => {
+    expect(requiresInstructorAuth({ data: { tl_release: true } })).toBe(true);
+    expect(requiresInstructorAuth({ data: { tl_checks: true } })).toBe(true);
+    expect(requiresInstructorAuth({ data: { tl_fluids: true } })).toBe(true);
+    expect(requiresInstructorAuth({ data: { crs_id: 'CRS-1234-X' } })).toBe(true);
+  });
+
+  it('gates the signOffDefects directive', () => {
+    expect(requiresInstructorAuth({ signOffDefects: true })).toBe(true);
+  });
+
+  it('gates clearing or deferring a defect via defectUpdate', () => {
+    expect(requiresInstructorAuth({ defectUpdate: { changes: { status: 'CLEARED' } } })).toBe(true);
+    expect(requiresInstructorAuth({ defectUpdate: { changes: { status: 'DEFERRED' } } })).toBe(true);
+  });
+
+  it('does not gate an open-status defectUpdate (e.g. reporting) or unrelated field writes', () => {
+    expect(requiresInstructorAuth({ defectUpdate: { changes: { status: 'OPEN' } } })).toBe(false);
+    expect(requiresInstructorAuth({ data: { tl_prepared: true } })).toBe(false);
+  });
+
+  it('does NOT gate the flight-crew finalizeSector reset, even though it writes tl_defects/crs_id: ""', () => {
+    // this is the exact shape sharedUtils.ts's finalizeSector sends after every sector close
+    expect(requiresInstructorAuth({
+      data: { tl_defects: true, tl_release: false, tl_checks: false, tl_fluids: false, crs_id: '' },
+    })).toBe(false);
   });
 });
 
