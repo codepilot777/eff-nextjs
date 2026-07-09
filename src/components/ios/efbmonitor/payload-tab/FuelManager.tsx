@@ -1,6 +1,6 @@
 "use client";
 
-export default function FuelManager({ payload, setPayload, flightData, ofpTotalFuelKg, standbyFuelKg, fobKg, traineeFinalFuelKg, handleTransmit }: any) {
+export default function FuelManager({ payload, setPayload, flightData, ofpTotalFuelKg, standbyFuelKg, fobKg, traineeFinalFuelKg, handleTransmit, isUpdating }: any) {
   return (
     <div className="bg-lido-800 p-6 rounded-xl border border-[#333333] shadow-lg">
       <h4 className="text-white font-black uppercase tracking-widest text-lg flex items-center gap-2 border-b border-[#333333] pb-3 mb-4">
@@ -71,12 +71,15 @@ export default function FuelManager({ payload, setPayload, flightData, ofpTotalF
       </div>
       
       {/* 派發按鈕 */}
-      <button 
-        onClick={() => handleTransmit("FUEL_RECEIPT")} 
+      <button
+        onClick={() => handleTransmit("FUEL_RECEIPT")}
+        disabled={flightData?.fuel_receipt_sent || isUpdating}
         className={`w-full py-3 mt-4 rounded-lg font-black tracking-widest text-xs transition-colors ${
-          flightData?.fuel_receipt_sent 
-            ? 'bg-[#2979FF]/20 border border-[#2979FF] text-[#2979FF] cursor-not-allowed' 
-            : 'bg-[#2979FF] text-white hover:bg-blue-600 shadow-md'
+          flightData?.fuel_receipt_sent
+            ? 'bg-[#2979FF]/20 border border-[#2979FF] text-[#2979FF] cursor-not-allowed'
+            : isUpdating
+              ? 'bg-[#2979FF]/50 text-white/60 cursor-not-allowed'
+              : 'bg-[#2979FF] text-white hover:bg-blue-600 shadow-md'
         }`}
       >
         {flightData?.fuel_receipt_sent ? '✅ FUEL RECEIPT DISPATCHED' : 'DISPATCH FUEL RECEIPT'}

@@ -1,4 +1,4 @@
-export default function PaxCargoEditor({ ahm, payload, setPayload, targetZFW, generateExactPayload, handleTransmit }: any) {
+export default function PaxCargoEditor({ ahm, payload, setPayload, targetZFW, generateExactPayload, handleTransmit, isUpdating }: any) {
   return (
     <div className="bg-lido-800 p-6 rounded-xl border border-[#3333333] shadow-lg">
       <div className="flex justify-between items-center border-b border-[#333333] pb-3 mb-4">
@@ -22,8 +22,8 @@ export default function PaxCargoEditor({ ahm, payload, setPayload, targetZFW, ge
         ))}
       </div>
       <div className="grid grid-cols-2 gap-4 border-t border-[#333333] pt-4">
-        <button onClick={() => handleTransmit("EZFW")} className="bg-[#404040] text-white py-3 rounded-lg font-black tracking-widest text-xs hover:bg-[#555] transition-colors">TRANSMIT EZFW</button>
-        <button onClick={() => handleTransmit("AZF")} className="bg-[#404040] text-white py-3 rounded-lg font-black tracking-widest text-xs hover:bg-[#555] transition-colors">TRANSMIT AZF</button>
+        <button onClick={() => handleTransmit("EZFW")} disabled={isUpdating} className="bg-[#404040] text-white py-3 rounded-lg font-black tracking-widest text-xs hover:bg-[#555] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#404040]">TRANSMIT EZFW</button>
+        <button onClick={() => handleTransmit("AZF")} disabled={isUpdating} className="bg-[#404040] text-white py-3 rounded-lg font-black tracking-widest text-xs hover:bg-[#555] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#404040]">TRANSMIT AZF</button>
       </div>
     </div>
   );

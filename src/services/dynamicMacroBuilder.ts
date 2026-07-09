@@ -1,6 +1,6 @@
 // src/utils/macroBuilder.ts
 
-import { CDU } from "@/data/pmdgCommands";
+import { CDU, CDU_NAV } from "@/data/pmdgCommands";
 import { PmdgPayloadOutput } from "./payloadAdapter";
 
 /**
@@ -78,4 +78,17 @@ export function buildFuelMacro(totalFuelTons: string | number): number[] {
   console.log(`👻 [Ghost Pilot] Compiling Fuel Macro for ${totalFuelTons}T...`);
   const fuelKg = Math.round(Number(totalFuelTons) * 1000);
   return buildTypingSequence(fuelKg, CDU.L1);
+}
+
+/**
+ * 🔗 組合連技：入 PAYLOAD 頁打晒 payload，再入 FUEL 頁打總油量
+ * 淨係砌返現有已經有嘅 nav (CDU_NAV) 同 typing macro，冇新增任何未驗證嘅按鍵路徑
+ */
+export function buildPayloadAndFuelSyncMacro(payload: PmdgPayloadOutput, totalFuelTons: string | number): number[] {
+  return [
+    ...CDU_NAV.GOTO_PAYLOAD,
+    ...buildFullPayloadMacro(payload),
+    ...CDU_NAV.GOTO_FUEL,
+    ...buildFuelMacro(totalFuelTons),
+  ];
 }

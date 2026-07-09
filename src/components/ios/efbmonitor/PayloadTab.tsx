@@ -5,6 +5,8 @@ import { LoadsheetEngine, AutoLoader } from "@/lib/loadsheet/LoadsheetEngine";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 // 🌟 引入我們先前編寫好的跨界適配器大腦
 import { adaptEfbPayloadToPmdg } from "@/services/payloadAdapter";
+import { buildPayloadAndFuelSyncMacro } from "@/services/dynamicMacroBuilder";
+import { fireCDUMacro } from "@/services/pmdgService";
 
 // 引入子組件
 import AircraftVisualizer from "./payload-tab/AircraftVisualizer";
@@ -12,18 +14,15 @@ import PaxCargoEditor from "./payload-tab/PaxCargoEditor";
 import FuelManager from "./payload-tab/FuelManager";
 import SimSyncController from "./payload-tab/SimSyncController";
 
-export default function PayloadTab() {
-  const { flightData, updateFlightData, calc } = useFlightData();
+export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
+  const { flightData, updateFlightData, calc, isUpdating } = useFlightData();
 
   // 🌟 新增：智能追蹤鎖 (追蹤 Target ZFW 同 Fuel Order 嘅變化)
   const loadedZfwRef = useRef<number>(0);
   const loadedFuelOrderRef = useRef<number>(0);
-  
+
   // 🌟 模擬機連動狀態控制
   const [isSimSyncing, setIsSimSyncing] = useState(false);
-  const [useRealTimeFuel, setUseRealTimeFuel] = useState(true); // 預設開啟實時加油
-  const [simCurrentFuel, setSimCurrentFuel] = useState(0);      // 模擬機當前累計油量
-  const refuelTimer = useRef<NodeJS.Timeout | null>(null);
 
   const currentReg = flightData?.aircraft_reg || "B-HNQ";
   const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
@@ -59,75 +58,43 @@ export default function PayloadTab() {
     }
   };
 
-  useEffect(() => {
-    return () => { if (refuelTimer.current) clearInterval(refuelTimer.current); };
-  }, []);
-
   // ==========================================
-  // 🌟 核心黑魔法：PMDG 實時跨界同步引擎
+  // 🌟 PMDG 實時跨界同步引擎：真係接返 sendToFSUIPC，唔再係得個 console.table
   // ==========================================
-  const handleSyncToPmdgSim = () => {
-    if (isSimSyncing) return;
+  const handleSyncToPmdgSim = async () => {
+    if (isSimSyncing || !isConnected) return;
     setIsSimSyncing(true);
 
-    console.log(`%c⚡ [FSUIPC CONNECT] Initializing PMDG 777-300ER Data Link...`, "color: #00E676; font-weight: bold;");
+    try {
+      // 📦 1. 抽離並組裝客艙總重量生肉
+      const calculatedPaxWeights: Record<string, number> = {};
+      Object.entries(payload.pax).forEach(([zoneKey, count]) => {
+        // 🌟 動態讀取 AHM 定義的 primaryClass 來決定重量 (85kg 或 81kg)
+        const zoneClass = (ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y";
+        const standardWeight = zoneClass === "J" ? 85 : 81;
+        calculatedPaxWeights[zoneKey] = count * standardWeight;
+      });
 
-    // 📦 1. 抽離並組裝客艙總重量生肉
-    const calculatedPaxWeights: Record<string, number> = {};
-    Object.entries(payload.pax).forEach(([zoneKey, count]) => {
-      // 🌟 核心修改：動態讀取 AHM 定義的 primaryClass 來決定重量 (85kg 或 81kg)
-      const zoneClass = (ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y";
-      const standardWeight = zoneClass === "J" ? 85 : 81;
-      calculatedPaxWeights[zoneKey] = count * standardWeight;
-    });
-
-    const efbLoadingPayload = {
-      paxWeights: calculatedPaxWeights,
-      cargoWeights: {
-        hold1: payload.cargo.h1, hold2: payload.cargo.h2, hold3: payload.cargo.h3, hold4: payload.cargo.h4, bulk: payload.cargo.bulk
-      }
-    };
-
-    const pmdgPayloadOutput = adaptEfbPayloadToPmdg(efbLoadingPayload, currentReg);
-
-    console.log("%c📦 [ADAPTER PASSED] EFB Layout successfully adaptive-mapped to PMDG Stations:", "color: #2979FF; font-weight: bold;");
-    console.table({
-      "FMC LSK 1L (FWD CABIN)": `${pmdgPayloadOutput.paxCabins.fwd} KG`,
-      "FMC LSK 2L (MID CABIN)": `${pmdgPayloadOutput.paxCabins.mid} KG`,
-      "FMC LSK 3L (AFT CABIN)": `${pmdgPayloadOutput.paxCabins.aft} KG`,
-      "FMC LSK 4L (FWD CARGO)": `${pmdgPayloadOutput.cargoHolds.fwd} KG`,
-      "FMC LSK 5L (AFT CARGO)": `${pmdgPayloadOutput.cargoHolds.aft} KG`,
-      "FMC LSK 6L (BULK CARGO)": `${pmdgPayloadOutput.cargoHolds.bulk} KG`,
-      "TOTAL SIM PAYLOAD TRAFFIC": `${pmdgPayloadOutput.totalPayloadKg} KG`
-    });
-
-    const targetTotalFuel = payload.fuel.left + payload.fuel.center + payload.fuel.right;
-    
-    if (!useRealTimeFuel) {
-      console.log(`%c⛽ [FUEL INSTANT] Direct-writing total fuel request: ${targetTotalFuel} KG`, "color: #FF9100; font-weight: bold;");
-      setIsSimSyncing(false);
-      alert("Immediate synchronization completed to PMDG via console!");
-    } else {
-      let currentFuelPumped = 0;
-      setSimCurrentFuel(0);
-
-      console.log(`%c⛽ [REFUELLING STARTED] High-pressure hydrants connected. Target Block Fuel: ${targetTotalFuel} KG`, "color: #FFD600; font-weight: bold; font-size: 14px;");
-
-      refuelTimer.current = setInterval(() => {
-        currentFuelPumped += 450;
-        if (currentFuelPumped >= targetTotalFuel) {
-          currentFuelPumped = targetTotalFuel;
-          setSimCurrentFuel(targetTotalFuel);
-          clearInterval(refuelTimer.current!);
-          setIsSimSyncing(false);
-          console.log(`%c✅ [REFUELLING COMPLETED] Total request achieved: ${targetTotalFuel} KG. Fuel nozzles disconnected.`, "color: #00E676; font-weight: bold;");
-          alert("Real-time refuelling simulation loop finished successfully!");
-        } else {
-          setSimCurrentFuel(currentFuelPumped);
-          const tickFuelSplit = distributeFuel(currentFuelPumped);
-          console.log(`%c⚡ [PUMP TICK] Total Flowing: ${currentFuelPumped} kg (${((currentFuelPumped/targetTotalFuel)*100).toFixed(0)}%) | L_MAIN: ${tickFuelSplit.left}kg | CTR: ${tickFuelSplit.center}kg | R_MAIN: ${tickFuelSplit.right}kg`, "color: #8fa0a6;");
+      const efbLoadingPayload = {
+        paxWeights: calculatedPaxWeights,
+        cargoWeights: {
+          hold1: payload.cargo.h1, hold2: payload.cargo.h2, hold3: payload.cargo.h3, hold4: payload.cargo.h4, bulk: payload.cargo.bulk
         }
-      }, 200);
+      };
+
+      const pmdgPayloadOutput = adaptEfbPayloadToPmdg(efbLoadingPayload, currentReg);
+      const targetTotalFuelKg = payload.fuel.left + payload.fuel.center + payload.fuel.right;
+
+      // 🎯 真正發送：入 PAYLOAD 頁打晒 payload，再入 FUEL 頁打總油量
+      const sequence = buildPayloadAndFuelSyncMacro(pmdgPayloadOutput, targetTotalFuelKg / 1000);
+      await fireCDUMacro(sendToFSUIPC, sequence);
+
+      alert("✅ Payload & fuel synchronized to PMDG simulator.");
+    } catch (error) {
+      console.error("PMDG sim sync failed:", error);
+      alert(`⚠️ PMDG sim sync failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsSimSyncing(false);
     }
   };
 
@@ -355,55 +322,55 @@ export default function PayloadTab() {
         {/* 右側：控制面板 */}
         <div className="flex flex-col gap-6">
           {/* Card 1: Payload Editor */}
-          <PaxCargoEditor 
-            ahm={ahm} 
-            payload={payload} 
-            setPayload={setPayload} 
-            targetZFW={targetZFW} 
-            generateExactPayload={generateExactPayload} 
-            handleTransmit={handleTransmit} 
+          <PaxCargoEditor
+            ahm={ahm}
+            payload={payload}
+            setPayload={setPayload}
+            targetZFW={targetZFW}
+            generateExactPayload={generateExactPayload}
+            handleTransmit={handleTransmit}
+            isUpdating={isUpdating}
           />
           
           {/* Card 2: Fuel Manager */}
-          <FuelManager 
-            payload={payload} 
-            setPayload={setPayload} 
-            flightData={flightData} 
-            ofpTotalFuelKg={ofpTotalFuelKg} 
-            standbyFuelKg={standbyFuelKg} 
-            fobKg={fobKg} 
-            traineeFinalFuelKg={traineeFinalFuelKg} 
-            handleTransmit={handleTransmit} 
+          <FuelManager
+            payload={payload}
+            setPayload={setPayload}
+            flightData={flightData}
+            ofpTotalFuelKg={ofpTotalFuelKg}
+            standbyFuelKg={standbyFuelKg}
+            fobKg={fobKg}
+            traineeFinalFuelKg={traineeFinalFuelKg}
+            handleTransmit={handleTransmit}
+            isUpdating={isUpdating}
           />
-          
+
           {/* Card 3: Sim Sync */}
-          <SimSyncController 
-            useRealTimeFuel={useRealTimeFuel} 
-            setUseRealTimeFuel={setUseRealTimeFuel} 
-            isSimSyncing={isSimSyncing} 
-            simCurrentFuel={simCurrentFuel} 
-            targetTotalFuel={payload.fuel.left + payload.fuel.center + payload.fuel.right} 
-            handleSyncToPmdgSim={handleSyncToPmdgSim} 
+          <SimSyncController
+            isConnected={isConnected}
+            isSimSyncing={isSimSyncing}
+            handleSyncToPmdgSim={handleSyncToPmdgSim}
           />
-          
+
           {/* Card 4: Document Dispatch */}
           <div className="bg-lido-800 p-6 rounded-xl border border-[#333333] shadow-lg">
             <h4 className="text-white font-black uppercase tracking-widest text-lg flex items-center gap-2 border-b border-[#333333] pb-3 mb-4">
               <span className="text-[#FF9100]">4.</span> Document Dispatch
             </h4>
             <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => handleTransmit("PRELIM")} 
-                className="bg-[#FF9100]/20 border border-[#FF9100] text-[#FF9100] py-4 rounded-lg font-black tracking-widest text-xs hover:bg-[#FF9100] hover:text-black transition-all"
+              <button
+                onClick={() => handleTransmit("PRELIM")}
+                disabled={isUpdating}
+                className="bg-[#FF9100]/20 border border-[#FF9100] text-[#FF9100] py-4 rounded-lg font-black tracking-widest text-xs hover:bg-[#FF9100] hover:text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#FF9100]/20 disabled:hover:text-[#FF9100]"
               >
                 TRANSMIT PRELIM
               </button>
-              <button 
-                onClick={() => handleTransmit("FINAL")} 
-                disabled={!flightData?.fuel_receipt_sent} 
+              <button
+                onClick={() => handleTransmit("FINAL")}
+                disabled={!flightData?.fuel_receipt_sent || isUpdating}
                 className={`border py-4 rounded-lg font-black tracking-widest text-xs transition-all ${
-                  flightData?.fuel_receipt_sent 
-                    ? 'bg-[#00E676]/20 border-[#00E676] text-[#00E676] hover:bg-[#00E676] hover:text-black' 
+                  flightData?.fuel_receipt_sent && !isUpdating
+                    ? 'bg-[#00E676]/20 border-[#00E676] text-[#00E676] hover:bg-[#00E676] hover:text-black'
                     : 'bg-[#333] border-[#444] text-[#666] cursor-not-allowed'
                 }`}
               >
