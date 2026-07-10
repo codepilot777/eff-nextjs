@@ -11,11 +11,15 @@ export function TaskAcceptance({ tlData, updateTechLogData, setActiveTask }: any
 
   const handleConfirm = () => {
     updateTechLogData({
-      tl_accept: true, 
-      tl_flight_started: true, 
-      tl_flight_status: "IN_FLIGHT"
-    }); 
-    setActiveTask("info");
+      data: {
+        tl_accept: true,
+        tl_flight_started: true,
+        tl_flight_status: "IN_FLIGHT"
+      }
+    });
+    // 🌟 修復：舊時 setActiveTask("info") 但個 task router 冇 "info" 呢個 case，
+    // 撳完之後右側面板會變晒空白。改返 null 令佢跳返「請喺左邊揀個動作」嘅預設畫面
+    setActiveTask(null);
   };
 
   return (

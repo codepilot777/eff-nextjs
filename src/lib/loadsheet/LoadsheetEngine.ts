@@ -1,10 +1,28 @@
 import { AircraftAHM560, FlightPayload } from './types';
 
+// 🌟 單一齊全嘅艙等重量表 (取代散落成 5 處嘅 J?85:81 三元判斷)
+// W: 未有真實數據來源，暫定 J(85)/Y(81) 之間嘅中間值，之後有真數就換
+export const PAX_CLASS_WEIGHTS: Record<"J" | "W" | "Y", number> = {
+  J: 85,
+  W: 83,
+  Y: 81,
+};
+
 // 🌟 建立全機隊 Crew + Pantry 基礎空重與指數補償矩陣 (標準操作配重 matrix)
-const CREW_PANTRY_REGISTRY: Record<string, { weight: number; index: number }> = {
+export const CREW_PANTRY_REGISTRY: Record<string, { weight: number; index: number }> = {
   "B773": { weight: 8652, index: -4.91 },  // B773 廚房餐食 + 乘務組總重與力矩
   "B77W": { weight: 7549, index: -13.00 }   // B77W 廚房餐食 + 乘務組總重與力矩
 };
+
+// 🌟 由 AHM potableWaterTable 查返實際飲用水重量，取代各處散落嘅硬編碼 805
+export function getWaterWeight(ahm: AircraftAHM560, fraction: number): { weight: number; index: number } {
+  return ahm.potableWaterTable.find(w => w.fraction === fraction) || { weight: 0, index: 0 };
+}
+
+// 🌟 由 AHM 個別機型嘅油缸查表推算真實主油缸上限，取代單一硬編碼 29600（唔同機型油缸容量唔一樣）
+export function getMainTankCapacity(ahm: AircraftAHM560): number {
+  return Math.max(...ahm.individualFuelTables.mainLeftRight.map(e => e.weight));
+}
 
 export class LoadsheetEngine {
   private ahm: AircraftAHM560;
@@ -20,9 +38,7 @@ export class LoadsheetEngine {
   }
 
   private getWaterData() {
-    const table = this.ahm.potableWaterTable;
-    const fraction = this.payload.waterFraction;
-    return table.find(w => w.fraction === fraction) || { weight: 0, index: 0 };
+    return getWaterWeight(this.ahm, this.payload.waterFraction);
   }
 
   /**
@@ -44,8 +60,8 @@ export class LoadsheetEngine {
       const count = Number(this.payload.pax[zoneKey] ?? this.payload.pax[shortKey] ?? 0);
       paxCount += count;
 
-      const zoneClass = (this.ahm.stations.pax as any)[zoneKey].primaryClass;
-      const classWeight = zoneClass === "J" ? this.payload.paxWeights.J : this.payload.paxWeights.Y;
+      const zoneClass = (this.ahm.stations.pax as any)[zoneKey].primaryClass as "J" | "W" | "Y";
+      const classWeight = PAX_CLASS_WEIGHTS[zoneClass] ?? PAX_CLASS_WEIGHTS.Y;
       
       const zoneWeight = count * classWeight;
       totalPaxWeight += zoneWeight;
@@ -160,20 +176,20 @@ export class LoadsheetEngine {
  */
 export class AutoLoader {
   static generatePayload(targetZFW: number, ahm: AircraftAHM560): any {
-    // 🌟 自動根據機型匹配真實的空重阻尼
-    const crewPantryWeight = ahm.acType === "B77W" ? 7549 : 8652;
-    const waterWeight = 805; // 假設飲用水 15/16 滿
+    // 🌟 自動根據機型匹配真實的空重阻尼（直接讀返 registry，唔再重複硬編碼）
+    const crewPantryWeight = (CREW_PANTRY_REGISTRY[ahm.acType] || CREW_PANTRY_REGISTRY["B773"]).weight;
+    const waterWeight = getWaterWeight(ahm, 15).weight; // 假設飲用水 15/16 滿
     const DOW = ahm.basicData.BW + crewPantryWeight + waterWeight;
 
     // 商業可分配載重 = 目標 ZFW 減去 基本飛行空重 DOW
     const remainingPayload = targetZFW - DOW;
-    
+
     const targetPaxWeight = remainingPayload * 0.6;
     const targetCargoWeight = remainingPayload * 0.4;
 
     // 客艙：標準全域均勻載客率
     const maxPaxWeight = Object.entries(ahm.stations.pax).reduce((sum, [_, zoneInfo]: [string, any]) => {
-      const wt = zoneInfo.primaryClass === "J" ? 85 : 81;
+      const wt = PAX_CLASS_WEIGHTS[zoneInfo.primaryClass as "J" | "W" | "Y"] ?? PAX_CLASS_WEIGHTS.Y;
       return sum + (zoneInfo.maxPax * wt);
     }, 0);
 
@@ -186,8 +202,8 @@ export class AutoLoader {
     });
 
     const actualPaxWeight = Object.entries(dynamicPax).reduce((sum, [k, count]) => {
-      const zoneClass = (ahm.stations.pax as any)[k].primaryClass;
-      const wt = zoneClass === "J" ? 85 : 81;
+      const zoneClass = (ahm.stations.pax as any)[k].primaryClass as "J" | "W" | "Y";
+      const wt = PAX_CLASS_WEIGHTS[zoneClass] ?? PAX_CLASS_WEIGHTS.Y;
       return sum + (Number(count) * wt);
     }, 0);
 

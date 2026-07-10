@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
+import { applyTechLogDirectives, TechLogPatch } from "@/lib/techlog/directives";
 
 import TechLogTopBar from "./TechLogTopBar";
 import TechLogDashboard from "./TechLogDashboard";
@@ -17,7 +18,9 @@ export default function TechLog({ forcedRole }: { forcedRole?: string }) {
 
   const searchParams = useSearchParams();
   const roleParam = (searchParams.get("role") || "").toLowerCase();
-  const isInstructor = roleParam === "instructor" || roleParam === "ios";
+  // 🌟 修復：之前 forcedRole prop 完全冇讀過，導致 TechLogModal 傳嘅 forcedRole="instructor"
+  // 係死 prop——教官喺 IOS 開 E-TechLog 預設落咗喺 FLIGHT CREW 模式，要自己手動切換
+  const isInstructor = forcedRole === "instructor" || roleParam === "instructor" || roleParam === "ios";
   const isTrainee = roleParam === "trainee";
 
   const [roleMode, setRoleMode] = useState<"FLIGHT CREW" | "ENGINEER">(isInstructor ? "ENGINEER" : "FLIGHT CREW");
@@ -73,21 +76,33 @@ export default function TechLog({ forcedRole }: { forcedRole?: string }) {
   }, [currentReg]);
 
   // 🌟 3. Update 時 Payload 傳送 reg
-  const updateTechLogData = async (updates: any) => {
+  // patch 可以係扁平 { field: value } (向後兼容，等同 { data: patch })，
+  // 亦可以帶埋 directive 欄位 (defectUpdate/defectAppend/tlEntryAppend/...)
+  const updateTechLogData = async (patch: TechLogPatch | Record<string, unknown>) => {
+    const normalized: TechLogPatch = 'data' in patch || Object.keys(patch).some((k) =>
+      ['defectUpdate', 'defectAppend', 'tlEntryAppend', 'tlEntriesReset', 'flightsPrepend', 'signOffDefects'].includes(k)
+    ) ? (patch as TechLogPatch) : { data: patch as Record<string, unknown> };
+
     isUpdatingTl.current = true;
-    // 本地即刻顯示個合併結果，保持 UI 即時反應
-    setTlData((prev: any) => ({ ...prev, ...updates }));
+    // 本地即刻用返同一套 directive 邏輯合併，保持 UI 即時反應同server 行為一致
+    setTlData((prev: Record<string, unknown> | null) => applyTechLogDirectives(prev || {}, normalized));
     try {
-      // 🌟 淨係送個 diff 去 server merge，唔好用本地 tlData 做 base 去覆寫成份 tech log
-      await fetch('/api/techlog', {
+      const res = await fetch('/api/techlog', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reg: currentReg, data: updates })
+        body: JSON.stringify({ reg: currentReg, ...normalized })
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Failed to update tech log (${res.status})`);
+      }
     } catch (e) {
       console.error(e);
-    } finally { 
-      setTimeout(() => { isUpdatingTl.current = false; }, 1200); 
+      alert(`⚠️ Failed to save tech log update: ${e instanceof Error ? e.message : String(e)}`);
+      // 🌟 送失敗就重新 fetch 一次，令本地樂觀更新同 server 對返齊，唔好停留喺已經失效嘅狀態
+      fetchTechLog();
+    } finally {
+      setTimeout(() => { isUpdatingTl.current = false; }, 1200);
     }
   };
 

@@ -1,10 +1,13 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
-import { LoadsheetEngine, AutoLoader } from "@/lib/loadsheet/LoadsheetEngine";
+import { DEFAULT_OFP_FUEL_T, getStandbyFuelT } from "@/lib/fuelCalculator";
+import { LoadsheetEngine, AutoLoader, PAX_CLASS_WEIGHTS, CREW_PANTRY_REGISTRY, getWaterWeight, getMainTankCapacity } from "@/lib/loadsheet/LoadsheetEngine";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 // 🌟 引入我們先前編寫好的跨界適配器大腦
 import { adaptEfbPayloadToPmdg } from "@/services/payloadAdapter";
+import { buildPayloadAndFuelSyncMacro } from "@/services/dynamicMacroBuilder";
+import { fireCDUMacro } from "@/services/pmdgService";
 
 // 引入子組件
 import AircraftVisualizer from "./payload-tab/AircraftVisualizer";
@@ -12,18 +15,15 @@ import PaxCargoEditor from "./payload-tab/PaxCargoEditor";
 import FuelManager from "./payload-tab/FuelManager";
 import SimSyncController from "./payload-tab/SimSyncController";
 
-export default function PayloadTab() {
-  const { flightData, updateFlightData, calc } = useFlightData();
+export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
+  const { flightData, updateFlightData, updateFlightDataAsync, calc, isUpdating } = useFlightData();
 
   // 🌟 新增：智能追蹤鎖 (追蹤 Target ZFW 同 Fuel Order 嘅變化)
   const loadedZfwRef = useRef<number>(0);
   const loadedFuelOrderRef = useRef<number>(0);
-  
+
   // 🌟 模擬機連動狀態控制
   const [isSimSyncing, setIsSimSyncing] = useState(false);
-  const [useRealTimeFuel, setUseRealTimeFuel] = useState(true); // 預設開啟實時加油
-  const [simCurrentFuel, setSimCurrentFuel] = useState(0);      // 模擬機當前累計油量
-  const refuelTimer = useRef<NodeJS.Timeout | null>(null);
 
   const currentReg = flightData?.aircraft_reg || "B-HNQ";
   const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
@@ -44,13 +44,14 @@ export default function PayloadTab() {
   // 🌟 數據定錨
   // ==========================================
   const targetZFW = flightData?.weight_zfw_ofp ? Math.round(flightData.weight_zfw_ofp * 1000) : 205000;
-  const ofpTotalFuelKg = flightData?.plan_fuel_total ? Math.round(flightData.plan_fuel_total * 1000) : 42000;
-  const standbyFuelKg = Math.max(0, ofpTotalFuelKg - 5000);
+  const ofpTotalFuelKg = flightData?.plan_fuel_total ? Math.round(flightData.plan_fuel_total * 1000) : Math.round(DEFAULT_OFP_FUEL_T * 1000);
+  // 🌟 同 RefuelAircraftColumn.tsx 用返同一個共用 helper，唔再各自寫死 "-5000"
+  const standbyFuelKg = Math.round(getStandbyFuelT(flightData) * 1000);
   const fobKg = flightData?.fuel_on_board ? Math.round(flightData.fuel_on_board * 1000) : 0;
   const traineeFinalFuelKg = flightData?.final_fuel_request ? Math.round(flightData.final_fuel_request * 1000) : 0;
 
   const distributeFuel = (val: number) => {
-    const maxMain = 29600;
+    const maxMain = getMainTankCapacity(ahm);
     if (val <= maxMain * 2) {
       const half = Math.round(val / 2);
       return { left: half, center: 0, right: val - half };
@@ -59,75 +60,43 @@ export default function PayloadTab() {
     }
   };
 
-  useEffect(() => {
-    return () => { if (refuelTimer.current) clearInterval(refuelTimer.current); };
-  }, []);
-
   // ==========================================
-  // 🌟 核心黑魔法：PMDG 實時跨界同步引擎
+  // 🌟 PMDG 實時跨界同步引擎：真係接返 sendToFSUIPC，唔再係得個 console.table
   // ==========================================
-  const handleSyncToPmdgSim = () => {
-    if (isSimSyncing) return;
+  const handleSyncToPmdgSim = async () => {
+    if (isSimSyncing || !isConnected) return;
     setIsSimSyncing(true);
 
-    console.log(`%c⚡ [FSUIPC CONNECT] Initializing PMDG 777-300ER Data Link...`, "color: #00E676; font-weight: bold;");
+    try {
+      // 📦 1. 抽離並組裝客艙總重量生肉
+      const calculatedPaxWeights: Record<string, number> = {};
+      Object.entries(payload.pax).forEach(([zoneKey, count]) => {
+        // 🌟 動態讀取 AHM 定義的 primaryClass 嚟決定重量，用返單一嘅 PAX_CLASS_WEIGHTS 表
+        const zoneClass = ((ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y") as "J" | "W" | "Y";
+        const standardWeight = PAX_CLASS_WEIGHTS[zoneClass] ?? PAX_CLASS_WEIGHTS.Y;
+        calculatedPaxWeights[zoneKey] = count * standardWeight;
+      });
 
-    // 📦 1. 抽離並組裝客艙總重量生肉
-    const calculatedPaxWeights: Record<string, number> = {};
-    Object.entries(payload.pax).forEach(([zoneKey, count]) => {
-      // 🌟 核心修改：動態讀取 AHM 定義的 primaryClass 來決定重量 (85kg 或 81kg)
-      const zoneClass = (ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y";
-      const standardWeight = zoneClass === "J" ? 85 : 81;
-      calculatedPaxWeights[zoneKey] = count * standardWeight;
-    });
-
-    const efbLoadingPayload = {
-      paxWeights: calculatedPaxWeights,
-      cargoWeights: {
-        hold1: payload.cargo.h1, hold2: payload.cargo.h2, hold3: payload.cargo.h3, hold4: payload.cargo.h4, bulk: payload.cargo.bulk
-      }
-    };
-
-    const pmdgPayloadOutput = adaptEfbPayloadToPmdg(efbLoadingPayload, currentReg);
-
-    console.log("%c📦 [ADAPTER PASSED] EFB Layout successfully adaptive-mapped to PMDG Stations:", "color: #2979FF; font-weight: bold;");
-    console.table({
-      "FMC LSK 1L (FWD CABIN)": `${pmdgPayloadOutput.paxCabins.fwd} KG`,
-      "FMC LSK 2L (MID CABIN)": `${pmdgPayloadOutput.paxCabins.mid} KG`,
-      "FMC LSK 3L (AFT CABIN)": `${pmdgPayloadOutput.paxCabins.aft} KG`,
-      "FMC LSK 4L (FWD CARGO)": `${pmdgPayloadOutput.cargoHolds.fwd} KG`,
-      "FMC LSK 5L (AFT CARGO)": `${pmdgPayloadOutput.cargoHolds.aft} KG`,
-      "FMC LSK 6L (BULK CARGO)": `${pmdgPayloadOutput.cargoHolds.bulk} KG`,
-      "TOTAL SIM PAYLOAD TRAFFIC": `${pmdgPayloadOutput.totalPayloadKg} KG`
-    });
-
-    const targetTotalFuel = payload.fuel.left + payload.fuel.center + payload.fuel.right;
-    
-    if (!useRealTimeFuel) {
-      console.log(`%c⛽ [FUEL INSTANT] Direct-writing total fuel request: ${targetTotalFuel} KG`, "color: #FF9100; font-weight: bold;");
-      setIsSimSyncing(false);
-      alert("Immediate synchronization completed to PMDG via console!");
-    } else {
-      let currentFuelPumped = 0;
-      setSimCurrentFuel(0);
-
-      console.log(`%c⛽ [REFUELLING STARTED] High-pressure hydrants connected. Target Block Fuel: ${targetTotalFuel} KG`, "color: #FFD600; font-weight: bold; font-size: 14px;");
-
-      refuelTimer.current = setInterval(() => {
-        currentFuelPumped += 450;
-        if (currentFuelPumped >= targetTotalFuel) {
-          currentFuelPumped = targetTotalFuel;
-          setSimCurrentFuel(targetTotalFuel);
-          clearInterval(refuelTimer.current!);
-          setIsSimSyncing(false);
-          console.log(`%c✅ [REFUELLING COMPLETED] Total request achieved: ${targetTotalFuel} KG. Fuel nozzles disconnected.`, "color: #00E676; font-weight: bold;");
-          alert("Real-time refuelling simulation loop finished successfully!");
-        } else {
-          setSimCurrentFuel(currentFuelPumped);
-          const tickFuelSplit = distributeFuel(currentFuelPumped);
-          console.log(`%c⚡ [PUMP TICK] Total Flowing: ${currentFuelPumped} kg (${((currentFuelPumped/targetTotalFuel)*100).toFixed(0)}%) | L_MAIN: ${tickFuelSplit.left}kg | CTR: ${tickFuelSplit.center}kg | R_MAIN: ${tickFuelSplit.right}kg`, "color: #8fa0a6;");
+      const efbLoadingPayload = {
+        paxWeights: calculatedPaxWeights,
+        cargoWeights: {
+          hold1: payload.cargo.h1, hold2: payload.cargo.h2, hold3: payload.cargo.h3, hold4: payload.cargo.h4, bulk: payload.cargo.bulk
         }
-      }, 200);
+      };
+
+      const pmdgPayloadOutput = adaptEfbPayloadToPmdg(efbLoadingPayload, currentReg);
+      const targetTotalFuelKg = payload.fuel.left + payload.fuel.center + payload.fuel.right;
+
+      // 🎯 真正發送：入 PAYLOAD 頁打晒 payload，再入 FUEL 頁打總油量
+      const sequence = buildPayloadAndFuelSyncMacro(pmdgPayloadOutput, targetTotalFuelKg / 1000);
+      await fireCDUMacro(sendToFSUIPC, sequence);
+
+      alert("✅ Payload & fuel synchronized to PMDG simulator.");
+    } catch (error) {
+      console.error("PMDG sim sync failed:", error);
+      alert(`⚠️ PMDG sim sync failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsSimSyncing(false);
     }
   };
 
@@ -137,14 +106,14 @@ export default function PayloadTab() {
   const generateExactPayload = (targetZfwKg: number) => {
     const generated = AutoLoader.generatePayload(targetZfwKg, ahm);
     
-    // 🌟 核心升級：精確讀取真實 DOW 作為減數基底
-    const crewPantryWeight = ahm.acType === "B77W" ? 7549 : 8652;
-    const waterWeight = 805;
+    // 🌟 核心升級：精確讀取真實 DOW 作為減數基底（用返同 AutoLoader/engine 一樣嘅 registry，唔再各自硬編碼）
+    const crewPantryWeight = (CREW_PANTRY_REGISTRY[ahm.acType] || CREW_PANTRY_REGISTRY["B773"]).weight;
+    const waterWeight = getWaterWeight(ahm, 15).weight; // 假設飲用水 15/16 滿
     const engineDOW = ahm.basicData.BW + crewPantryWeight + waterWeight;
 
     const paxWt = Object.entries(generated.pax).reduce((sum, [zoneKey, count]) => {
-      const zoneClass = (ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y";
-      const weight = zoneClass === "J" ? 85 : 81;
+      const zoneClass = ((ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y") as "J" | "W" | "Y";
+      const weight = PAX_CLASS_WEIGHTS[zoneClass] ?? PAX_CLASS_WEIGHTS.Y;
       return sum + (Number(count) * weight);
     }, 0);
     
@@ -188,7 +157,13 @@ export default function PayloadTab() {
       setPayload({
         pax: restoredPax,
         cargo: { h1: flightData.cargo_hold_1 || 0, h2: flightData.cargo_hold_2 || 0, h3: flightData.cargo_hold_3 || 0, h4: flightData.cargo_hold_4 || 0, bulk: flightData.cargo_bulk || 0 },
-        fuel: { finalOrder: flightData.final_fuel_request ? flightData.final_fuel_request * 1000 : standbyFuelKg, uplift: flightData.actual_uplift ? flightData.actual_uplift * 1000 : 0, left: flightData.fuel_left_main || distributeFuel(standbyFuelKg).left, center: flightData.fuel_center || distributeFuel(standbyFuelKg).center, right: flightData.fuel_right_main || distributeFuel(standbyFuelKg).right }
+        fuel: {
+          finalOrder: flightData.final_fuel_request ? flightData.final_fuel_request * 1000 : standbyFuelKg,
+          // 🌟 actual_uplift 淨係教官真正送咗 fuel receipt 之後先有數；喺嗰之前
+          // prefill 返學員自己嘅 estimated_uplift 做個起點，兩者唔會撞義
+          uplift: flightData.actual_uplift ? flightData.actual_uplift * 1000 : (flightData.estimated_uplift ? flightData.estimated_uplift * 1000 : 0),
+          left: flightData.fuel_left_main || distributeFuel(standbyFuelKg).left, center: flightData.fuel_center || distributeFuel(standbyFuelKg).center, right: flightData.fuel_right_main || distributeFuel(standbyFuelKg).right
+        }
       });
     } else {
       const exactData = generateExactPayload(targetZFW); 
@@ -242,8 +217,7 @@ export default function PayloadTab() {
   const takeoffFuelKg = Math.max(0, blockFuelKg - revisedTaxiKg);
 
   const enginePayload = {
-    pax: payload.pax as any, 
-    paxWeights: { J: 85, Y: 81 }, // 這兩個基數保留給 LoadsheetEngine 調用
+    pax: payload.pax as any,
     cargo: { hold1: Number(payload.cargo.h1) || 0, hold2: Number(payload.cargo.h2) || 0, hold3: Number(payload.cargo.h3) || 0, hold4: Number(payload.cargo.h4) || 0, bulk: Number(payload.cargo.bulk) || 0 },
     waterFraction: Number(flightData?.water_fraction) || 15,
     fuel: { takeoff: takeoffFuelKg, trip: flightData?.fuel_trip_ofp ? Number(flightData.fuel_trip_ofp) * 1000 : 18500, isStandard: false, tanks: { leftMain: Number(payload.fuel.left) || 0, center: Number(payload.fuel.center) || 0, rightMain: Number(payload.fuel.right) || 0 } }
@@ -261,8 +235,8 @@ export default function PayloadTab() {
 
   // src/components/ios/efbmonitor/PayloadTab.tsx 內部
 
-  const handleTransmit = (docType: string) => {
-    const updates: any = {}; 
+  const handleTransmit = async (docType: string) => {
+    const updates: any = {};
     const zoneKeys = Object.keys(ahm.stations.pax);
     
     if (zoneKeys[0]) updates.pax_f = payload.pax[zoneKeys[0]]; 
@@ -318,18 +292,36 @@ export default function PayloadTab() {
       updates.pilots_signed_final = false; 
     }
     
-    if (docType === "FUEL_RECEIPT") { 
-      updates.fuel_receipt_sent = true; 
-      updates.actual_uplift = payload.fuel.uplift / 1000; 
-      updates.fuel_left_main = payload.fuel.left; 
-      updates.fuel_center = payload.fuel.center; 
-      updates.fuel_right_main = payload.fuel.right; 
-      updates.final_fuel_request = payload.fuel.finalOrder / 1000; 
-      updates.fuel_is_standard = false; 
+    if (docType === "FUEL_RECEIPT") {
+      updates.fuel_receipt_sent = true;
+      updates.actual_uplift = payload.fuel.uplift / 1000;
+      updates.fuel_left_main = payload.fuel.left;
+      updates.fuel_center = payload.fuel.center;
+      updates.fuel_right_main = payload.fuel.right;
+      updates.final_fuel_request = payload.fuel.finalOrder / 1000;
+      // 🌟 修復：以前 Total FOB 讀緊一個從未寫過嘅 trainee_log_fuel 欄位（恆定 0）。
+      // 呢度凍結返派發嗰刻嘅機上殘油（fobKg），令 ModalRefuelling 之後就算 fuel_on_board
+      // 再變動都唔會影響返個已經簽發咗嘅 receipt 顯示嘅 Total FOB。
+      updates.fob_before_uplift = fobKg / 1000;
     }
     
-    updateFlightData(updates);
-    alert(`${docType} snapshot transmitted to EFB!`);
+    // 🌟 PRELIM/FINAL 係真正嘅派發文件，超重/CG 爆晒都可以照送（呢個係訓練工具，
+    // 教官可能刻意整個超重 scenario 考機師識唔識察覺），但一定要問清楚先，唔可以靜靜雞漏咗警告
+    if ((docType === "PRELIM" || docType === "FINAL") && !limits.isValid) {
+      const failed = Object.entries(limits.errors)
+        .filter(([, v]) => v)
+        .map(([k]) => k)
+        .join(", ");
+      if (!confirm(`⚠️ This loadsheet exceeds limits (${failed}). Transmit anyway?`)) return;
+    }
+
+    try {
+      await updateFlightDataAsync(updates);
+      alert(`${docType} snapshot transmitted to EFB!`);
+    } catch (error) {
+      console.error(`Failed to transmit ${docType}:`, error);
+      alert(`⚠️ Failed to transmit ${docType}: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
   return (
@@ -355,55 +347,55 @@ export default function PayloadTab() {
         {/* 右側：控制面板 */}
         <div className="flex flex-col gap-6">
           {/* Card 1: Payload Editor */}
-          <PaxCargoEditor 
-            ahm={ahm} 
-            payload={payload} 
-            setPayload={setPayload} 
-            targetZFW={targetZFW} 
-            generateExactPayload={generateExactPayload} 
-            handleTransmit={handleTransmit} 
+          <PaxCargoEditor
+            ahm={ahm}
+            payload={payload}
+            setPayload={setPayload}
+            targetZFW={targetZFW}
+            generateExactPayload={generateExactPayload}
+            handleTransmit={handleTransmit}
+            isUpdating={isUpdating}
           />
           
           {/* Card 2: Fuel Manager */}
-          <FuelManager 
-            payload={payload} 
-            setPayload={setPayload} 
-            flightData={flightData} 
-            ofpTotalFuelKg={ofpTotalFuelKg} 
-            standbyFuelKg={standbyFuelKg} 
-            fobKg={fobKg} 
-            traineeFinalFuelKg={traineeFinalFuelKg} 
-            handleTransmit={handleTransmit} 
+          <FuelManager
+            payload={payload}
+            setPayload={setPayload}
+            flightData={flightData}
+            ofpTotalFuelKg={ofpTotalFuelKg}
+            standbyFuelKg={standbyFuelKg}
+            fobKg={fobKg}
+            traineeFinalFuelKg={traineeFinalFuelKg}
+            handleTransmit={handleTransmit}
+            isUpdating={isUpdating}
           />
-          
+
           {/* Card 3: Sim Sync */}
-          <SimSyncController 
-            useRealTimeFuel={useRealTimeFuel} 
-            setUseRealTimeFuel={setUseRealTimeFuel} 
-            isSimSyncing={isSimSyncing} 
-            simCurrentFuel={simCurrentFuel} 
-            targetTotalFuel={payload.fuel.left + payload.fuel.center + payload.fuel.right} 
-            handleSyncToPmdgSim={handleSyncToPmdgSim} 
+          <SimSyncController
+            isConnected={isConnected}
+            isSimSyncing={isSimSyncing}
+            handleSyncToPmdgSim={handleSyncToPmdgSim}
           />
-          
+
           {/* Card 4: Document Dispatch */}
           <div className="bg-lido-800 p-6 rounded-xl border border-[#333333] shadow-lg">
             <h4 className="text-white font-black uppercase tracking-widest text-lg flex items-center gap-2 border-b border-[#333333] pb-3 mb-4">
               <span className="text-[#FF9100]">4.</span> Document Dispatch
             </h4>
             <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => handleTransmit("PRELIM")} 
-                className="bg-[#FF9100]/20 border border-[#FF9100] text-[#FF9100] py-4 rounded-lg font-black tracking-widest text-xs hover:bg-[#FF9100] hover:text-black transition-all"
+              <button
+                onClick={() => handleTransmit("PRELIM")}
+                disabled={isUpdating}
+                className="bg-[#FF9100]/20 border border-[#FF9100] text-[#FF9100] py-4 rounded-lg font-black tracking-widest text-xs hover:bg-[#FF9100] hover:text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#FF9100]/20 disabled:hover:text-[#FF9100]"
               >
                 TRANSMIT PRELIM
               </button>
-              <button 
-                onClick={() => handleTransmit("FINAL")} 
-                disabled={!flightData?.fuel_receipt_sent} 
+              <button
+                onClick={() => handleTransmit("FINAL")}
+                disabled={!flightData?.fuel_receipt_sent || isUpdating}
                 className={`border py-4 rounded-lg font-black tracking-widest text-xs transition-all ${
-                  flightData?.fuel_receipt_sent 
-                    ? 'bg-[#00E676]/20 border-[#00E676] text-[#00E676] hover:bg-[#00E676] hover:text-black' 
+                  flightData?.fuel_receipt_sent && !isUpdating
+                    ? 'bg-[#00E676]/20 border-[#00E676] text-[#00E676] hover:bg-[#00E676] hover:text-black'
                     : 'bg-[#333] border-[#444] text-[#666] cursor-not-allowed'
                 }`}
               >

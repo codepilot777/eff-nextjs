@@ -138,7 +138,7 @@ function IOSPanelContent() {
               </div>
               <div className="flex-1 overflow-y-auto pr-2">
                 {efbTab === "Config" && <ConfigTab />}
-                {efbTab === "Payload" && <PayloadTab />}
+                {efbTab === "Payload" && <PayloadTab isConnected={isConnected} sendToFSUIPC={sendToFSUIPC} />}
                 {efbTab === "WX" && <WxTab />}
                 {efbTab === "NOTAMs" && <NotamTab />}
               </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateFuelEngine } from './fuelCalculator';
+import { calculateFuelEngine, DEFAULT_OFP_FUEL_T, getStandbyFuelT, STANDBY_FUEL_BUFFER_T } from './fuelCalculator';
 
 const baseFlight = {
   weight_zfw_ofp: 180.0,
@@ -58,5 +58,72 @@ describe('calculateFuelEngine', () => {
     const calc = calculateFuelEngine(starved);
 
     expect(calc.efobAtDest).toBeGreaterThanOrEqual(0);
+  });
+
+  describe('showRevVal', () => {
+    it('is false for an untouched OFP baseline (regression: used to be true just because ofpZfw > 0)', () => {
+      const calc = calculateFuelEngine(baseFlight);
+      expect(calc.hasTraineeZfwInput).toBe(false);
+      expect(calc.showRevVal).toBe(false);
+    });
+
+    it('becomes true once the trainee actually types a ZFW override', () => {
+      const calc = calculateFuelEngine({ ...baseFlight, trainee_input_zfw: 182.0 });
+      expect(calc.hasTraineeZfwInput).toBe(true);
+      expect(calc.showRevVal).toBe(true);
+    });
+
+    it('becomes true in manual mode even with no other overrides', () => {
+      const calc = calculateFuelEngine({ ...baseFlight, fuel_manual_mode: true, manual_fuel: {} });
+      expect(calc.showRevVal).toBe(true);
+    });
+
+    it('becomes true when a non-default alternate is selected', () => {
+      const withAltns = {
+        ...baseFlight,
+        alternates: [{ icao: 'RJOO', burn: 2.0, time: 30 }, { icao: 'RJBB', burn: 2.5, time: 35 }],
+        selected_altn: 'RJBB',
+      };
+      const calc = calculateFuelEngine(withAltns);
+      expect(calc.showRevVal).toBe(true);
+    });
+  });
+
+  describe('processedAlternates', () => {
+    it('does not bleed the selected alternate\'s trip fuel into a non-selected alternate lacking its own burn', () => {
+      const withAltns = {
+        ...baseFlight,
+        alternates: [{ icao: 'RJOO', burn: 2.0, time: 30 }, { icao: 'RJBB', burn: 0, time: 35 }], // RJBB has no real burn
+        selected_altn: 'RJOO',
+      };
+      const calc = calculateFuelEngine(withAltns);
+      const rjbb = calc.processedAlternates.find((a: { icao: string; mdf: number | null; holdFuel: number | null; holdTime: string }) => a.icao === 'RJBB')!;
+
+      expect(rjbb.mdf).toBeNull();
+      expect(rjbb.holdFuel).toBeNull();
+      expect(rjbb.holdTime).toBe('--');
+    });
+
+    it('still computes a real MDF for the selected alternate even in single-fallback-alternate mode', () => {
+      const calc = calculateFuelEngine(baseFlight); // single fallback altn, RJOO selected
+      const rjoo = calc.processedAlternates.find((a: { icao: string; mdf: number | null }) => a.icao === 'RJOO')!;
+
+      expect(rjoo.mdf).not.toBeNull();
+      expect(rjoo.mdf).toBeCloseTo(2.0 + baseFlight.fuel_reserve_ofp);
+    });
+  });
+});
+
+describe('getStandbyFuelT', () => {
+  it('subtracts the standby buffer from the frozen OFP plan_fuel_total', () => {
+    expect(getStandbyFuelT({ plan_fuel_total: 47.425 })).toBeCloseTo(47.425 - STANDBY_FUEL_BUFFER_T);
+  });
+
+  it('falls back to the default OFP figure when plan_fuel_total is missing', () => {
+    expect(getStandbyFuelT({})).toBeCloseTo(DEFAULT_OFP_FUEL_T - STANDBY_FUEL_BUFFER_T);
+  });
+
+  it('never returns a negative value', () => {
+    expect(getStandbyFuelT({ plan_fuel_total: 2.0 })).toBe(0);
   });
 });

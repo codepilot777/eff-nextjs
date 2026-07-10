@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useFlightData } from "@/hooks/useFlightData"; 
+import { useFlightData } from "@/hooks/useFlightData";
+import { getStandbyFuelT } from "@/lib/fuelCalculator";
 import { injectMETAR } from "@/services/weatherService";
 import { fireCDUMacro } from "@/services/pmdgService";
 import { adaptEfbPayloadToPmdg } from "@/services/payloadAdapter";
@@ -48,7 +49,8 @@ export default function InitModal({ isOpen, onClose, sendToFSUIPC }: InitModalPr
   const targetZFW = zfwRaw ? Number(zfwRaw).toFixed(1) : "---";
 
   const fuelRaw = flightData?.plan_fuel_total;
-  const targetFuel = fuelRaw ? (Number(fuelRaw) - 5).toFixed(1) : "---";
+  // 🌟 同 RefuelAircraftColumn.tsx/PayloadTab.tsx 用返同一個共用 Standby Fuel helper
+  const targetFuel = fuelRaw ? getStandbyFuelT(flightData).toFixed(1) : "---";
 
   const originIcao = flightData?.dep_icao || "UNKNOWN";
   const aircraftReg = flightData?.aircraft_reg || "B-KPA";

@@ -3,13 +3,30 @@
 import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
 // 🌟 核心修改：引入總註冊表大腦，全域剷走單一機型
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
+import type { AircraftAHM560 } from "@/lib/loadsheet/types";
 
 /**
  * 🔍 內部輔助函數：根據目前的飛行數據動態撈出該飛機的 AHM 大腦
  */
-const getDynamicAhm = (flightData: any) => {
+export const getDynamicAhm = (flightData: any) => {
   const reg = flightData?.aircraft_reg || "B-HNQ";
   return AIRCRAFT_REGISTRY[reg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
+};
+
+// 🔍 動態版本：唔再靠 hardcode 嘅 {J,W,Y} literal，改為由 ahm.config 實際出現嘅
+// class letter 做種，再逐個 zone 累加。日後加多個 class 都唔使再喺呢度改 code。
+export const buildClassCounts = (ahm: AircraftAHM560, pax: Record<string, unknown> | undefined): Record<string, number> => {
+  const counts: Record<string, number> = {};
+  (ahm.config.match(/[A-Z](?=\d)/g) || []).forEach((cls: string) => { counts[cls] = 0; });
+
+  Object.entries(ahm.stations.pax).forEach(([zoneKey, zoneInfo]) => {
+    const short = zoneKey.replace("zone", "");
+    const count = Number(pax?.[short] ?? pax?.[zoneKey] ?? 0);
+    const primaryClass = zoneInfo.primaryClass || "Y";
+    counts[primaryClass] = (counts[primaryClass] || 0) + count;
+  });
+
+  return counts;
 };
 
 // ==========================================
@@ -95,13 +112,7 @@ export const generateLSText = (
   }).join(" ");
 
   // 🎯 核心修改：動態生成目的地詳細艙等縮寫清單（商業艙等，例如 J042  W024  Y150）
-  const classCounts: Record<string, number> = { J: 0, W: 0, Y: 0 };
-  Object.entries(ahm.stations.pax).forEach(([zoneKey, zoneInfo]: [string, any]) => {
-    const short = zoneKey.replace("zone", "");
-    const count = Number(snapshot.pax?.[short] || snapshot.pax?.[zoneKey] || 0);
-    const primaryClass = zoneInfo.primaryClass || "Y";
-    classCounts[primaryClass] += count;
-  });
+  const classCounts = buildClassCounts(ahm, snapshot.pax);
 
   const dynamicPaxBreakdown = Object.keys(classCounts)
     .filter(cls => ahm.config.includes(cls))
@@ -199,13 +210,7 @@ export const getEzfwText = (flightData: any, calc: any) => {
   
   const estZfwKg = Math.round((flightData?.weight_zfw_ofp || 0.0) * 1000);
   
-  const classCounts: Record<string, number> = { J: 0, W: 0, Y: 0 };
-  Object.entries(ahm.stations.pax).forEach(([zoneKey, zoneInfo]: [string, any]) => {
-    const short = zoneKey.replace("zone", "");
-    const count = Number(snapshot.pax?.[short] || snapshot.pax?.[zoneKey] || 0);
-    const primaryClass = zoneInfo.primaryClass || "Y";
-    classCounts[primaryClass] += count;
-  });
+  const classCounts = buildClassCounts(ahm, snapshot.pax);
 
   const dynamicEzfwPaxStr = Object.keys(classCounts)
     .filter(cls => ahm.config.includes(cls))
@@ -213,4 +218,32 @@ export const getEzfwText = (flightData: any, calc: any) => {
     .join("");
   
   return `EZFW ${info.flight_num_clean}/${info.date_str_ezfw} ${info.reg_clean} ${ahm.config}\n${info.crew_fd}/${info.crew_cc} ${calc?.depIata || 'HKG'}${calc?.arrIata || 'KIX'}\n\nPASSENGER           ${w.totalPaxWeight.toString().padEnd(6)} KG\nCARGO               ${w.totalCargoWeight.toString().padEnd(6)} KG\nTTL TRAFFIC LOAD    ${(w.totalPaxWeight + w.totalCargoWeight).toString().padEnd(6)} KG\n\n${dynamicEzfwPaxStr}\nDOW                 ${w.DOW.toString().padEnd(6)} KG\nEST ZFW             ${estZfwKg.toString().padEnd(6)} KG\n\nLCO: ${info.dispatcher}\nSI\nLATEST EZFW`;
+};
+
+// ==========================================
+// 6. Dashboard reconciliation：真正由 payload 計出嚟嘅 weights，得閒先有
+// ==========================================
+export const getLatestSnapshot = (flightData: Record<string, unknown>) => {
+  return flightData?.final_snapshot || flightData?.prelim_snapshot || flightData?.azf_snapshot || flightData?.ezfw_snapshot || null;
+};
+
+// 🌟 喺學員未真正發送過任何 payload 文件之前，返 null（唔好夾硬計一個假數出嚟）
+export const getEngineWeights = (flightData: Record<string, unknown>) => {
+  const snapshot = getLatestSnapshot(flightData);
+  if (!snapshot) return null;
+
+  const ahm = getDynamicAhm(flightData);
+  const taxiFuelKg = flightData?.fuel_taxi_ofp ? Math.round(Number(flightData.fuel_taxi_ofp) * 1000) : 200;
+
+  const payload = buildEnginePayload(snapshot, flightData, taxiFuelKg);
+  if (!payload) return null;
+
+  const engine = new LoadsheetEngine(ahm, payload);
+  const w = engine.calculateWeights();
+  const cg = engine.calculateCG();
+
+  return {
+    zfw: w.ZFW / 1000, tow: w.TOW / 1000, law: w.LAW / 1000,
+    macTow: cg.MACTOW, macLaw: cg.MACLAW,
+  };
 };

@@ -18,8 +18,13 @@ export default function FailuresView({ isConnected, sendToFSUIPC, telemetryData 
   };
 
   const handleFailureClick = (f: PmdgCommand) => {
+    const hasDispatchMethod = !!(f.macroSequence || f.eventId);
+    // 🌟 防呆：呢類 entry 淨係嚟自 MEL map 對應，未有實測過嘅 CDU macro，唔應該可以撳
+    // （按鈕本身已經 disabled，呢度係俾 handler 保持誠實，以防日後喺第二個地方重用）
+    if (!hasDispatchMethod) return;
+
     const isActive = activeFailures.includes(f.id);
-    
+
     if (isActive) {
       // 🌟 修正點 2：支援復原（Clear），傳入參數 0 代表修復該系統
       if (f.eventId) sendPMDGControl(sendToFSUIPC, f.eventId, 0); 
@@ -57,7 +62,7 @@ export default function FailuresView({ isConnected, sendToFSUIPC, telemetryData 
           <input type="text" placeholder="SEARCH FAILURE..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent text-sm font-mono focus:outline-none w-full text-white placeholder-gray-600 uppercase tracking-wider" />
         </div>
         <div className="flex gap-1.5 overflow-x-auto py-1">
-          {["ALL", "ENGINE", "HYDRAULIC", "ELECTRICAL", "FUEL", "AIR"].map((cat) => (
+          {["ALL", "ENGINE", "HYDRAULIC", "ELECTRICAL", "FUEL", "AIR", "APU"].map((cat) => (
             <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-3 py-1.5 rounded text-[0.65rem] font-mono font-black tracking-widest transition-all ${selectedCategory === cat ? "bg-[#00bfa5] text-black" : "bg-[#252525] text-gray-400 hover:text-white"}`}>{cat}</button>
           ))}
         </div>
@@ -70,27 +75,40 @@ export default function FailuresView({ isConnected, sendToFSUIPC, telemetryData 
       <div className="flex-1 overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 content-start">
         {filteredFailures.map((f: PmdgCommand) => {
           const isCurrentActive = activeFailures.includes(f.id);
-          
+          const hasDispatchMethod = !!(f.macroSequence || f.eventId);
+
           return (
             <button
-              key={f.id} 
-              disabled={!isArmed || !isConnected}
+              key={f.id}
+              disabled={!isArmed || !isConnected || !hasDispatchMethod}
               onClick={() => handleFailureClick(f)}
+              title={f.melRefs ? `MEL Ref: ${f.melRefs.join(", ")}` : undefined}
               className={`p-4 rounded-xl border text-left flex flex-col justify-between transition-all select-none group min-h-[90px] relative ${
-                !isConnected ? "bg-[#222]/30 border-[#333] opacity-30 cursor-not-allowed" : 
-                !isArmed ? "bg-[#252525] border-[#333] opacity-50 cursor-not-allowed" : 
+                // 🌟 未有實測過嘅 macro：無論連線/armed 狀態點都要顯示做「MACRO PENDING」，行行企企唔可以撳
+                !hasDispatchMethod ? "bg-[#1a1a1a] border-dashed border-[#555] opacity-60 cursor-not-allowed" :
+                !isConnected ? "bg-[#222]/30 border-[#333] opacity-30 cursor-not-allowed" :
+                !isArmed ? "bg-[#252525] border-[#333] opacity-50 cursor-not-allowed" :
                 isCurrentActive ? "bg-[#42161C] border-[#FF1744] shadow-[0_0_15px_rgba(255,23,68,0.2)] animate-pulse" : // 🌟 活化狀態：紅色高亮閃爍
-                f.severity === "CRITICAL" ? "bg-[#2A1518] border-[#FF1744]/30 hover:border-[#FF1744] active:scale-95" : 
+                f.severity === "CRITICAL" ? "bg-[#2A1518] border-[#FF1744]/30 hover:border-[#FF1744] active:scale-95" :
                 "bg-[#2A2115] border-[#FF9100]/30 hover:border-[#FF9100] active:scale-95"
               }`}
             >
               <div className="flex justify-between items-start w-full">
                 <span className="text-[0.6rem] font-mono font-bold uppercase tracking-widest text-gray-500 px-1.5 py-0.5 rounded bg-black/40">{f.category || "SYS"}</span>
-                <span className={`w-2 h-2 rounded-full ${isCurrentActive ? 'bg-[#FF1744] shadow-[0_0_8px_#FF1744]' : f.severity === 'CRITICAL' ? 'bg-[#FF1744]/40' : 'bg-[#FF9100]/40'}`} />
+                {hasDispatchMethod ? (
+                  <span className={`w-2 h-2 rounded-full ${isCurrentActive ? 'bg-[#FF1744] shadow-[0_0_8px_#FF1744]' : f.severity === 'CRITICAL' ? 'bg-[#FF1744]/40' : 'bg-[#FF9100]/40'}`} />
+                ) : (
+                  <span className="text-[0.55rem] font-mono font-bold uppercase tracking-widest text-gray-600 px-1.5 py-0.5 rounded border border-dashed border-gray-600">Pending</span>
+                )}
               </div>
-              <h5 className={`text-xs font-black uppercase tracking-wide mt-2 ${isCurrentActive ? 'text-[#FF1744]' : !isArmed ? 'text-gray-400' : 'text-white'}`}>
+              <h5 className={`text-xs font-black uppercase tracking-wide mt-2 ${isCurrentActive ? 'text-[#FF1744]' : !isArmed || !hasDispatchMethod ? 'text-gray-400' : 'text-white'}`}>
                 {isCurrentActive ? `⚠️ INOP: ${f.name}` : f.name}
               </h5>
+              {f.melRefs && (
+                <span className="text-[0.55rem] font-mono text-gray-600 mt-1 truncate">
+                  MEL: {f.melRefs.join(", ")}
+                </span>
+              )}
             </button>
           );
         })}

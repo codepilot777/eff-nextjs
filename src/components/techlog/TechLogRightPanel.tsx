@@ -4,6 +4,7 @@ import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import { executeDualDispatch } from "@/services/dualDispatchService";
 import { useFlightData } from "@/hooks/useFlightData";
 import { useSim } from "@/hooks/useSim";
+import { getMargin, getMarginColor, getMarginStr, getZfwValue } from "@/lib/marginHelpers";
 // 🌟 引入剛剛解耦出來的缺陷詳情管家
 import { DefectDetailManager } from "./DefectDetailManager";
 import { 
@@ -11,14 +12,12 @@ import {
   TaskNormalClose, TaskGroundReturn, TaskAirReturn, 
   TaskDiversion, TaskDidNotDepart 
 } from "./forms";
-import { buildFailureMacro } from "@/services/dynamicMacroBuilder";
-import { fireCDUMacro } from "@/services/pmdgService";
 
 export default function TechLogRightPanel({ tlData, flightData, roleMode, activeTask, setActiveTask, selectedEntry, showInFlightMenu, setShowInFlightMenu, updateTechLogData, defects }: any) {
   
   const { calc } = useFlightData(); // 接通核心計算大腦
   const { sendToFSUIPC, isConnected} = useSim();
-  const { tl_flight_started: isStarted, tl_entries } = tlData;
+  const { tl_flight_started: isStarted } = tlData;
 
   // 1. 全動態機型定錨
   const currentReg = flightData?.aircraft_reg || "B-HNQ";
@@ -29,31 +28,12 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
   const currentSign = "ENG SYSTEM (#8821)";
 
 
-  // =====================================================
-  // 🚨 🌟 新增：PMDG 777 系統故障動態注入器 (SimConnect / FSUIPC)
-  // =====================================================
-  const triggerPmdgSystemFailure = async (ataCode: string, defectDesc: string) => {
-    // 🚀 一行代碼，直接呼叫 Macro 工廠嘔出 Event ID 數值陣列 (number[])
-    const pmdgEventSequence = buildFailureMacro(ataCode);
-
-    console.log("%c📡 [FSUIPC MACRO BLOCK] Ready to stream array sequence into PMDG Cockpit via C++ SimConnect link:", "color: #00E676; font-weight: bold;");
-    console.log(`   -> Target Defect: "${defectDesc}"`);
-    console.log(`   -> Generated Token IDs: [${pmdgEventSequence.join(", ")}]`);
-
-    // 🚀 火牛通網後直接解除註釋，一秒灌入 FSUIPC 後端：
-    if (!isConnected) {
-      console.warn("⚠️ [DATA LINK DISCONNECTED] WebSocket not open. Aborting stream to PMDG.");
-      return;
-    }
-
-    // 🎯 終極一擊：直接把 sendToFSUIPC 傳入 fireCDUMacro！
-    // 它會全自動：包裝 JSON -> 先發 param -> 再發 control -> 延時 150ms -> 循環發下一粒
-    await fireCDUMacro(sendToFSUIPC, pmdgEventSequence);
-  };
   // -----------------------------------------------------
   // 🔧 封裝底層更新邏輯 (維持純數據管道，不干涉 UI)
   // -----------------------------------------------------
   const handleClearDefect = (id: string, actionDesc: string) => {
+    if (!confirm(`Sign Certificate of Release to Service for defect ${id}? This cannot be undone.`)) return;
+
     const defectToClear = defects.find((d: any) => d.id === id);
     const newEntry = {
       id: `ENT-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -64,14 +44,18 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
       desc: actionDesc || "Defect rectified and tested IAW AMM. Ops normal.",
       sign: currentSign
     };
-    updateTechLogData({ 
-      defects: defects.map((d: any) => d.id === id ? { ...d, status: "CLEARED", action_desc: actionDesc } : d),
-      tl_entries: [...(tl_entries || []), newEntry] 
+    // 🌟 用 defectUpdate directive 淨係改呢一條 defect，唔再send成個 defects array，
+    // 避免蓋走另一邊（機師/教官）啱啱同時寫低嘅其他 defect 改動
+    updateTechLogData({
+      defectUpdate: { id, changes: { status: "CLEARED", action_desc: actionDesc, cleared_by: currentSign, cleared_time: getCurrentTime() } },
+      tlEntryAppend: newEntry,
     });
     setActiveTask(null);
   };
 
   const handleDeferDefect = async (id: string, type: string, mel: string, reason: string) => {
+    if (!confirm(`Defer defect ${id} as ${type} under MEL ${mel}?`)) return;
+
     const defectToDefer = defects.find((d: any) => d.id === id);
     const numMatch = id.match(/\d+/);
     const num = numMatch ? numMatch[0] : Math.floor(Math.random() * 1000).toString().padStart(3, '0');
@@ -88,9 +72,9 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
     };
 
     // 1️⃣ 軌道一：UI 狀態與網頁資料庫更新 (先執行，保持網頁流暢)
-    updateTechLogData({ 
-      defects: defects.map((d: any) => d.id === id ? { ...d, id: newId, status: "DEFERRED", deferral_type: type, mel_ref: mel, deferral_reason: reason } : d),
-      tl_entries: [...(tl_entries || []), newEntry]
+    updateTechLogData({
+      defectUpdate: { id, changes: { id: newId, status: "DEFERRED", deferral_type: type, mel_ref: mel, deferral_reason: reason } },
+      tlEntryAppend: newEntry,
     });
     setActiveTask(null);
 
@@ -100,6 +84,8 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
         const dispatchResult = await executeDualDispatch(mel, sendToFSUIPC);
         if (dispatchResult.dispatchedToSim) {
           alert(`🚨 [MCC SIGN-OFF SUCCESS]\n缺陷保留成功！P3D 模擬機已同步爆發物理故障：[${dispatchResult.pmdgTitle}]`);
+        } else if (dispatchResult.macroPending) {
+          alert(`📄 [MCC SIGN-OFF SUCCESS]\n文本保留成功！MEL (${mel}) 已對應物理故障 [${dispatchResult.pmdgTitle}]，但尚未撰寫 CDU 按鍵巨集，未寫入模擬機。`);
         } else {
           alert(`📄 [MCC SIGN-OFF SUCCESS]\n純文本保留成功！該 MEL (${mel}) 無對應物理故障表現，已跳過 FSUIPC 注入。`);
         }
@@ -116,28 +102,28 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
   // 靜態簽發調度
   const handleCompleteChecks = () => {
     const newEntry = { id: `ENT-${Math.floor(1000 + Math.random() * 9000)}`, time: getCurrentTime(), action: "MAINTENANCE CHECK", ref: "N/A", desc: "Transit Check completed IAW AMM.", sign: currentSign };
-    updateTechLogData({ tl_checks: true, tl_entries: [...(tl_entries || []), newEntry] });
+    updateTechLogData({ data: { tl_checks: true }, tlEntryAppend: newEntry });
     setActiveTask(null);
   };
 
   const handleCompleteFluids = () => {
     const newEntry = { id: `SRV-${Math.floor(1000 + Math.random() * 9000)}`, time: getCurrentTime(), action: "SERVICING UPLIFT", ref: "N/A", desc: "Routine fluids uplift recorded and verified.", sign: currentSign };
-    updateTechLogData({ tl_fluids: true, tl_entries: [...(tl_entries || []), newEntry] });
+    updateTechLogData({ data: { tl_fluids: true }, tlEntryAppend: newEntry });
     setActiveTask(null);
   };
 
   const handleReleaseAircraft = () => {
+    if (!confirm("Sign the Certificate of Release to Service for this aircraft? This cannot be undone.")) return;
+
     const crsId = `CRS-${Math.floor(1000 + Math.random() * 9000)}-X`;
     const newEntry = { id: `ENT-${Math.floor(1000 + Math.random() * 9000)}`, time: getCurrentTime(), action: "AIRCRAFT RELEASED", ref: crsId, desc: "Certificate of Release to Service (CRS) signed and issued.", sign: currentSign };
-    updateTechLogData({ tl_release: true, crs_id: crsId, tl_entries: [...(tl_entries || []), newEntry] });
+    updateTechLogData({ data: { tl_release: true, crs_id: crsId }, tlEntryAppend: newEntry });
     setActiveTask(null);
   };
 
   // 動態極限數值計算 (用於工程看板與子組件連動)
-  const zfwVal = calc?.showRevVal ? (calc.actualZfw > 0 ? calc.actualZfw : calc.ofpZfw) : calc?.ofpZfw || 205;
-  const marginZfw = zfwVal - (ahm.limits.MZFW / 1000);
-  const getMarginStr = (m: number) => m > 0 ? `+${m.toFixed(1)}` : m.toFixed(1);
-  const getMarginColor = (m: number) => m > 0 ? 'text-[#FF1744] font-black' : 'text-[#8fa0a6]';
+  const zfwVal = getZfwValue(calc);
+  const marginZfw = getMargin(zfwVal, ahm.limits.MZFW);
 
   return (
     <div className="flex-[6] bg-[#1E1E1E] border border-[#333] rounded-2xl p-7 shadow-lg overflow-y-auto relative font-sans scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">

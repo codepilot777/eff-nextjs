@@ -41,30 +41,33 @@ export function finalizeSector(
   const hasOpenDefects = (tlData?.defects || []).some((d: any) => d.status === "OPEN");
 
   // 🌟 3. 更新 Database (重置架機準備做下一班)
+  // 用 flightsPrepend/tlEntriesReset directive 令 server 對住自己最新一份 row 做
+  // prepend/清空，唔再send成個 flights/tl_entries array 覆寫（避免蓋走並發改動）
   updateTechLogData({
-    flights: [flightEntry, ...(tlData?.flights || [])], // 🔑 正名做 flights
-    
-    tl_prev_flt: tlData.tl_prep_flt,
-    tl_prev_dep: tlData.tl_prep_dep,
-    tl_prev_arr: arrivalStation,
-    tl_prev_fob: arrivalFuel,
-    
-    // 機長流程重置
-    tl_prepared: false,
-    tl_fuel_record_completed: false,
-    tl_accept: false,
-    tl_flight_started: false,
-    tl_flight_status: "SCHEDULED", // 轉回 SCHEDULED 準備下一次 Prepare Flight
-    
-    // 工程師流程重置 (落咗地，必須重新做 Transit Check 同簽發 Release)
-    tl_fluids: false,
-    tl_checks: false,
-    tl_defects: !hasOpenDefects, // 🔑 如果有 Open Defect 亮紅燈，冇就亮綠燈
-    tl_release: false,
-    
-    // 🔑 核心 Audit Trail 重置：洗走 Action Log 同舊嘅 CRS ID，迎接新一班機
-    tl_entries: [],
-    crs_id: ""
+    flightsPrepend: flightEntry,
+    tlEntriesReset: true,
+    data: {
+      tl_prev_flt: tlData.tl_prep_flt,
+      tl_prev_dep: tlData.tl_prep_dep,
+      tl_prev_arr: arrivalStation,
+      tl_prev_fob: arrivalFuel,
+
+      // 機長流程重置
+      tl_prepared: false,
+      tl_fuel_record_completed: false,
+      tl_accept: false,
+      tl_flight_started: false,
+      tl_flight_status: "SCHEDULED", // 轉回 SCHEDULED 準備下一次 Prepare Flight
+
+      // 工程師流程重置 (落咗地，必須重新做 Transit Check 同簽發 Release)
+      tl_fluids: false,
+      tl_checks: false,
+      tl_defects: !hasOpenDefects, // 🔑 如果有 Open Defect 亮紅燈，冇就亮綠燈
+      tl_release: false,
+
+      // 🔑 核心 Audit Trail 重置：洗走舊嘅 CRS ID，迎接新一班機
+      crs_id: ""
+    }
   });
 
   setActiveTask(null);

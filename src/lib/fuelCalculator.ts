@@ -1,5 +1,19 @@
 // 🌟 src/utils/fuelCalculator.ts
 
+// 🌟 Standby Fuel 單一數據源：以前 Dashboard/PayloadTab/InitModal 各自寫死一份
+// 「flight plan total - 5T」，仲要 Dashboard 嗰份用緊會郁嘅 calc.currTotal，同
+// PayloadTab/InitModal 用緊凍結咗嘅 flightData.plan_fuel_total 唔一致，
+// 令學員同教官睇到唔同嘅 Standby Fuel 數字。而家統一用返 plan_fuel_total
+// （SimBrief import 嗰刻凍結嘅原始 OFP 總油量），先啱「flight plan total fuel」呢個概念。
+export const DEFAULT_OFP_FUEL_T = 42.0;
+export const STANDBY_FUEL_BUFFER_T = 5.0;
+
+export function getStandbyFuelT(flightData: Record<string, unknown> | undefined | null): number {
+  const planFuelTotal = Number(flightData?.plan_fuel_total);
+  const ofpPlannedFuelT = planFuelTotal > 0 ? planFuelTotal : DEFAULT_OFP_FUEL_T;
+  return Math.max(0, ofpPlannedFuelT - STANDBY_FUEL_BUFFER_T);
+}
+
 export function calculateFuelEngine(flightData: any) {
   const rawSb = flightData?.raw_simbrief || {};
   
@@ -31,6 +45,9 @@ export function calculateFuelEngine(flightData: any) {
   // 🌟 3. 完美修正引擎 (TOW / Weight Penalty Engine)
   // ==========================================
   const actualZfw = flightData?.trainee_input_zfw > 0 ? flightData.trainee_input_zfw : ofpZfw;
+  // 🌟 修復：以前 showRevVal 淨係睇 actualZfw > 0，但 actualZfw 本身已經有 fallback 落
+  // ofpZfw（幾乎恆定 > 0），令個 flag 幾乎恆定 true。真正嘅「學員改咗 ZFW」信號係呢個。
+  const hasTraineeZfwInput = flightData?.trainee_input_zfw > 0;
   const deltaZfw = actualZfw - ofpZfw;
   
   const autoTaxi = ofpTaxi;
@@ -126,7 +143,7 @@ export function calculateFuelEngine(flightData: any) {
   // 實時重量計算 (Dynamic Weights)
   const currTow = (actualZfw > 0 ? actualZfw : ofpZfw) + (currTotal - currTaxi);
   const currLw = currTow - currTrip;
-  const showRevVal = isManual || (actualZfw > 0) || (selectedAltn !== (altnOptions[0] || 'N/A')) || (autoExtra > 0);
+  const showRevVal = isManual || hasTraineeZfwInput || (selectedAltn !== (altnOptions[0] || 'N/A')) || (autoExtra > 0);
 
   // ==========================================
   // 6. 動態 In-Flight Engine (EFOB & Alternates)
@@ -136,11 +153,19 @@ export function calculateFuelEngine(flightData: any) {
   const rawAlternatesArray = Array.isArray(rawSb?.alternate) ? rawSb.alternate : (rawSb?.alternate ? [rawSb.alternate] : []);
   
   const processedAlternates = altnList.map((altn: any) => {
-    const altnTripFuel = altn.burn || currAltnOfp; 
-    const mdf = altnTripFuel + ofpRes;
-    const holdFuel = efobAtDest - mdf;
-    const holdMins = ofpRes > 0 ? Math.floor((Math.max(0, holdFuel) / ofpRes) * 30) : 0;
-    
+    // 🌟 修復：以前 `altn.burn || currAltnOfp` 會將「揀咗嗰個 alternate」嘅 trip fuel
+    // 靜靜雞塞俾第啲未揀嘅 alternate，整定佢哋嘅 MDF 完全唔關個 alternate 事，非常誤導。
+    // 而家淨係「揀咗嗰個」保證有數（currAltnOfp 本身就係為佢度身計嘅），其他 alternate
+    // 淨係用返自己嘅 .burn；如果冇（burn=0/missing），老實話冇數（null），前端顯示 "--"。
+    const isSelected = altn.icao === selectedAltn;
+    const altnTripFuel: number | null = isSelected ? currAltnOfp : (altn.burn || null);
+    const hasFuelData = altnTripFuel !== null;
+
+    const mdf = hasFuelData ? (altnTripFuel as number) + ofpRes : null;
+    const holdFuel = hasFuelData ? efobAtDest - (mdf as number) : null;
+    const holdMins = (hasFuelData && ofpRes > 0) ? Math.floor((Math.max(0, holdFuel as number) / ofpRes) * 30) : 0;
+    const holdTime = hasFuelData ? `${holdMins}m` : '--';
+
     let etaAltn = "----z";
     if (flightData?.sta_z) {
       const destH = parseInt(flightData.sta_z.substring(0, 2), 10);
@@ -155,12 +180,12 @@ export function calculateFuelEngine(flightData: any) {
       }
     }
 
-    return { icao: altn.icao, mdf, holdFuel, holdTime: `${holdMins}m`, eta: etaAltn, burn: altnTripFuel, time: altn.time || 30 };
+    return { icao: altn.icao, mdf, holdFuel, holdTime, eta: etaAltn, burn: altnTripFuel, time: altn.time || 30 };
   });
 
   return {
     isManual, ofpZfw, ofpTaxi, ofpTrip, ofpCont, ofpRes, baseAltnOfp, ofpReqdBase, ofpTotal,
-    actualZfw, deltaZfw, autoTaxi, autoCont, autoTrip, autoTotal, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
+    actualZfw, hasTraineeZfwInput, deltaZfw, autoTaxi, autoCont, autoTrip, autoTotal, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
     mf, currTaxi, currTrip, currCont, currTank, currExtra, currReqdBase, currTotal, currTow, currLw, showRevVal,
     efobAtDest, processedAlternates
   };

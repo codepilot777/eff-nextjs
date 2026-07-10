@@ -8,24 +8,26 @@ export function TaskDidNotDepart({ tlData, defects, updateTechLogData, setActive
   const isFormValid = arrivalFuel.trim() !== "";
 
   const handleAcknowledge = () => {
-    const hasSubmittedDefects = defects.length > 0;
+    // 🌟 修復：舊時 defects.length > 0 冇理狀態，連已經 CLEARED/DEFERRED 嘅都計埋，
+    // 令一個冇任何 OPEN defect 嘅 sector 都會誤觸發「Maintenance Release BROKEN」警告
+    const hasOpenDefects = defects.some((d: any) => d.status === "OPEN");
     const updates: any = {
       tl_flight_started: false,
       tl_accept: false,
       tl_prepared: false,
       tl_flight_status: "SCHEDULED",
-      tl_prev_fob: arrivalFuel 
+      tl_prev_fob: arrivalFuel
     };
 
-    if (hasSubmittedDefects) {
+    if (hasOpenDefects) {
       updates.tl_release = false;
       updates.tl_defects = false;
     }
 
-    updateTechLogData(updates);
+    updateTechLogData({ data: updates });
     setShowAckModal(false);
     setActiveTask(null);
-    alert(hasSubmittedDefects ? "Flight Cancelled. Maintenance Release BROKEN due to open defects. Engineer action required!" : "Flight Cancelled. Returned to previous pre-acceptance state safely.");
+    alert(hasOpenDefects ? "Flight Cancelled. Maintenance Release BROKEN due to open defects. Engineer action required!" : "Flight Cancelled. Returned to previous pre-acceptance state safely.");
   };
 
   return (

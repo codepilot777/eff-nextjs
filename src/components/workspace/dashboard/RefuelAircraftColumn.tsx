@@ -2,6 +2,7 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query"; // 🌟 引入 React Query
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
+import { getStandbyFuelT } from "@/lib/fuelCalculator";
 
 // 🌟 Props 大清洗：只保留 setActiveModal 同 setCurrentTab
 export default function RefuelAircraftColumn({ setActiveModal, setCurrentTab }: { setActiveModal: any, setCurrentTab: any }) {
@@ -78,11 +79,20 @@ export default function RefuelAircraftColumn({ setActiveModal, setCurrentTab }: 
 
   // 🌟 重新整理 Fuel 計算邏輯
   const logFuelT = flightData?.fuel_on_board || 0.0;
-  const ofpPlannedFuelT = calc.currTotal || 36.4; 
-  const totalFuelT = flightData?.final_fuel_request || ofpPlannedFuelT;
+  const liveTargetFuelT = calc.currTotal || 36.4; // 學員即時嘅燃油估算（會隨 ZFW/manual fuel/備降場改變）
+  const totalFuelT = flightData?.final_fuel_request || liveTargetFuelT;
   const estimatedUplift = Math.max(0, totalFuelT - logFuelT).toFixed(1);
-  
-  const standbyFuelT = Math.max(0, ofpPlannedFuelT - 5.0).toFixed(1);
+
+  // 🌟 修復：以前 fuel receipt 送咗之後都仲係恆常顯示緊個即時估算，冇轉做教官真正
+  // 派發嘅實際數字——一旦有真數就應該顯示返真數，唔好再顯示已經過時嘅估算
+  const showRealUplift = isRefueled;
+  const upliftLabel = showRealUplift ? "Uplift" : "Estimated Uplift";
+  const upliftValue = showRealUplift ? (flightData?.actual_uplift || 0).toFixed(1) : estimatedUplift;
+
+  // 🌟 修復：以前用 calc.currTotal（會郁）計 Standby Fuel，同 PayloadTab 用
+  // flightData.plan_fuel_total（凍結咗嘅原始 OFP 總油量）唔一致，令學員同教官
+  // 睇到唔同嘅 Standby Fuel 數字。而家用返同一個共用 helper。
+  const standbyFuelT = getStandbyFuelT(flightData).toFixed(1);
 
   let logoColor = "text-[#555]";
   let ringSvg = null;
@@ -103,7 +113,11 @@ export default function RefuelAircraftColumn({ setActiveModal, setCurrentTab }: 
       </svg>
     );
     refuelBanner = (
-      <div className="bg-[#C6FF00] rounded-lg px-3 py-2 flex justify-between items-center text-black shadow-md mt-auto shrink-0">
+      // 🌟 修復：以前呢個分支冇 onClick，學員 accept 咗之後就完全冇路再撳返入去睇張 fuel receipt
+      <div
+        onClick={() => setActiveModal('Refuelling')}
+        className="bg-[#C6FF00] rounded-lg px-3 py-2 flex justify-between items-center text-black shadow-md cursor-pointer hover:bg-[#b0e600] transition-colors mt-auto shrink-0"
+      >
         <span className="font-bold text-[0.8rem] leading-none uppercase tracking-widest">Refuel Accepted</span>
         <span className="text-[0.65rem] font-black">✓</span>
       </div>
@@ -120,7 +134,7 @@ export default function RefuelAircraftColumn({ setActiveModal, setCurrentTab }: 
         onClick={() => setActiveModal('Refuelling')} 
         className="bg-[#FF9100] rounded-lg px-3 py-2 flex justify-between items-center text-black shadow-md cursor-pointer hover:bg-[#e68a00] transition-colors mt-auto shrink-0"
       >
-        <span className="font-bold text-[0.8rem] leading-none uppercase tracking-widest">Refueling Complete</span>
+        <span className="font-bold text-[0.8rem] leading-none uppercase tracking-widest">Refuelling Complete</span>
         <span className="text-sm leading-none pb-px">›</span>
       </div>
     )
@@ -190,8 +204,8 @@ export default function RefuelAircraftColumn({ setActiveModal, setCurrentTab }: 
               </div>
             </div>
             <div className="text-right flex flex-col">
-              <span className="text-[#8fa0a6] text-[0.55rem] leading-none mb-0.5">Estimated Uplift</span>
-              <div className="leading-none"><span className="text-white font-bold text-[1rem]">{estimatedUplift}</span><span className="text-[#8fa0a6] text-[0.65rem] font-bold ml-px">T</span></div>
+              <span className="text-[#8fa0a6] text-[0.55rem] leading-none mb-0.5">{upliftLabel}</span>
+              <div className="leading-none"><span className="text-white font-bold text-[1rem]">{upliftValue}</span><span className="text-[#8fa0a6] text-[0.65rem] font-bold ml-px">T</span></div>
             </div>
           </div>
           

@@ -1,6 +1,6 @@
 "use client";
 
-export default function FuelManager({ payload, setPayload, flightData, ofpTotalFuelKg, standbyFuelKg, fobKg, traineeFinalFuelKg, handleTransmit }: any) {
+export default function FuelManager({ payload, setPayload, flightData, ofpTotalFuelKg, standbyFuelKg, fobKg, traineeFinalFuelKg, handleTransmit, isUpdating }: any) {
   return (
     <div className="bg-lido-800 p-6 rounded-xl border border-[#333333] shadow-lg">
       <h4 className="text-white font-black uppercase tracking-widest text-lg flex items-center gap-2 border-b border-[#333333] pb-3 mb-4">
@@ -41,11 +41,12 @@ export default function FuelManager({ payload, setPayload, flightData, ofpTotalF
           <div className="text-xs font-bold text-[#8fa0a6] uppercase tracking-widest mb-2">
             <span className="text-[#00E676]">Step 1:</span> Fuel Receipt Uplift (KG)
           </div>
-          <input 
-            type="number" 
-            value={payload.fuel.uplift} 
-            onChange={(e) => setPayload({ ...payload, fuel: { ...payload.fuel, uplift: parseInt(e.target.value) || 0 }})} 
-            className="w-full bg-[#1a1a1a] border border-[#404040] focus:border-[#2979FF] rounded p-3 text-white outline-none font-mono text-sm" 
+          <input
+            type="number"
+            min={0}
+            value={payload.fuel.uplift}
+            onChange={(e) => setPayload({ ...payload, fuel: { ...payload.fuel, uplift: Math.max(0, parseInt(e.target.value) || 0) }})}
+            className="w-full bg-[#1a1a1a] border border-[#404040] focus:border-[#2979FF] rounded p-3 text-white outline-none font-mono text-sm"
           />
         </div>
         
@@ -56,27 +57,30 @@ export default function FuelManager({ payload, setPayload, flightData, ofpTotalF
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-[#1a1a1a] px-3 py-2 rounded border border-[#404040]">
               <div className="text-[0.6rem] text-[#8fa0a6] uppercase mb-1">L Main</div>
-              <input type="number" value={payload.fuel.left} onChange={(e) => setPayload({...payload, fuel: {...payload.fuel, left: parseInt(e.target.value) || 0}})} className="bg-transparent text-[#2979FF] w-full outline-none font-mono text-sm font-bold" />
+              <input type="number" min={0} value={payload.fuel.left} onChange={(e) => setPayload({...payload, fuel: {...payload.fuel, left: Math.max(0, parseInt(e.target.value) || 0)}})} className="bg-transparent text-[#2979FF] w-full outline-none font-mono text-sm font-bold" />
             </div>
             <div className="bg-[#1a1a1a] px-3 py-2 rounded border border-[#404040]">
               <div className="text-[0.6rem] text-[#8fa0a6] uppercase mb-1">Center</div>
-              <input type="number" value={payload.fuel.center} onChange={(e) => setPayload({...payload, fuel: {...payload.fuel, center: parseInt(e.target.value) || 0}})} className="bg-transparent text-[#2979FF] w-full outline-none font-mono text-sm font-bold" />
+              <input type="number" min={0} value={payload.fuel.center} onChange={(e) => setPayload({...payload, fuel: {...payload.fuel, center: Math.max(0, parseInt(e.target.value) || 0)}})} className="bg-transparent text-[#2979FF] w-full outline-none font-mono text-sm font-bold" />
             </div>
             <div className="bg-[#1a1a1a] px-3 py-2 rounded border border-[#404040]">
               <div className="text-[0.6rem] text-[#8fa0a6] uppercase mb-1">R Main</div>
-              <input type="number" value={payload.fuel.right} onChange={(e) => setPayload({...payload, fuel: {...payload.fuel, right: parseInt(e.target.value) || 0}})} className="bg-transparent text-[#2979FF] w-full outline-none font-mono text-sm font-bold" />
+              <input type="number" min={0} value={payload.fuel.right} onChange={(e) => setPayload({...payload, fuel: {...payload.fuel, right: Math.max(0, parseInt(e.target.value) || 0)}})} className="bg-transparent text-[#2979FF] w-full outline-none font-mono text-sm font-bold" />
             </div>
           </div>
         </div>
       </div>
       
       {/* 派發按鈕 */}
-      <button 
-        onClick={() => handleTransmit("FUEL_RECEIPT")} 
+      <button
+        onClick={() => handleTransmit("FUEL_RECEIPT")}
+        disabled={flightData?.fuel_receipt_sent || isUpdating}
         className={`w-full py-3 mt-4 rounded-lg font-black tracking-widest text-xs transition-colors ${
-          flightData?.fuel_receipt_sent 
-            ? 'bg-[#2979FF]/20 border border-[#2979FF] text-[#2979FF] cursor-not-allowed' 
-            : 'bg-[#2979FF] text-white hover:bg-blue-600 shadow-md'
+          flightData?.fuel_receipt_sent
+            ? 'bg-[#2979FF]/20 border border-[#2979FF] text-[#2979FF] cursor-not-allowed'
+            : isUpdating
+              ? 'bg-[#2979FF]/50 text-white/60 cursor-not-allowed'
+              : 'bg-[#2979FF] text-white hover:bg-blue-600 shadow-md'
         }`}
       >
         {flightData?.fuel_receipt_sent ? '✅ FUEL RECEIPT DISPATCHED' : 'DISPATCH FUEL RECEIPT'}

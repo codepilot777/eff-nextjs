@@ -8,7 +8,10 @@ export function ModalRefuelling({ flightData, updateFlightData, setActiveModal }
   }).replace(/ /g, '-').toUpperCase();
 
   // 計算 Total FOB
-  const totalFob = ((flightData?.trainee_log_fuel || 0) + (flightData?.actual_uplift || 0)).toFixed(1);
+  // 🌟 修復：以前讀緊 trainee_log_fuel，一個成個 codebase 都未寫過嘅欄位（恆定 0）。
+  // 真正嘅「派發之前機上殘油」係 fob_before_uplift（喺 PayloadTab 送 receipt 嗰刻凍結），
+  // 冇嘅話 fallback 落即時嘅 fuel_on_board（例如舊 flight 未有呢個欄位嘅情況）。
+  const totalFob = ((flightData?.fob_before_uplift ?? flightData?.fuel_on_board ?? 0) + (flightData?.actual_uplift || 0)).toFixed(1);
 
   return (
     <div className="w-full h-full font-sans flex flex-col min-h-0">

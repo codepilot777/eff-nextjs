@@ -1,6 +1,9 @@
 "use client";
 import { useState } from "react";
 import { finalizeSector } from "./sharedUtils";
+import { BlockTimesGrid } from "./shared/BlockTimesGrid";
+import { OperationsCountersGrid } from "./shared/OperationsCountersGrid";
+import { EdtoAutolandSelects } from "./shared/EdtoAutolandSelects";
 
 export function TaskAirReturn({ tlData, defects, updateTechLogData, setActiveTask }: any) {
   const hasOpenDefects = defects.some((d: any) => d.status === "OPEN");
@@ -50,76 +53,34 @@ export function TaskAirReturn({ tlData, defects, updateTechLogData, setActiveTas
         )}
 
         {/* 🌟 Block Times */}
-        <div className="grid grid-cols-4 gap-4">
-          {['Blocks Off (Z)', 'Take Off (Z)', 'Landing (Z)', 'Blocks On (Z)'].map((label, i) => {
-            const state = [ncBlocksOff, ncTakeOff, ncLanding, ncBlocksOn][i];
-            const setter = [setNcBlocksOff, setNcTakeOff, setNcLanding, setNcBlocksOn][i];
-            return (
-              <div key={label}>
-                <label className="block text-[0.6rem] text-[#8fa0a6] font-bold uppercase tracking-widest mb-2">{label}</label>
-                <input 
-                  type="text" 
-                  value={state} 
-                  onChange={e => setter(e.target.value)} 
-                  className="w-full bg-[#0a0a0a] border border-[#444] p-3.5 rounded-xl font-mono font-bold text-white text-center outline-none focus:border-[#FF1744] transition-colors shadow-inner placeholder:text-[#333]" 
-                  placeholder="e.g. 0345" 
-                  maxLength={4}
-                />
-              </div>
-            );
-          })}
-        </div>
-        
+        <BlockTimesGrid
+          theme="red"
+          blocksOff={ncBlocksOff} setBlocksOff={setNcBlocksOff}
+          takeOff={ncTakeOff} setTakeOff={setNcTakeOff}
+          landing={ncLanding} setLanding={setNcLanding}
+          blocksOn={ncBlocksOn} setBlocksOn={setNcBlocksOn}
+        />
+
         {/* Divider */}
         <div className="h-px bg-[#333] w-full my-1"></div>
 
         {/* 🌟 Operations Counters */}
-        <div className="grid grid-cols-3 gap-5">
-          {[
-            { label: 'Landings', state: ncLandingsCount, setter: setNcLandingsCount },
-            { label: 'Overshoots', state: ncOvershoots, setter: setNcOvershoots },
-            { label: 'Touch-and-gos', state: ncTouchGo, setter: setNcTouchGo }
-          ].map(item => (
-            <div key={item.label}>
-              <label className="block text-[0.65rem] text-[#8fa0a6] font-bold uppercase tracking-widest mb-2">{item.label}</label>
-              <input 
-                type="number" min="0" 
-                value={item.state} 
-                onChange={e => item.setter(e.target.value)} 
-                className="w-full bg-[#0a0a0a] border border-[#444] p-3.5 rounded-xl font-mono font-bold text-white text-center outline-none focus:border-[#FF1744] transition-colors shadow-inner" 
-              />
-            </div>
-          ))}
-        </div>
+        <OperationsCountersGrid
+          theme="red"
+          landingsCount={ncLandingsCount} setLandingsCount={setNcLandingsCount}
+          overshoots={ncOvershoots} setOvershoots={setNcOvershoots}
+          touchGo={ncTouchGo} setTouchGo={setNcTouchGo}
+        />
 
         {/* Divider */}
         <div className="h-px bg-[#333] w-full my-1"></div>
 
         {/* 🌟 EDTO & Autoland */}
-        <div className="grid grid-cols-2 gap-5">
-          <div>
-            <label className="block text-[0.65rem] text-[#8fa0a6] font-bold uppercase tracking-widest mb-2">EDTO</label>
-            <div className="relative">
-              <select value={ncEdto} onChange={e=>setNcEdto(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#444] p-4 rounded-xl font-sans font-bold text-white text-[0.75rem] uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#FF1744] shadow-inner transition-colors">
-                <option>No</option><option>60 mins</option><option>120 mins</option><option>180 mins</option><option>207 mins</option><option>240 mins</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-[#8fa0a6]">
-                <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-              </div>
-            </div>
-          </div>
-          <div>
-            <label className="block text-[0.65rem] text-[#8fa0a6] font-bold uppercase tracking-widest mb-2">Autoland</label>
-            <div className="relative">
-              <select value={ncAutoland} onChange={e=>setNcAutoland(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#444] p-4 rounded-xl font-sans font-bold text-white text-[0.75rem] uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#FF1744] shadow-inner transition-colors">
-                <option>Not Attempted</option><option>Successful</option><option>Unsuccessful</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-[#8fa0a6]">
-                <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-              </div>
-            </div>
-          </div>
-        </div>
+        <EdtoAutolandSelects
+          theme="red"
+          edto={ncEdto} setEdto={setNcEdto}
+          autoland={ncAutoland} setAutoland={setNcAutoland}
+        />
 
         {/* Divider */}
         <div className="h-px bg-[#333] w-full my-1"></div>

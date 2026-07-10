@@ -3,6 +3,13 @@ import { useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import { calculateFuelEngine } from "@/lib/fuelCalculator"; // 🌟 引入燃油引擎
 
+// 🌟 修復：以前個 ALTN dropdown 借用 handleFuelInput，parseFloat 一個 ICAO 代碼會變 NaN→0，
+// 寫錯落 manual_fuel.selected_altn（一個冇任何地方會讀嘅欄位），真正俾 fuelCalculator.ts
+// 讀嘅 flightData.selected_altn 完全冇更新過。抽出嚟做純 function 方便獨立測試。
+export function buildAltnSelectUpdate(icao: string) {
+  return { selected_altn: icao, final_fuel_accepted: false };
+}
+
 export function useFlightData() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -21,7 +28,7 @@ export function useFlightData() {
   });
 
   // 2. 更新資料
-  const { mutate: rqUpdateFlightData, isPending: isUpdating } = useMutation({
+  const { mutate: rqUpdateFlightData, mutateAsync: rqUpdateFlightDataAsync, isPending: isUpdating } = useMutation({
     mutationFn: async (updates: any) => {
       // 🌟 淨係送個 diff 去 server，由 server 同最新一份 row merge
       // (唔好用本地嘅 flightData 做 base 再蓋走成個 blob，
@@ -76,18 +83,22 @@ queryClient.setQueryData(["flight", flightId], { ...(previousData || {}), ...upd
         const num = parseFloat(val) || 0.0;
         if (num !== flightData?.trainee_input_zfw) rqUpdateFlightData({ trainee_input_zfw: num, final_fuel_accepted: false });
       },
+      handleAltnSelect: (icao: string) => {
+        if (icao !== flightData?.selected_altn) rqUpdateFlightData(buildAltnSelectUpdate(icao));
+      },
       handleAcceptFuel: () => { rqUpdateFlightData({ final_fuel_accepted: true, final_fuel_request: calc.currTotal }); },
     };
   }, [flightData, calc, rqUpdateFlightData]);
 
-  return { 
-    flightId, 
-    flightData, 
-    updateFlightData: rqUpdateFlightData, 
-    calc, 
-    handlers, 
-    isLoading, 
-    isFetching, 
-    isUpdating 
+  return {
+    flightId,
+    flightData,
+    updateFlightData: rqUpdateFlightData,
+    updateFlightDataAsync: rqUpdateFlightDataAsync,
+    calc,
+    handlers,
+    isLoading,
+    isFetching,
+    isUpdating
   };
 }
