@@ -1,6 +1,6 @@
 "use client";
 
-export function ModalFMS({ calc, flightData }: any) {
+export function ModalFMS({ flightData }: any) {
   
   if (!flightData) return null;
 
@@ -180,12 +180,12 @@ export function ModalFMS({ calc, flightData }: any) {
           <div className="flex flex-col gap-1">
             <span className="text-[#8fa0a6] text-[0.65rem] font-bold uppercase tracking-widest leading-none">EDG MRA</span>
             {/* 🌟 大於 100 先變 Amber，否則普通白字 */}
-            {isMraOver100 ? (
+            {isEdgMraOver100 ? (
               <div className="bg-[#FF9100] text-black text-[0.75rem] font-black px-1.5 py-0.5 rounded w-max flex items-center gap-1 shadow-sm animate-pulse leading-tight mt-0.5">
-                <span className="text-[0.5rem]">▲</span> {tripMraStr}
+                <span className="text-[0.5rem]">▲</span> {edgMraStr}
               </div>
             ) : (
-              <span className="font-mono text-[0.9rem] text-white leading-none mt-0.5">{tripMraStr}</span>
+              <span className="font-mono text-[0.9rem] text-white leading-none mt-0.5">{edgMraStr}</span>
             )}
           </div>
 
