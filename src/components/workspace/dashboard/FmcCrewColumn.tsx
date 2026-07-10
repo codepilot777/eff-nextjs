@@ -96,6 +96,11 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
   // 判斷是否超過 100。如果超過 100 (即真實高度大於 10,000 呎)，觸發 Amber Highlight 樣式
   const isMraOver100 = tripMraNum > 100;
 
+  // 🎯 運算 C: EDG MRA（同 Highest Trip MRA 係唔同嘅航行數值，唔可以共用同一組變數）
+  const edgMraStr = flightData?.edg_mra || "159";
+  const edgMraParsed = parseInt(edgMraStr);
+  const isEdgMraOver100 = !isNaN(edgMraParsed) && edgMraParsed > 100;
+
   // 機長名
   const cmdrName = flightData?.commander_override || "SCOTT HILHORST";
 
@@ -191,13 +196,12 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
           </div>
           <div className="flex flex-col">
             <span className="text-[#8fa0a6] text-[0.6rem] font-bold tracking-wide leading-tight mb-0.5">EDG MRA</span>
-            {/* 🌟 成功聯動：動態計算全航線最高 MORA 呎數，並完美支援 Amber Highlight 閃爍警告 */}
             <div className={`text-[0.7rem] font-black px-1.5 rounded w-max flex items-center gap-1 shadow-md leading-tight transition-all ${
-              isMraOver100 
+              isEdgMraOver100
                 ? "bg-[#FF9100] text-black animate-pulse font-black" // 超過 100 出現標誌性 Amber 閃爍警告！
                 : "text-white" // 正常狀態
             }`}>
-              <span className="text-[0.45rem]">▲</span> {tripMraStr}
+              <span className="text-[0.45rem]">▲</span> {edgMraStr}
             </div>
           </div>
 
@@ -236,6 +240,8 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
           <span className="text-[#8fa0a6] text-lg font-light leading-none">›</span>
         </div>
         
+        {/* 🌟 flightData 冇 named crew roster 呢個欄位（淨係得 crew_fd/crew_cc 人數），
+            所以 FO/off-duty 呢兩行係固定嘅假名單，唔會跟返實際航班變；機長就用返真數據 */}
         <div className="flex-1 flex flex-col justify-between font-mono text-[0.8rem] pr-1 py-1">
           <div className="flex justify-between items-center text-white leading-none">
             <div className="flex items-center gap-2">
@@ -244,7 +250,7 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
             </div>
             <span className="text-[#8fa0a6] text-[0.7rem] bg-[#333] px-1.5 rounded">T-CN</span>
           </div>
-          
+
           <div className="flex justify-between items-center text-white leading-none">
             <div className="flex items-center gap-2">
               <span className="text-[#C6FF00] text-[0.65rem]">✓</span>
@@ -258,7 +264,7 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
           <div className="flex justify-between items-center text-[#8fa0a6] leading-none opacity-50">
             <div className="flex items-center gap-2">
               <span className="text-[#0a0a0a] text-[0.6rem]">⊗</span>
-              <span>MARTIN LEE</span>
+              <span>ALEX WONG</span>
             </div>
             <span className="text-[0.7rem]">U-IM</span>
           </div>
