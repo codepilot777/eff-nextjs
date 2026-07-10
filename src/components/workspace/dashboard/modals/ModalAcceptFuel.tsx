@@ -5,7 +5,7 @@ export function ModalAcceptFuel({ flightData, updateFlightData, calc, handlers, 
   
   // 🌟 左邊數據狀態
   const finalFuel = calc.currTotal || 0.0;
-  const [logFuel, setLogFuel] = useState<number>(flightData?.fuel_on_board || 11.0);
+  const [logFuel, setLogFuel] = useState<number>(flightData?.fuel_on_board || 0.0);
   const expectedUplift = Math.max(0, finalFuel - logFuel);
 
   // 🌟 右邊飛機油箱狀態

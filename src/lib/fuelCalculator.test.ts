@@ -59,4 +59,33 @@ describe('calculateFuelEngine', () => {
 
     expect(calc.efobAtDest).toBeGreaterThanOrEqual(0);
   });
+
+  describe('showRevVal', () => {
+    it('is false for an untouched OFP baseline (regression: used to be true just because ofpZfw > 0)', () => {
+      const calc = calculateFuelEngine(baseFlight);
+      expect(calc.hasTraineeZfwInput).toBe(false);
+      expect(calc.showRevVal).toBe(false);
+    });
+
+    it('becomes true once the trainee actually types a ZFW override', () => {
+      const calc = calculateFuelEngine({ ...baseFlight, trainee_input_zfw: 182.0 });
+      expect(calc.hasTraineeZfwInput).toBe(true);
+      expect(calc.showRevVal).toBe(true);
+    });
+
+    it('becomes true in manual mode even with no other overrides', () => {
+      const calc = calculateFuelEngine({ ...baseFlight, fuel_manual_mode: true, manual_fuel: {} });
+      expect(calc.showRevVal).toBe(true);
+    });
+
+    it('becomes true when a non-default alternate is selected', () => {
+      const withAltns = {
+        ...baseFlight,
+        alternates: [{ icao: 'RJOO', burn: 2.0, time: 30 }, { icao: 'RJBB', burn: 2.5, time: 35 }],
+        selected_altn: 'RJBB',
+      };
+      const calc = calculateFuelEngine(withAltns);
+      expect(calc.showRevVal).toBe(true);
+    });
+  });
 });

@@ -7,7 +7,7 @@ import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 /**
  * 🔍 內部輔助函數：根據目前的飛行數據動態撈出該飛機的 AHM 大腦
  */
-const getDynamicAhm = (flightData: any) => {
+export const getDynamicAhm = (flightData: any) => {
   const reg = flightData?.aircraft_reg || "B-HNQ";
   return AIRCRAFT_REGISTRY[reg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
 };
@@ -213,4 +213,32 @@ export const getEzfwText = (flightData: any, calc: any) => {
     .join("");
   
   return `EZFW ${info.flight_num_clean}/${info.date_str_ezfw} ${info.reg_clean} ${ahm.config}\n${info.crew_fd}/${info.crew_cc} ${calc?.depIata || 'HKG'}${calc?.arrIata || 'KIX'}\n\nPASSENGER           ${w.totalPaxWeight.toString().padEnd(6)} KG\nCARGO               ${w.totalCargoWeight.toString().padEnd(6)} KG\nTTL TRAFFIC LOAD    ${(w.totalPaxWeight + w.totalCargoWeight).toString().padEnd(6)} KG\n\n${dynamicEzfwPaxStr}\nDOW                 ${w.DOW.toString().padEnd(6)} KG\nEST ZFW             ${estZfwKg.toString().padEnd(6)} KG\n\nLCO: ${info.dispatcher}\nSI\nLATEST EZFW`;
+};
+
+// ==========================================
+// 6. Dashboard reconciliation：真正由 payload 計出嚟嘅 weights，得閒先有
+// ==========================================
+export const getLatestSnapshot = (flightData: Record<string, unknown>) => {
+  return flightData?.final_snapshot || flightData?.prelim_snapshot || flightData?.azf_snapshot || flightData?.ezfw_snapshot || null;
+};
+
+// 🌟 喺學員未真正發送過任何 payload 文件之前，返 null（唔好夾硬計一個假數出嚟）
+export const getEngineWeights = (flightData: Record<string, unknown>) => {
+  const snapshot = getLatestSnapshot(flightData);
+  if (!snapshot) return null;
+
+  const ahm = getDynamicAhm(flightData);
+  const taxiFuelKg = flightData?.fuel_taxi_ofp ? Math.round(Number(flightData.fuel_taxi_ofp) * 1000) : 200;
+
+  const payload = buildEnginePayload(snapshot, flightData, taxiFuelKg);
+  if (!payload) return null;
+
+  const engine = new LoadsheetEngine(ahm, payload);
+  const w = engine.calculateWeights();
+  const cg = engine.calculateCG();
+
+  return {
+    zfw: w.ZFW / 1000, tow: w.TOW / 1000, law: w.LAW / 1000,
+    macTow: cg.MACTOW, macLaw: cg.MACLAW,
+  };
 };

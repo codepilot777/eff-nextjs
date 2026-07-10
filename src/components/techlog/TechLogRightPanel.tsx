@@ -4,6 +4,7 @@ import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import { executeDualDispatch } from "@/services/dualDispatchService";
 import { useFlightData } from "@/hooks/useFlightData";
 import { useSim } from "@/hooks/useSim";
+import { getMargin, getMarginColor, getMarginStr, getZfwValue } from "@/lib/marginHelpers";
 // 🌟 引入剛剛解耦出來的缺陷詳情管家
 import { DefectDetailManager } from "./DefectDetailManager";
 import { 
@@ -121,10 +122,8 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
   };
 
   // 動態極限數值計算 (用於工程看板與子組件連動)
-  const zfwVal = calc?.showRevVal ? (calc.actualZfw > 0 ? calc.actualZfw : calc.ofpZfw) : calc?.ofpZfw || 205;
-  const marginZfw = zfwVal - (ahm.limits.MZFW / 1000);
-  const getMarginStr = (m: number) => m > 0 ? `+${m.toFixed(1)}` : m.toFixed(1);
-  const getMarginColor = (m: number) => m > 0 ? 'text-[#FF1744] font-black' : 'text-[#8fa0a6]';
+  const zfwVal = getZfwValue(calc);
+  const marginZfw = getMargin(zfwVal, ahm.limits.MZFW);
 
   return (
     <div className="flex-[6] bg-[#1E1E1E] border border-[#333] rounded-2xl p-7 shadow-lg overflow-y-auto relative font-sans scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">

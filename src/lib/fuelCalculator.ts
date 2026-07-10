@@ -31,6 +31,9 @@ export function calculateFuelEngine(flightData: any) {
   // 🌟 3. 完美修正引擎 (TOW / Weight Penalty Engine)
   // ==========================================
   const actualZfw = flightData?.trainee_input_zfw > 0 ? flightData.trainee_input_zfw : ofpZfw;
+  // 🌟 修復：以前 showRevVal 淨係睇 actualZfw > 0，但 actualZfw 本身已經有 fallback 落
+  // ofpZfw（幾乎恆定 > 0），令個 flag 幾乎恆定 true。真正嘅「學員改咗 ZFW」信號係呢個。
+  const hasTraineeZfwInput = flightData?.trainee_input_zfw > 0;
   const deltaZfw = actualZfw - ofpZfw;
   
   const autoTaxi = ofpTaxi;
@@ -126,7 +129,7 @@ export function calculateFuelEngine(flightData: any) {
   // 實時重量計算 (Dynamic Weights)
   const currTow = (actualZfw > 0 ? actualZfw : ofpZfw) + (currTotal - currTaxi);
   const currLw = currTow - currTrip;
-  const showRevVal = isManual || (actualZfw > 0) || (selectedAltn !== (altnOptions[0] || 'N/A')) || (autoExtra > 0);
+  const showRevVal = isManual || hasTraineeZfwInput || (selectedAltn !== (altnOptions[0] || 'N/A')) || (autoExtra > 0);
 
   // ==========================================
   // 6. 動態 In-Flight Engine (EFOB & Alternates)
@@ -160,7 +163,7 @@ export function calculateFuelEngine(flightData: any) {
 
   return {
     isManual, ofpZfw, ofpTaxi, ofpTrip, ofpCont, ofpRes, baseAltnOfp, ofpReqdBase, ofpTotal,
-    actualZfw, deltaZfw, autoTaxi, autoCont, autoTrip, autoTotal, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
+    actualZfw, hasTraineeZfwInput, deltaZfw, autoTaxi, autoCont, autoTrip, autoTotal, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
     mf, currTaxi, currTrip, currCont, currTank, currExtra, currReqdBase, currTotal, currTow, currLw, showRevVal,
     efobAtDest, processedAlternates
   };
