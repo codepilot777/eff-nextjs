@@ -10,9 +10,55 @@ const nonEmptyString = (label: string) => z.string().trim().min(1, `${label} is 
 export const flightIdSchema = nonEmptyString('flight id');
 export const aircraftRegSchema = nonEmptyString('aircraft reg').max(20);
 
+// 🌟 pdc_requests/atis_requests/acars_messages 一定要行 directive 路徑，唔可以再喺
+// `data` 度直接塞成個 array 落嚟覆寫——否則任何人都可以送一個「status: APPROVED」
+// 嘅 pdc_requests patch，自己扮教官批准自己嘅 ATC clearance
+const flightDataSchema = patchObjectSchema.refine(
+  (d) => !('pdc_requests' in d) && !('atis_requests' in d) && !('acars_messages' in d),
+  { message: 'pdc_requests/atis_requests/acars_messages must go through the directive fields, not data' }
+);
+
+export const pdcRequestAppendSchema = z.object({
+  atis: nonEmptyString('pdcRequestAppend.atis').max(1),
+  facility: z.string().trim().max(10).optional().default(''),
+  gate: z.string().trim().max(20).optional().default(''),
+});
+
+// 🌟 教官專屬：核准 PDC clearance，睇 requiresInstructorAuthForFlight
+export const pdcApproveSchema = z.object({
+  time: nonEmptyString('pdcApprove.time'),
+  clearance_payload: nonEmptyString('pdcApprove.clearance_payload'),
+});
+
+export const atisRequestAppendSchema = z.object({
+  icao: nonEmptyString('atisRequestAppend.icao').max(10),
+  type: z.enum(['DEPARTURE', 'ARRIVAL']),
+});
+
+// 🌟 教官專屬：送出 ATIS 內容，睇 requiresInstructorAuthForFlight
+export const atisDeliverSchema = z.object({
+  time: nonEmptyString('atisDeliver.time'),
+  response: nonEmptyString('atisDeliver.response'),
+});
+
+export const acarsCockpitAppendSchema = z.object({
+  content: nonEmptyString('acarsCockpitAppend.content').max(500),
+});
+
+// 🌟 教官專屬：扮 DISPATCH 送 ACARS 訊息，睇 requiresInstructorAuthForFlight
+export const acarsDispatchAppendSchema = z.object({
+  content: nonEmptyString('acarsDispatchAppend.content').max(500),
+});
+
 export const flightUpdateBodySchema = z.object({
   id: flightIdSchema,
-  data: patchObjectSchema,
+  data: flightDataSchema.optional().default({}),
+  pdcRequestAppend: pdcRequestAppendSchema.optional(),
+  pdcApprove: pdcApproveSchema.optional(),
+  atisRequestAppend: atisRequestAppendSchema.optional(),
+  atisDeliver: atisDeliverSchema.optional(),
+  acarsCockpitAppend: acarsCockpitAppendSchema.optional(),
+  acarsDispatchAppend: acarsDispatchAppendSchema.optional(),
 });
 
 export const flightDeleteBodySchema = z.object({
@@ -77,4 +123,18 @@ export const PROTECTED_FLIGHT_PATCH_FIELDS = ['is_published', 'activated_version
 
 export function hasProtectedFlightFields(patch: Record<string, unknown>): boolean {
   return PROTECTED_FLIGHT_PATCH_FIELDS.some((field) => field in patch);
+}
+
+// 🌟 pdcApprove/atisDeliver/acarsDispatchAppend 係「扮 ATC/DISPATCH 回覆」嘅動作，
+// 一定要教官登入先做得，唔淨係靠前端隱藏返個掣（同 pdcRequestAppend/atisRequestAppend/
+// acarsCockpitAppend 呢啲學員送出 request 嘅動作分開，後者任何人都做得）
+export function requiresInstructorAuthForFlight(patch: {
+  data?: Record<string, unknown>;
+  pdcApprove?: unknown;
+  atisDeliver?: unknown;
+  acarsDispatchAppend?: unknown;
+} & Record<string, unknown>): boolean {
+  if (hasProtectedFlightFields(patch.data || {})) return true;
+  if (patch.pdcApprove || patch.atisDeliver || patch.acarsDispatchAppend) return true;
+  return false;
 }

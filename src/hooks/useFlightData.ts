@@ -51,6 +51,29 @@ queryClient.setQueryData(["flight", flightId], { ...(previousData || {}), ...upd
     },
   });
 
+  // 🌟 2.5 送 directive（pdcRequestAppend/pdcApprove/atisRequestAppend/atisDeliver/
+  // acarsCockpitAppend/acarsDispatchAppend）—— PDC/ATIS/ACARS 呢啲 array 唔再由
+  // client 本地砌好成個 array 覆寫，改由 server 對住自己啱啱讀到嘅最新一份 row apply，
+  // 同時 pdcApprove/atisDeliver/acarsDispatchAppend 呢類「扮 ATC/DISPATCH」嘅動作
+  // 會喺 server 端要求教官登入（睇 src/lib/validation.ts requiresInstructorAuthForFlight）
+  const { mutateAsync: rqSendDirectiveAsync } = useMutation({
+    mutationFn: async (directive: Record<string, unknown>) => {
+      const res = await fetch('/api/flight/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: flightId, ...directive })
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to send directive");
+      }
+      return res.json();
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["flight", flightId] });
+    },
+  });
+
   // 🌟 3. 智能緩存燃油引擎計算結果 (useMemo 確保只在 flightData 改變時才重新計算)
   const calc = useMemo(() => {
     if (!flightData) return null;
@@ -95,6 +118,7 @@ queryClient.setQueryData(["flight", flightId], { ...(previousData || {}), ...upd
     flightData,
     updateFlightData: rqUpdateFlightData,
     updateFlightDataAsync: rqUpdateFlightDataAsync,
+    sendFlightDirective: rqSendDirectiveAsync,
     calc,
     handlers,
     isLoading,

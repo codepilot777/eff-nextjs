@@ -20,23 +20,28 @@ export function LeftPanel({ flightData, calc }: any) {
   let stageText = "text-[#8fa0a6]";
 
   if (flightData?.final_ls_sent) {
-    const activeVer = flightData?.final_history?.[flightData.final_history.length - 1]?.version || 1;
+    // 🌟 修復：flightData.final_snapshot 呢個扁平欄位由始至終都冇寫過（PayloadTab.tsx
+    // 淨係識得 push 落 final_history 陣列），以前呢度恆定讀唔到嘢，令 FINAL 階段嘅
+    // PAX/ZFW 永遠顯示 "--"。改為直接攞返歷史陣列入面「最後發送」嗰份真正 snapshot。
+    const latestFinal = flightData?.final_history?.[flightData.final_history.length - 1];
+    const activeVer = latestFinal?.version || 1;
     currentStage = `FINAL ${activeVer.toString().padStart(2, '0')}`;
-    
-    stageBg = flightData?.pilots_signed_final ? "bg-[#C6FF00]" : "bg-[#2979FF]"; 
+
+    stageBg = flightData?.pilots_signed_final ? "bg-[#C6FF00]" : "bg-[#2979FF]";
     stageText = flightData?.pilots_signed_final ? "text-black" : "text-white";
-    const p = buildEnginePayload(flightData.final_snapshot, flightData, revisedTaxiKg);
+    const p = buildEnginePayload(latestFinal?.snapshot, flightData, revisedTaxiKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
-  
+
   } else if (flightData?.prelim_ls_sent) {
-    // 🎯 核心修正：從歷史陣列中抽取出真正「最後發送」的版本號
-    const activeVer = flightData?.prelim_history?.[flightData.prelim_history.length - 1]?.version || 1;
+    // 🎯 核心修正：從歷史陣列中抽取出真正「最後發送」的版本號同 snapshot（同上）
+    const latestPrelim = flightData?.prelim_history?.[flightData.prelim_history.length - 1];
+    const activeVer = latestPrelim?.version || 1;
     currentStage = `PRELIM ${activeVer.toString().padStart(2, '0')}`;
-    
+
     stageBg = "bg-[#FF9100]"; stageText = "text-black";
-    const p = buildEnginePayload(flightData.prelim_snapshot, flightData, revisedTaxiKg);
+    const p = buildEnginePayload(latestPrelim?.snapshot, flightData, revisedTaxiKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
-  
+
   } else if (flightData?.azf_sent) {
     currentStage = "AZF";
     stageBg = "bg-[#00E676]"; stageText = "text-black";

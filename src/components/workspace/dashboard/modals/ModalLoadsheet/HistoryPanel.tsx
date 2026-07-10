@@ -4,7 +4,7 @@ import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import { buildEnginePayload, generateLSText, getAzfText, getEzfwText } from "@/lib/loadsheet/loadsheetHelpers";
 
-export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModal, limits, setShowFinalConfirm }: any) {
+export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModal, limits }: any) {
 
   // 🌟 喺 HistoryPanel 頂部加入這個 State
   const [localConfirmVer, setLocalConfirmVer] = useState<number | null>(null);
@@ -86,7 +86,7 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
                   ) : flightData?.pilots_signed_final ? (
                     <div className="w-full py-2.5 bg-[#C6FF00] text-black rounded-lg font-bold text-[0.7rem] uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm">✓ Acknowledged by {flightData?.captain || 'COMMANDER'}</div>
                   ) : (
-                    // 🌟 將原本的 setShowFinalConfirm(true) 換成紀錄當前卡片的 version！
+                    // 🌟 用本地 state 記錄緊邊張卡片被點擊，彈窗字樣先至永遠鎖定正確 version
 <button 
   onClick={() => setLocalConfirmVer(doc.version)} 
   className="w-full py-2.5 bg-[#2979FF] text-white rounded-lg font-black text-[0.7rem] hover:bg-blue-600 shadow-md uppercase tracking-widest transition-colors"

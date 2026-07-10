@@ -20,7 +20,7 @@ export function ModalSNN({ flightData }: any) {
 
         {/* 🌟 SNN 內容區：使用字體稍微大一點的 font-mono 方便閱讀 */}
         <div className="font-mono text-[0.9rem] leading-relaxed whitespace-pre-wrap text-[#e2e8f0]">
-          {flightData?.snn || "Check NOTAM for TWY closures. Expect radar vectors after departure. Monitor fuel temp closely due to cold airmass."}
+          {flightData?.snn || <span className="text-[#8fa0a6] italic">No dispatch notes for this flight.</span>}
         </div>
         
       </div>

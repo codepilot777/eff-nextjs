@@ -1,45 +1,26 @@
 "use client";
-import { getCommonFlightInfo } from "@/lib/loadsheet/loadsheetHelpers";
+import { getCommonFlightInfo, buildClassCounts, getLatestSnapshot } from "@/lib/loadsheet/loadsheetHelpers";
 // 🌟 引入總大腦矩陣
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 
 export function RightHeader({ flightData, updateFlightData, calc, limits }: any) {
   const info = getCommonFlightInfo(flightData, calc);
-  
+
   // 🌟 精確鎖定當前執飛飛機的 AHM
   const currentReg = flightData?.aircraft_reg || "B-HNQ";
   const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
 
-  // 🌟 從最近的 Snapshot 提取真實的乘客分布
-  const activeSnapshot = flightData?.final_snapshot || flightData?.prelim_snapshot || flightData?.ezfw_snapshot;
-  
-  // 🎯 1. 實際載客：將所有物理分區（Zones）的人數，按 AHM 定義的 primaryClass 實時加總聚合！
-  let totalPax = 0;
-  
-  // 建立一隻空的計數器，用來裝 J、W、Y 的實時人數
-  const classCounts: Record<string, number> = { J: 0, W: 0, Y: 0 };
+  // 🌟 從最近的 Snapshot 提取真實的乘客分布（同 LoadsheetAirportColumn 共用同一個 helper，
+  // 由 final_history/prelim_history 陣列度攞返「最後發送」嗰份，唔再讀恆定冇寫過嘅扁平欄位）
+  const activeSnapshot = getLatestSnapshot(flightData) as { pax?: Record<string, unknown> } | null;
 
-  Object.entries(ahm.stations.pax).forEach(([zoneKey, zoneInfo]: [string, any]) => {
-    const short = zoneKey.replace("zone", "");
-    // 撈出這個 Zone 實際上坐咗幾多人
-    const count = Number(activeSnapshot?.pax?.[short] || activeSnapshot?.pax?.[zoneKey] || 0);
-    totalPax += count;
-
-    // 查出這個 Zone 屬於邊個商業艙等 (J / W / Y)
-    const primaryClass = zoneInfo.primaryClass || "Y";
-    
-    // 將人數歸類累加
-    if (classCounts[primaryClass] !== undefined) {
-      classCounts[primaryClass] += count;
-    } else {
-      classCounts["Y"] += count; // 防呆補底
-    }
-  });
+  // 🎯 實際載客：按 AHM 定義嘅 primaryClass 動態加總（同 LoadsheetAirportColumn 共用同一個 helper）
+  const classCounts = buildClassCounts(ahm, activeSnapshot?.pax);
+  const totalPax = Object.values(classCounts).reduce((sum, count) => sum + count, 0);
 
   // 根據這架飛機 AHM 實際擁有的商業艙等（Config 字串入面有咩字母），動態輸出對應的實際人數
   // 例如：B773 (J42Y396) 就只會嘔出 "J20 Y180"；B77W (J45W48Y268) 就會嘔出 "J30 W24 Y150"
   const actualPaxBreakdown = Object.keys(classCounts)
-    .filter(cls => ahm.config.includes(cls)) // 只保留這架飛機 Config 有定義的艙等
     .map(cls => `${cls}${classCounts[cls]}`) // 拼裝成 J30 這種格式
     .join(" ");
 
@@ -78,7 +59,7 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
           </div>
           <div className="flex items-center gap-2 bg-[#0a0a0a] px-2 py-0.5 rounded border border-[#333]">
              {/* 👥 實際分艙搭乘人數 */}
-             <span className="text-white font-mono text-xs">{actualPaxBreakdown || "OA0 OB0 OC0 OD0"}</span>
+             <span className="text-white font-mono text-xs">{actualPaxBreakdown || "--"}</span>
           </div>
         </div>
         
@@ -142,7 +123,7 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
                    <div className="flex items-center gap-1">
                      <input 
                        key={`mtow-${limits.isCustomWt}`} type="number" step="0.1" disabled={!limits.isCustomWt} defaultValue={limits.dispMtow.toFixed(1)} 
-                       onBlur={(e)=> updateFlightData({custom_mtow: parseFloat(e.target.value), final_fuel_accepted: false})} 
+                       onBlur={(e)=> updateFlightData({custom_mtow: parseFloat(e.target.value) || 0.0, final_fuel_accepted: false})}
                        className={`w-16 bg-[#1a1a1a] text-[0.85rem] font-black rounded p-0.5 outline-none border transition-colors text-right ${limits.isCustomWt ? 'text-[#FF9100] border-[#FF9100]/50 focus:border-[#FF9100]' : 'text-[#555] border-transparent'}`} 
                      />
                      <span className="text-[#8fa0a6] font-bold text-[0.6rem] w-2">T</span>
@@ -156,7 +137,7 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
                    <div className="flex items-center gap-1">
                      <input 
                        key={`margin-${limits.isCustomWt}`} type="number" step="0.1" disabled={!limits.isCustomWt} defaultValue={limits.dispMlawMargin.toFixed(1)} 
-                       onBlur={(e)=> updateFlightData({custom_mlaw_margin: parseFloat(e.target.value), final_fuel_accepted: false})} 
+                       onBlur={(e)=> updateFlightData({custom_mlaw_margin: parseFloat(e.target.value) || 0.0, final_fuel_accepted: false})}
                        className={`w-14 bg-[#1a1a1a] text-[0.85rem] font-black rounded p-0.5 outline-none border transition-colors text-center ${limits.isCustomWt ? 'text-[#FF9100] border-[#FF9100]/50 focus:border-[#FF9100]' : 'text-[#555] border-transparent'}`} 
                      />
                      <span className="text-[#8fa0a6] font-bold text-[0.6rem] w-2">T</span>
@@ -168,7 +149,7 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
                    <div className="flex items-center gap-1">
                      <input 
                        key={`mlaw-${limits.isCustomWt}`} type="number" step="0.1" disabled={!limits.isCustomWt} defaultValue={limits.dispMlaw.toFixed(1)} 
-                       onBlur={(e)=> updateFlightData({custom_mlaw: parseFloat(e.target.value), final_fuel_accepted: false})} 
+                       onBlur={(e)=> updateFlightData({custom_mlaw: parseFloat(e.target.value) || 0.0, final_fuel_accepted: false})}
                        className={`w-16 bg-[#1a1a1a] text-[0.85rem] font-black rounded p-0.5 outline-none border transition-colors text-right ${limits.isCustomWt ? 'text-[#FF9100] border-[#FF9100]/50 focus:border-[#FF9100]' : 'text-[#555] border-transparent'}`} 
                      />
                      <span className="text-[#8fa0a6] font-bold text-[0.6rem] w-2">T</span>
@@ -183,7 +164,7 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
              <div className="flex flex-col items-center w-full">
                <input 
                  key={`mzfw-${limits.isCustomWt}`} type="number" step="0.1" disabled={!limits.isCustomWt} defaultValue={limits.dispMzfw.toFixed(1)} 
-                 onBlur={(e)=> updateFlightData({custom_mzfw: parseFloat(e.target.value), final_fuel_accepted: false})} 
+                 onBlur={(e)=> updateFlightData({custom_mzfw: parseFloat(e.target.value) || 0.0, final_fuel_accepted: false})}
                  className={`w-full bg-transparent text-[1rem] font-black rounded outline-none border-b text-center px-0 py-0.5 transition-colors ${limits.isCustomWt ? 'text-[#FF9100] border-[#FF9100]/50 focus:border-[#FF9100]' : 'text-[#555] border-transparent'}`} 
                />
                <span className="text-[#8fa0a6] font-bold text-[0.55rem] mt-0.5">Tons</span>

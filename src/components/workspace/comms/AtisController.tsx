@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
 
 export default function AtisController() {
-  const { flightData, updateFlightData } = useFlightData();
-  
+  const { flightData, sendFlightDirective } = useFlightData();
+
   const [atisApt, setAtisApt] = useState(flightData?.dep_icao || "");
   const [atisType, setAtisType] = useState("DEPARTURE");
 
@@ -14,11 +14,12 @@ export default function AtisController() {
   const deliveredAtis = (flightData?.atis_requests || []).filter((r: any) => r.status === "DELIVERED");
   const pendingAtis = (flightData?.atis_requests || []).filter((r: any) => r.status !== "DELIVERED");
 
-  const handleSendAtisReq = () => {
-    const now = new Date();
-    const timeStr = `${now.getUTCHours().toString().padStart(2, '0')}${now.getUTCMinutes().toString().padStart(2, '0')}Z`;
-    const newReq = { id: (flightData?.atis_requests || []).length + 1, icao: atisApt.toUpperCase(), type: atisType, time: timeStr, status: "PENDING RESPONSE" };
-    updateFlightData({ atis_requests: [...(flightData?.atis_requests || []), newReq] });
+  const handleSendAtisReq = async () => {
+    try {
+      await sendFlightDirective({ atisRequestAppend: { icao: atisApt.toUpperCase(), type: atisType } });
+    } catch {
+      alert("Failed to send ATIS request");
+    }
   };
 
   return (

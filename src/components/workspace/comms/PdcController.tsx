@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
 
 export default function PdcController() {
-  const { flightData, updateFlightData } = useFlightData();
-  
+  const { flightData, updateFlightData, sendFlightDirective } = useFlightData();
+
   const [fac, setFac] = useState("");
   const [atisCd, setAtisCd] = useState("");
   const [gate, setGate] = useState(flightData?.bay_no || "");
@@ -17,12 +17,13 @@ export default function PdcController() {
   const isPdcAccepted = flightData?.pilots_accepted_pdc || false;
   const hasPendingPdc = (flightData?.pdc_requests || []).some((r: any) => r.status === "PENDING CLEARANCE");
 
-  const handleSendPdcReq = () => {
+  const handleSendPdcReq = async () => {
     if (fac.length !== 4 || atisCd.length !== 1) return alert("Facility must be 4 chars, ATIS must be 1 char.");
-    const now = new Date();
-    const timeStr = `${now.getUTCHours().toString().padStart(2, '0')}${now.getUTCMinutes().toString().padStart(2, '0')}Z`;
-    const newReq = { time: timeStr, status: "PENDING CLEARANCE", atis: atisCd.toUpperCase(), gate: gate };
-    updateFlightData({ pdc_requests: [...(flightData?.pdc_requests || []), newReq] });
+    try {
+      await sendFlightDirective({ pdcRequestAppend: { atis: atisCd, facility: fac, gate } });
+    } catch {
+      alert("Failed to send PDC request");
+    }
   };
 
   return (
@@ -95,10 +96,6 @@ export default function PdcController() {
                 <div className={`font-black text-xs ${isPdcAccepted ? 'text-[#00E676]' : 'text-[#FF9100]'}`}>
                   {isPdcAccepted ? "CLEARED" : "WAITING"}
                 </div>
-              </div>
-              <div className="flex-1 bg-[#0a0a0a] p-3 rounded-lg border border-[#333]">
-                <div className="text-[#8fa0a6] text-[0.6rem] uppercase font-bold mb-1">Squawk</div>
-                <div className="text-[#00E676] font-mono font-black text-lg leading-none">{flightData?.pdc_squawk || '----'}</div>
               </div>
             </div>
             

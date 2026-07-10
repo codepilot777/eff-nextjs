@@ -5,6 +5,7 @@ import {
   hasProtectedFlightFields,
   loginBodySchema,
   requiresInstructorAuth,
+  requiresInstructorAuthForFlight,
   simbriefBodySchema,
   techlogPostBodySchema,
 } from './validation';
@@ -27,6 +28,60 @@ describe('flightUpdateBodySchema', () => {
     expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', data: 'not-an-object' }).success).toBe(false);
     expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', data: null }).success).toBe(false);
     expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', data: [1, 2, 3] }).success).toBe(false);
+  });
+
+  it('defaults data to {} so a directive-only patch is valid on its own', () => {
+    const result = flightUpdateBodySchema.safeParse({ id: 'CPA 564', acarsCockpitAppend: { content: 'wilco' } });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.data).toEqual({});
+  });
+
+  it('rejects pdc_requests/atis_requests/acars_messages smuggled inside data (the array-replacement bypass)', () => {
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', data: { pdc_requests: [] } }).success).toBe(false);
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', data: { atis_requests: [] } }).success).toBe(false);
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', data: { acars_messages: [] } }).success).toBe(false);
+  });
+
+  it('accepts each directive shape', () => {
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', pdcRequestAppend: { atis: 'A' } }).success).toBe(true);
+    expect(flightUpdateBodySchema.safeParse({
+      id: 'CPA 564', pdcApprove: { time: '0100Z', clearance_payload: 'CLRD...' },
+    }).success).toBe(true);
+    expect(flightUpdateBodySchema.safeParse({
+      id: 'CPA 564', atisRequestAppend: { icao: 'VHHH', type: 'DEPARTURE' },
+    }).success).toBe(true);
+    expect(flightUpdateBodySchema.safeParse({
+      id: 'CPA 564', atisDeliver: { time: '0100Z', response: 'INFO A' },
+    }).success).toBe(true);
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', acarsCockpitAppend: { content: 'wilco' } }).success).toBe(true);
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', acarsDispatchAppend: { content: 'roger' } }).success).toBe(true);
+  });
+
+  it('rejects an invalid atisRequestAppend type', () => {
+    expect(flightUpdateBodySchema.safeParse({
+      id: 'CPA 564', atisRequestAppend: { icao: 'VHHH', type: 'BOGUS' },
+    }).success).toBe(false);
+  });
+});
+
+describe('requiresInstructorAuthForFlight', () => {
+  it('gates the protected flat fields', () => {
+    expect(requiresInstructorAuthForFlight({ data: { is_published: true } })).toBe(true);
+    expect(requiresInstructorAuthForFlight({ data: { activated_version: 2 } })).toBe(true);
+  });
+
+  it('gates pdcApprove/atisDeliver/acarsDispatchAppend ("pretend to be ATC/DISPATCH" actions)', () => {
+    expect(requiresInstructorAuthForFlight({ pdcApprove: { time: '0100Z', clearance_payload: 'x' } })).toBe(true);
+    expect(requiresInstructorAuthForFlight({ atisDeliver: { time: '0100Z', response: 'x' } })).toBe(true);
+    expect(requiresInstructorAuthForFlight({ acarsDispatchAppend: { content: 'x' } })).toBe(true);
+  });
+
+  it('does NOT gate trainee-initiated request/append directives or ordinary field writes', () => {
+    expect(requiresInstructorAuthForFlight({ pdcRequestAppend: { atis: 'A' } })).toBe(false);
+    expect(requiresInstructorAuthForFlight({ atisRequestAppend: { icao: 'VHHH', type: 'DEPARTURE' } })).toBe(false);
+    expect(requiresInstructorAuthForFlight({ acarsCockpitAppend: { content: 'wilco' } })).toBe(false);
+    expect(requiresInstructorAuthForFlight({ data: { trainee_input_zfw: 180 } })).toBe(false);
+    expect(requiresInstructorAuthForFlight({})).toBe(false);
   });
 });
 

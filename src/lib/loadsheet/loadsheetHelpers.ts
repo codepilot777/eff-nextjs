@@ -223,8 +223,16 @@ export const getEzfwText = (flightData: any, calc: any) => {
 // ==========================================
 // 6. Dashboard reconciliation：真正由 payload 計出嚟嘅 weights，得閒先有
 // ==========================================
+// 🌟 修復：FINAL/PRELIM 由始至終都冇寫過 flightData.final_snapshot/prelim_snapshot
+// 呢兩個扁平欄位（PayloadTab.tsx 淨係識得 push 落 final_history/prelim_history 陣列），
+// 所以以前呢個 helper 對 FINAL/PRELIM 階段嘅航班恆定讀唔到嘢，靜靜雞跌落去用
+// azf_snapshot/ezfw_snapshot 嘅舊數。而家改為由歷史陣列攞返「最後發送」嗰份真正 snapshot。
 export const getLatestSnapshot = (flightData: Record<string, unknown>) => {
-  return flightData?.final_snapshot || flightData?.prelim_snapshot || flightData?.azf_snapshot || flightData?.ezfw_snapshot || null;
+  const finalHistory = flightData?.final_history as Array<{ snapshot?: unknown }> | undefined;
+  const prelimHistory = flightData?.prelim_history as Array<{ snapshot?: unknown }> | undefined;
+  const latestFinal = finalHistory?.[finalHistory.length - 1]?.snapshot;
+  const latestPrelim = prelimHistory?.[prelimHistory.length - 1]?.snapshot;
+  return latestFinal || latestPrelim || flightData?.azf_snapshot || flightData?.ezfw_snapshot || null;
 };
 
 // 🌟 喺學員未真正發送過任何 payload 文件之前，返 null（唔好夾硬計一個假數出嚟）
