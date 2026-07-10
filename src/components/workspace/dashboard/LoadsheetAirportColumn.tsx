@@ -1,9 +1,9 @@
 "use client";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
-import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
+import { getDynamicAhm, getLatestSnapshot, buildClassCounts } from "@/lib/loadsheet/loadsheetHelpers";
 // 🌟 Props 大清洗：只保留 setActiveModal
 export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveModal: any }) {
-  
+
   // 🌟 1. 從天上直接抽取 Data
   const { flightData, calc } = useFlightData();
 
@@ -18,31 +18,23 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
   const dest = rawSb.destination || {};
 
   const arrIcao = flightData?.arr_icao || dest.icao_code || 'RJBB';
-  const paxTot = (flightData?.pax_f || 0) + (flightData?.pax_j || 0) + (flightData?.pax_w || 0) + (flightData?.pax_y || 0);
 
   // 🌟 1. 確保拿到當前飛機大腦
-  const currentReg = flightData?.aircraft_reg || "B-HNQ";
-  const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
+  const ahm = getDynamicAhm(flightData);
 
-  // 🌟 2. 獲取最新的 Payload Snapshot
-  const activeSnapshot = flightData?.final_snapshot || flightData?.prelim_snapshot || flightData?.ezfw_snapshot;
+  // 🌟 2. 獲取最新的 Payload Snapshot（同 FuelWeightColumn 用返同一套 fallback chain，
+  // 包埋 azf_snapshot——以前呢度漏咗，AZF 階段會顯示錯咗嘅 Crew/Pax）
+  const activeSnapshot = getLatestSnapshot(flightData) as { pax?: Record<string, unknown> } | null;
 
   // 🌟 3. 動態計算當前航班的實際艙等分布 (J / W / Y)
-  const classCounts: Record<string, number> = { J: 0, W: 0, Y: 0 };
-  
+  let classCounts: Record<string, number>;
+
   if (activeSnapshot) {
     // 如果有 Snapshot，跟從物理引擎分區計算
-    Object.entries(ahm.stations.pax).forEach(([zoneKey, zoneInfo]: [string, any]) => {
-      const short = zoneKey.replace("zone", "");
-      const count = Number(activeSnapshot.pax?.[short] || activeSnapshot.pax?.[zoneKey] || 0);
-      const primaryClass = zoneInfo.primaryClass || "Y";
-      classCounts[primaryClass] += count;
-    });
+    classCounts = buildClassCounts(ahm, activeSnapshot.pax);
   } else {
     // 補底防呆：如果未有任何 Loadsheet Snapshot，直接讀 SimBrief 嘅生肉數據
-    classCounts.J = flightData?.pax_j || 0;
-    classCounts.W = flightData?.pax_w || 0;
-    classCounts.Y = flightData?.pax_y || 0;
+    classCounts = { J: flightData?.pax_j || 0, W: flightData?.pax_w || 0, Y: flightData?.pax_y || 0 };
   }
 
   // 🌟 4. 拼裝出完美的商業艙等字串 (e.g. "J35 W40 Y140")
@@ -68,12 +60,11 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
   }
 
   const crewFd = flightData?.crew_fd || 2;
-  const crewCc = flightData?.crew_cc || 13;
+  const crewCc = flightData?.crew_cc || 14;
   const totalCrew = crewFd + crewCc;
-  
+
   // 🎯 真實 POB 誕生！
   const totalPob = dynamicPaxTot + totalCrew;
-  // 👈 換上本地 paxTot
 
   const planeWatermark = (
     <svg className="absolute bottom-1 left-2 w-16 h-16 text-[#333] opacity-50 transform -rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -120,9 +111,20 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
   const displayAlternates = calc?.processedAlternates || [];
 
   const activeAltnData = displayAlternates.find((a: any) => a.icao === calc.selectedAltn) || displayAlternates[0];
-  const destHoldFuel = activeAltnData ? Math.max(0, activeAltnData.holdFuel) : 0.0;
-  const destHoldTime = activeAltnData ? activeAltnData.holdTime : "0m";
+  // 🌟 修復：以前 Math.max(0, ...) 靜靜雞夾走負數，令真正嘅燃油短缺喺頂部 summary
+  // 完全睇唔到；而家保留返真實數值（可以係負數），null = 未有 MDF 數據
+  const destHoldFuel: number | null = activeAltnData?.holdFuel ?? null;
+  const destHoldTime = activeAltnData?.holdTime || "--";
   const destEta = flightData?.sta_z?.replace('Z', 'z') || "--z";
+
+  // 🌟 Hold fuel 係「夠唔夠」check，唔係 margin-against-a-limit（同 marginHelpers.ts
+  // 嗰堆 ZFW/TOW/LW margin 方向相反：嗰邊正數先係壞，呢度負數先係壞），所以呢度用返
+  // 自己嘅 local helper，唔借用 getMarginColor。
+  const getHoldColor = (holdFuel: number | null, isSelected: boolean) => {
+    if (holdFuel === null) return "text-[#555]";
+    if (holdFuel < 0) return "text-[#FF1744] font-black animate-pulse";
+    return isSelected ? "text-white" : "text-[#8fa0a6]";
+  };
 
   const MIN_ALTN_ROWS = 4;
   const emptyAltnRows = Math.max(0, MIN_ALTN_ROWS - displayAlternates.length);
@@ -177,26 +179,16 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
         </div>
       </div>
       
-      {/* 2. NOTOC 卡片 */}
-      <div className="bg-[#1E1E1E] rounded-xl p-3 shrink-0 flex flex-col relative overflow-hidden">
+      {/* 2. NOTOC 卡片 — 🌟 暫時冇真實 backing data model，老實顯示 disabled，
+          唔再扮有數/可撳（呢張卡本身冇 onClick，同 Loadsheet/Airport 唔同，之前個
+          chevron 淨係扮緊可以撳） */}
+      <div className="bg-[#1E1E1E] rounded-xl p-3 shrink-0 flex flex-col relative overflow-hidden opacity-50">
         {planeWatermark}
         <div className="flex justify-between items-center relative z-10">
-          <h2 className="text-[1.05rem] font-bold text-white leading-none">NOTOC</h2>
-          <span className="text-[#8fa0a6] text-lg font-light leading-none">›</span>
+          <h2 className="text-[1.05rem] font-bold text-[#8fa0a6] leading-none">NOTOC</h2>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-[0.65rem] relative z-10 py-1.5">
-          <div className="flex flex-col items-center">
-            <span className="text-[#8fa0a6] uppercase tracking-wide leading-none mb-1">DG Types</span>
-            <span className="text-xl font-bold text-white leading-none">2</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[#8fa0a6] uppercase tracking-wide leading-none mb-1">Crew Actions</span>
-            <span className="text-lg font-bold text-white leading-none">--</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[#8fa0a6] uppercase tracking-wide leading-none mb-1">Crew Notes</span>
-            <span className="text-sm font-bold text-white leading-none">ELI</span>
-          </div>
+        <div className="flex items-center justify-center relative z-10 py-3">
+          <span className="text-[0.6rem] text-[#555] uppercase tracking-widest font-bold">Not Yet Available</span>
         </div>
       </div>
       
@@ -219,11 +211,13 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
             </div>
             <div className="flex flex-col ml-auto">
               <span className="text-[0.5rem] text-[#8fa0a6] uppercase tracking-wide leading-tight">Hold</span>
-              <span className="font-bold text-[0.8rem] text-right leading-none">{destHoldFuel.toFixed(1)}<span className="text-[0.55rem] font-bold text-[#8fa0a6]">T</span></span>
+              <span className={`font-bold text-[0.8rem] text-right leading-none ${getHoldColor(destHoldFuel, true)}`}>
+                {destHoldFuel !== null ? destHoldFuel.toFixed(1) : "--"}<span className="text-[0.55rem] font-bold text-[#8fa0a6]">T</span>
+              </span>
             </div>
             <div className="flex flex-col">
               <span className="text-[0.5rem] text-[#8fa0a6] uppercase tracking-wide leading-tight">Time</span>
-              <span className="font-bold text-[0.8rem] text-right leading-none">{destHoldTime}</span>
+              <span className={`font-bold text-[0.8rem] text-right leading-none ${destHoldFuel !== null && destHoldFuel < 0 ? 'text-[#FF1744]' : ''}`}>{destHoldTime}</span>
             </div>
             <div className="flex flex-col">
               <span className="text-[0.5rem] text-[#8fa0a6] uppercase tracking-wide leading-tight">ETA</span>
@@ -241,18 +235,19 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
             {/* 真實 Alternate 數據 */}
             {displayAlternates.map((altn: any, index: number) => {
               const isSelected = altn.icao === calc.selectedAltn;
-              const isNegative = altn.holdFuel < 0;
-              const holdColor = isNegative ? "text-[#FF1744] font-black animate-pulse" : (isSelected ? "text-white" : "text-[#8fa0a6]");
-              const holdDisplayFuel = altn.holdFuel > 0 ? altn.holdFuel.toFixed(1) : "0.0";
-              const holdDisplayTime = isNegative ? "0m" : altn.holdTime;
+              const holdColor = getHoldColor(altn.holdFuel, isSelected);
+              const mdfDisplay = altn.mdf != null ? altn.mdf.toFixed(1) : "--";
+              // 🌟 修復：以前赤字（負數）永遠夾硬顯示 "0.0"，學員睇到「有嘢唔妥」但完全
+              // 唔知差幾多；而家顯示返真實數值
+              const holdDisplayFuel = altn.holdFuel != null ? altn.holdFuel.toFixed(1) : "--";
 
               return (
                 <div key={index} className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1.2fr] items-center text-[0.7rem] relative leading-none z-10 bg-[#1E1E1E] py-1">
                   <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full border-2 ${isSelected ? 'border-white bg-white' : 'border-[#666] bg-[#1E1E1E]'}`}></div>
                   <div className={`pl-4 font-bold font-sans ${isSelected ? "text-white" : "text-[#8fa0a6]"}`}>{altn.icao}</div>
-                  <div className={`text-right font-mono ${isSelected ? "text-white font-bold" : "text-[#8fa0a6]"}`}>{altn.mdf?.toFixed(1)}<span className="text-[0.55rem]">T</span></div>
+                  <div className={`text-right font-mono ${isSelected ? "text-white font-bold" : "text-[#8fa0a6]"}`}>{mdfDisplay}<span className="text-[0.55rem]">T</span></div>
                   <div className={`text-right font-mono ${holdColor}`}>{holdDisplayFuel}<span className="text-[0.55rem]">T</span></div>
-                  <div className={`text-right font-mono ${holdColor}`}>{holdDisplayTime}</div>
+                  <div className={`text-right font-mono ${holdColor}`}>{altn.holdTime}</div>
                   <div className="text-right font-mono text-white text-[0.65rem]">{altn.eta}</div>
                 </div>
               );
@@ -272,18 +267,14 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
           </div>
         </div>
 
-        {/* 底部 50%：Critical Points 面板 */}
+        {/* 底部 50%：Critical Points 面板 — 🌟 暫時冇真實 backing data model
+            （唔係假 --/-- 6 行扮有嘢），老實顯示未有數據 */}
         <div className="flex-1 mt-2 pt-2 border-t border-[#333] flex flex-col min-h-0">
           <div className="flex justify-between text-[0.55rem] text-[#8fa0a6] uppercase tracking-wider leading-none mb-2 shrink-0">
             <span>Critical Points</span><span>Margin</span>
           </div>
-          <div className="flex-1 flex flex-col justify-evenly min-h-0">
-            {[...Array(6)].map((_, i) => (
-              <div key={`cp-${i}`} className="flex justify-between items-center border-b border-dashed border-[#333] pb-1 last:border-b-0">
-                <span className="text-[0.65rem] text-[#555] font-mono leading-none">--</span>
-                <span className="text-[0.65rem] text-[#555] font-mono leading-none">--</span>
-              </div>
-            ))}
+          <div className="flex-1 flex items-center justify-center min-h-0">
+            <span className="text-[0.65rem] text-[#555] uppercase tracking-widest font-bold">No Critical Point Data Available</span>
           </div>
         </div>
 

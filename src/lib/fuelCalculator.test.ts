@@ -88,4 +88,28 @@ describe('calculateFuelEngine', () => {
       expect(calc.showRevVal).toBe(true);
     });
   });
+
+  describe('processedAlternates', () => {
+    it('does not bleed the selected alternate\'s trip fuel into a non-selected alternate lacking its own burn', () => {
+      const withAltns = {
+        ...baseFlight,
+        alternates: [{ icao: 'RJOO', burn: 2.0, time: 30 }, { icao: 'RJBB', burn: 0, time: 35 }], // RJBB has no real burn
+        selected_altn: 'RJOO',
+      };
+      const calc = calculateFuelEngine(withAltns);
+      const rjbb = calc.processedAlternates.find((a: { icao: string; mdf: number | null; holdFuel: number | null; holdTime: string }) => a.icao === 'RJBB')!;
+
+      expect(rjbb.mdf).toBeNull();
+      expect(rjbb.holdFuel).toBeNull();
+      expect(rjbb.holdTime).toBe('--');
+    });
+
+    it('still computes a real MDF for the selected alternate even in single-fallback-alternate mode', () => {
+      const calc = calculateFuelEngine(baseFlight); // single fallback altn, RJOO selected
+      const rjoo = calc.processedAlternates.find((a: { icao: string; mdf: number | null }) => a.icao === 'RJOO')!;
+
+      expect(rjoo.mdf).not.toBeNull();
+      expect(rjoo.mdf).toBeCloseTo(2.0 + baseFlight.fuel_reserve_ofp);
+    });
+  });
 });

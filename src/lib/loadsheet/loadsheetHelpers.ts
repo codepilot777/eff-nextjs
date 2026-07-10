@@ -3,6 +3,7 @@
 import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
 // 🌟 核心修改：引入總註冊表大腦，全域剷走單一機型
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
+import type { AircraftAHM560 } from "@/lib/loadsheet/types";
 
 /**
  * 🔍 內部輔助函數：根據目前的飛行數據動態撈出該飛機的 AHM 大腦
@@ -10,6 +11,22 @@ import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 export const getDynamicAhm = (flightData: any) => {
   const reg = flightData?.aircraft_reg || "B-HNQ";
   return AIRCRAFT_REGISTRY[reg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
+};
+
+// 🔍 動態版本：唔再靠 hardcode 嘅 {J,W,Y} literal，改為由 ahm.config 實際出現嘅
+// class letter 做種，再逐個 zone 累加。日後加多個 class 都唔使再喺呢度改 code。
+export const buildClassCounts = (ahm: AircraftAHM560, pax: Record<string, unknown> | undefined): Record<string, number> => {
+  const counts: Record<string, number> = {};
+  (ahm.config.match(/[A-Z](?=\d)/g) || []).forEach((cls: string) => { counts[cls] = 0; });
+
+  Object.entries(ahm.stations.pax).forEach(([zoneKey, zoneInfo]) => {
+    const short = zoneKey.replace("zone", "");
+    const count = Number(pax?.[short] ?? pax?.[zoneKey] ?? 0);
+    const primaryClass = zoneInfo.primaryClass || "Y";
+    counts[primaryClass] = (counts[primaryClass] || 0) + count;
+  });
+
+  return counts;
 };
 
 // ==========================================
@@ -95,13 +112,7 @@ export const generateLSText = (
   }).join(" ");
 
   // 🎯 核心修改：動態生成目的地詳細艙等縮寫清單（商業艙等，例如 J042  W024  Y150）
-  const classCounts: Record<string, number> = { J: 0, W: 0, Y: 0 };
-  Object.entries(ahm.stations.pax).forEach(([zoneKey, zoneInfo]: [string, any]) => {
-    const short = zoneKey.replace("zone", "");
-    const count = Number(snapshot.pax?.[short] || snapshot.pax?.[zoneKey] || 0);
-    const primaryClass = zoneInfo.primaryClass || "Y";
-    classCounts[primaryClass] += count;
-  });
+  const classCounts = buildClassCounts(ahm, snapshot.pax);
 
   const dynamicPaxBreakdown = Object.keys(classCounts)
     .filter(cls => ahm.config.includes(cls))
@@ -199,13 +210,7 @@ export const getEzfwText = (flightData: any, calc: any) => {
   
   const estZfwKg = Math.round((flightData?.weight_zfw_ofp || 0.0) * 1000);
   
-  const classCounts: Record<string, number> = { J: 0, W: 0, Y: 0 };
-  Object.entries(ahm.stations.pax).forEach(([zoneKey, zoneInfo]: [string, any]) => {
-    const short = zoneKey.replace("zone", "");
-    const count = Number(snapshot.pax?.[short] || snapshot.pax?.[zoneKey] || 0);
-    const primaryClass = zoneInfo.primaryClass || "Y";
-    classCounts[primaryClass] += count;
-  });
+  const classCounts = buildClassCounts(ahm, snapshot.pax);
 
   const dynamicEzfwPaxStr = Object.keys(classCounts)
     .filter(cls => ahm.config.includes(cls))

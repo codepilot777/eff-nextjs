@@ -139,11 +139,19 @@ export function calculateFuelEngine(flightData: any) {
   const rawAlternatesArray = Array.isArray(rawSb?.alternate) ? rawSb.alternate : (rawSb?.alternate ? [rawSb.alternate] : []);
   
   const processedAlternates = altnList.map((altn: any) => {
-    const altnTripFuel = altn.burn || currAltnOfp; 
-    const mdf = altnTripFuel + ofpRes;
-    const holdFuel = efobAtDest - mdf;
-    const holdMins = ofpRes > 0 ? Math.floor((Math.max(0, holdFuel) / ofpRes) * 30) : 0;
-    
+    // 🌟 修復：以前 `altn.burn || currAltnOfp` 會將「揀咗嗰個 alternate」嘅 trip fuel
+    // 靜靜雞塞俾第啲未揀嘅 alternate，整定佢哋嘅 MDF 完全唔關個 alternate 事，非常誤導。
+    // 而家淨係「揀咗嗰個」保證有數（currAltnOfp 本身就係為佢度身計嘅），其他 alternate
+    // 淨係用返自己嘅 .burn；如果冇（burn=0/missing），老實話冇數（null），前端顯示 "--"。
+    const isSelected = altn.icao === selectedAltn;
+    const altnTripFuel: number | null = isSelected ? currAltnOfp : (altn.burn || null);
+    const hasFuelData = altnTripFuel !== null;
+
+    const mdf = hasFuelData ? (altnTripFuel as number) + ofpRes : null;
+    const holdFuel = hasFuelData ? efobAtDest - (mdf as number) : null;
+    const holdMins = (hasFuelData && ofpRes > 0) ? Math.floor((Math.max(0, holdFuel as number) / ofpRes) * 30) : 0;
+    const holdTime = hasFuelData ? `${holdMins}m` : '--';
+
     let etaAltn = "----z";
     if (flightData?.sta_z) {
       const destH = parseInt(flightData.sta_z.substring(0, 2), 10);
@@ -158,7 +166,7 @@ export function calculateFuelEngine(flightData: any) {
       }
     }
 
-    return { icao: altn.icao, mdf, holdFuel, holdTime: `${holdMins}m`, eta: etaAltn, burn: altnTripFuel, time: altn.time || 30 };
+    return { icao: altn.icao, mdf, holdFuel, holdTime, eta: etaAltn, burn: altnTripFuel, time: altn.time || 30 };
   });
 
   return {
