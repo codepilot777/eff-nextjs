@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
 
 export default function AcarsTerminal() {
-  const { flightData, updateFlightData } = useFlightData();
+  const { flightData, sendFlightDirective } = useFlightData();
   const [msgInput, setMsgInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -16,13 +16,15 @@ export default function AcarsTerminal() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleTransmitAcars = () => {
-    if (!msgInput.trim()) return;
-    const now = new Date();
-    const timeStr = `${now.getUTCHours().toString().padStart(2, '0')}${now.getUTCMinutes().toString().padStart(2, '0')}Z`;
-    const newMsg = { time: timeStr, sender: "COCKPIT", content: msgInput.trim() };
-    updateFlightData({ acars_messages: [...messages, newMsg] });
+  const handleTransmitAcars = async () => {
+    const content = msgInput.trim();
+    if (!content) return;
     setMsgInput("");
+    try {
+      await sendFlightDirective({ acarsCockpitAppend: { content } });
+    } catch {
+      alert("Failed to transmit ACARS message");
+    }
   };
 
   return (

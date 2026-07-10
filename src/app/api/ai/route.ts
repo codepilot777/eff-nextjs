@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server';
+import { isInstructorAuthed } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
+    // 🌟 呢個 route 會真金白銀 call Gemini API，以前完全冇 auth，任何人（包括未登入嘅
+    // trainee）都可以狂 call 燒晒 quota/budget。三個 caller（InboxPanel ATIS draft、
+    // WxTab、NotamTab）全部都喺 instructor-only 嘅 `/instructor` IOS 面板入面，所以
+    // 加返呢個 check 唔會影響任何合法用法。
+    if (!isInstructorAuthed(request)) {
+      return NextResponse.json({ error: 'Instructor login required' }, { status: 401 });
+    }
+
     const { promptType, plainText, stdZ, staZ, dayStr } = await request.json();
 
     if (!plainText) {

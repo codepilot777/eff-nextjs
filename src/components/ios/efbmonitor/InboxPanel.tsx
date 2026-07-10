@@ -7,7 +7,7 @@ export default function InboxPanel() {
   const [isGeneratingAtis, setIsGeneratingAtis] = useState<number | null>(null);
   
   // 🌟 從天上直接抽取 Data 同 Update Function (全域共用，自帶樂觀更新！)
-  const { flightData, updateFlightData } = useFlightData();
+  const { flightData, sendFlightDirective } = useFlightData();
 
   // 🌟 防呆保護：如果未 Load 到 Data，就唔好 Render
   if (!flightData) return null;
@@ -72,21 +72,19 @@ export default function InboxPanel() {
       {(flightData.pdc_requests || []).filter((r:any) => r.status === "PENDING CLEARANCE").map((req:any, idx:number) => (
         <div key={`pdc-${idx}`} className="bg-lido-800 border border-[#FF9100] rounded-xl p-4 shadow-[0_0_10px_rgba(255,145,0,0.15)]">
           <div className="text-[#FF9100] font-bold mb-1">⚠️ PDC REQUEST RECEIVED</div>
-          <div className="text-xs text-text-main mb-3">Gate {req.gate} | ATIS {req.atis}</div>
-          <textarea 
+          <div className="text-xs text-text-main mb-3">Facility {req.facility || '----'} | Gate {req.gate} | ATIS {req.atis}</div>
+          <textarea
             id={`ios_pdc_input_${idx}`}
             className="w-full bg-lido-950 border border-[#404040] rounded-lg p-3 text-[#00E676] font-mono text-sm h-32 outline-none focus:border-[#00bfa5] resize-none"
-            defaultValue={`${flightData.flight_no.replace(' ', '')} CLRD TO ${flightData.arr_icao} VIA ${flightData.pdc_route || '...'}\nINIT CLIMB ${flightData.pdc_climb || '...'}\nSQUAWK ${flightData.pdc_squawk || '...'}\nDEP FREQ ${flightData.pdc_freq || '...'}\nACKNOWLEDGE ATIS ${req.atis} ON DEPARTURE`}
+            defaultValue={`${flightData.flight_no.replace(' ', '')} CLRD TO ${flightData.arr_icao} VIA ...\nINIT CLIMB ...\nSQUAWK ...\nDEP FREQ ...\nACKNOWLEDGE ATIS ${req.atis} ON DEPARTURE`}
           ></textarea>
-          <button 
-            onClick={() => {
+          <button
+            onClick={async () => {
               const input = document.getElementById(`ios_pdc_input_${idx}`) as HTMLTextAreaElement;
-              const updatedPdc = [...flightData.pdc_requests];
-              const realIndex = flightData.pdc_requests.findIndex((r:any) => r.time === req.time);
-              if(realIndex >= 0) {
-                updatedPdc[realIndex].status = "APPROVED";
-                updatedPdc[realIndex].clearance_payload = input.value; 
-                updateFlightData({ pdc_requests: updatedPdc });
+              try {
+                await sendFlightDirective({ pdcApprove: { time: req.time, clearance_payload: input.value } });
+              } catch {
+                alert("Failed to approve PDC");
               }
             }}
             className="mt-3 w-full bg-[#00E676]/20 border border-[#00E676] text-[#00E676] py-2 rounded-lg font-bold hover:bg-[#00E676] hover:text-black transition-colors"
@@ -109,15 +107,13 @@ export default function InboxPanel() {
             id={`ios_atis_input_${idx}`}
             className="w-full bg-lido-950 border border-[#404040] rounded-lg p-3 text-status-teal font-mono text-sm h-24 outline-none focus:border-[#00bfa5] resize-none"
           ></textarea>
-          <button 
-            onClick={() => {
+          <button
+            onClick={async () => {
               const input = document.getElementById(`ios_atis_input_${idx}`) as HTMLTextAreaElement;
-              const updatedAtis = [...flightData.atis_requests];
-              const realIndex = flightData.atis_requests.findIndex((r:any) => r.time === req.time);
-              if(realIndex >= 0) {
-                updatedAtis[realIndex].status = "DELIVERED";
-                updatedAtis[realIndex].response = input.value;
-                updateFlightData({ atis_requests: updatedAtis });
+              try {
+                await sendFlightDirective({ atisDeliver: { time: req.time, response: input.value } });
+              } catch {
+                alert("Failed to send ATIS");
               }
             }}
             className="mt-3 w-full bg-[#00bfa5]/20 border border-[#00bfa5] text-status-teal py-2 rounded-lg font-bold hover:bg-[#00bfa5] hover:text-black transition-colors"
@@ -145,13 +141,16 @@ export default function InboxPanel() {
             type="text" id="acars_input" placeholder="Send Free Text..." 
             className="flex-1 bg-lido-950 border border-[#404040] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#00bfa5] text-white" 
           />
-          <button 
-            onClick={() => {
+          <button
+            onClick={async () => {
               const input = document.getElementById('acars_input') as HTMLInputElement;
-              if (input.value) {
-                const newMsg = { time: "NOW", sender: "DISPATCH", content: input.value };
-                updateFlightData({ acars_messages: [...(flightData.acars_messages || []), newMsg] });
-                input.value = "";
+              if (!input.value) return;
+              const content = input.value;
+              input.value = "";
+              try {
+                await sendFlightDirective({ acarsDispatchAppend: { content } });
+              } catch {
+                alert("Failed to send ACARS message");
               }
             }}
             className="bg-lido-800 border border-[#404040] text-white px-4 rounded-lg text-sm font-bold hover:border-[#00bfa5] hover:text-status-teal transition-colors"
