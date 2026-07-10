@@ -223,7 +223,7 @@ export function ModalFMS({ flightData }: any) {
 -${depIcao}${flightData?.std_z?.substring(0,4) || '0000'}
 -N0480F${cruiseAlt.replace('FL', '')} ${routeStr} ${flightData?.sid_route || ''} DCT OCEAN DCT MKG DCT ${flightData?.star_route || ''}
 -${arrIcao}0315 ${depIcao}
--REG/${reg.replace("-", "")} CAPT/${flightData?.commander_override?.replace(" ", "") || 'PILOT'})`}
+-REG/${reg.replace("-", "")} CAPT/${flightData?.commander_override?.replace(" ", "") || 'HILHORST'})`}
         </div>
       </div>
 
