@@ -1,5 +1,19 @@
 // 🌟 src/utils/fuelCalculator.ts
 
+// 🌟 Standby Fuel 單一數據源：以前 Dashboard/PayloadTab/InitModal 各自寫死一份
+// 「flight plan total - 5T」，仲要 Dashboard 嗰份用緊會郁嘅 calc.currTotal，同
+// PayloadTab/InitModal 用緊凍結咗嘅 flightData.plan_fuel_total 唔一致，
+// 令學員同教官睇到唔同嘅 Standby Fuel 數字。而家統一用返 plan_fuel_total
+// （SimBrief import 嗰刻凍結嘅原始 OFP 總油量），先啱「flight plan total fuel」呢個概念。
+export const DEFAULT_OFP_FUEL_T = 42.0;
+export const STANDBY_FUEL_BUFFER_T = 5.0;
+
+export function getStandbyFuelT(flightData: Record<string, unknown> | undefined | null): number {
+  const planFuelTotal = Number(flightData?.plan_fuel_total);
+  const ofpPlannedFuelT = planFuelTotal > 0 ? planFuelTotal : DEFAULT_OFP_FUEL_T;
+  return Math.max(0, ofpPlannedFuelT - STANDBY_FUEL_BUFFER_T);
+}
+
 export function calculateFuelEngine(flightData: any) {
   const rawSb = flightData?.raw_simbrief || {};
   

@@ -53,6 +53,12 @@ export default function InboxPanel() {
           <span>Final Fuel:</span>
           {flightData.final_fuel_accepted ? <span className="text-[#00E676] font-bold">ACCEPTED ({flightData.trainee_input_zfw || 0}T ZFW)</span> : <span className="text-[#FF9100] font-bold">WAITING</span>}
         </div>
+        <div className="flex justify-between border-b border-dashed border-[#333333] py-2 text-sm">
+          <span>Fuel Receipt:</span>
+          {flightData.pilots_signed_fuel ? <span className="text-[#00E676] font-bold">ACCEPTED ({(flightData.actual_uplift || 0).toFixed(1)}T)</span> :
+           flightData.fuel_receipt_sent ? <span className="text-[#FF9100] font-bold">SENT (AWAITING SIGN)</span> :
+           <span className="text-[#FF9100] font-bold">PENDING</span>}
+        </div>
         <div className="flex justify-between py-2 text-sm">
           <span>Loadsheet Status:</span>
           {flightData.final_ls_rejected ? <span className="text-[#FF1744] font-bold">❌ REJECTED (FINAL)</span> :

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
+import { DEFAULT_OFP_FUEL_T, getStandbyFuelT } from "@/lib/fuelCalculator";
 import { LoadsheetEngine, AutoLoader, PAX_CLASS_WEIGHTS, CREW_PANTRY_REGISTRY, getWaterWeight, getMainTankCapacity } from "@/lib/loadsheet/LoadsheetEngine";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 // 🌟 引入我們先前編寫好的跨界適配器大腦
@@ -43,8 +44,9 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
   // 🌟 數據定錨
   // ==========================================
   const targetZFW = flightData?.weight_zfw_ofp ? Math.round(flightData.weight_zfw_ofp * 1000) : 205000;
-  const ofpTotalFuelKg = flightData?.plan_fuel_total ? Math.round(flightData.plan_fuel_total * 1000) : 42000;
-  const standbyFuelKg = Math.max(0, ofpTotalFuelKg - 5000);
+  const ofpTotalFuelKg = flightData?.plan_fuel_total ? Math.round(flightData.plan_fuel_total * 1000) : Math.round(DEFAULT_OFP_FUEL_T * 1000);
+  // 🌟 同 RefuelAircraftColumn.tsx 用返同一個共用 helper，唔再各自寫死 "-5000"
+  const standbyFuelKg = Math.round(getStandbyFuelT(flightData) * 1000);
   const fobKg = flightData?.fuel_on_board ? Math.round(flightData.fuel_on_board * 1000) : 0;
   const traineeFinalFuelKg = flightData?.final_fuel_request ? Math.round(flightData.final_fuel_request * 1000) : 0;
 
@@ -155,7 +157,13 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
       setPayload({
         pax: restoredPax,
         cargo: { h1: flightData.cargo_hold_1 || 0, h2: flightData.cargo_hold_2 || 0, h3: flightData.cargo_hold_3 || 0, h4: flightData.cargo_hold_4 || 0, bulk: flightData.cargo_bulk || 0 },
-        fuel: { finalOrder: flightData.final_fuel_request ? flightData.final_fuel_request * 1000 : standbyFuelKg, uplift: flightData.actual_uplift ? flightData.actual_uplift * 1000 : 0, left: flightData.fuel_left_main || distributeFuel(standbyFuelKg).left, center: flightData.fuel_center || distributeFuel(standbyFuelKg).center, right: flightData.fuel_right_main || distributeFuel(standbyFuelKg).right }
+        fuel: {
+          finalOrder: flightData.final_fuel_request ? flightData.final_fuel_request * 1000 : standbyFuelKg,
+          // 🌟 actual_uplift 淨係教官真正送咗 fuel receipt 之後先有數；喺嗰之前
+          // prefill 返學員自己嘅 estimated_uplift 做個起點，兩者唔會撞義
+          uplift: flightData.actual_uplift ? flightData.actual_uplift * 1000 : (flightData.estimated_uplift ? flightData.estimated_uplift * 1000 : 0),
+          left: flightData.fuel_left_main || distributeFuel(standbyFuelKg).left, center: flightData.fuel_center || distributeFuel(standbyFuelKg).center, right: flightData.fuel_right_main || distributeFuel(standbyFuelKg).right
+        }
       });
     } else {
       const exactData = generateExactPayload(targetZFW); 
@@ -284,14 +292,17 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
       updates.pilots_signed_final = false; 
     }
     
-    if (docType === "FUEL_RECEIPT") { 
-      updates.fuel_receipt_sent = true; 
-      updates.actual_uplift = payload.fuel.uplift / 1000; 
-      updates.fuel_left_main = payload.fuel.left; 
-      updates.fuel_center = payload.fuel.center; 
-      updates.fuel_right_main = payload.fuel.right; 
-      updates.final_fuel_request = payload.fuel.finalOrder / 1000; 
-      updates.fuel_is_standard = false; 
+    if (docType === "FUEL_RECEIPT") {
+      updates.fuel_receipt_sent = true;
+      updates.actual_uplift = payload.fuel.uplift / 1000;
+      updates.fuel_left_main = payload.fuel.left;
+      updates.fuel_center = payload.fuel.center;
+      updates.fuel_right_main = payload.fuel.right;
+      updates.final_fuel_request = payload.fuel.finalOrder / 1000;
+      // 🌟 修復：以前 Total FOB 讀緊一個從未寫過嘅 trainee_log_fuel 欄位（恆定 0）。
+      // 呢度凍結返派發嗰刻嘅機上殘油（fobKg），令 ModalRefuelling 之後就算 fuel_on_board
+      // 再變動都唔會影響返個已經簽發咗嘅 receipt 顯示嘅 Total FOB。
+      updates.fob_before_uplift = fobKg / 1000;
     }
     
     // 🌟 PRELIM/FINAL 係真正嘅派發文件，超重/CG 爆晒都可以照送（呢個係訓練工具，

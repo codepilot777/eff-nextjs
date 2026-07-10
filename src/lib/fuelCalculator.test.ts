@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateFuelEngine } from './fuelCalculator';
+import { calculateFuelEngine, DEFAULT_OFP_FUEL_T, getStandbyFuelT, STANDBY_FUEL_BUFFER_T } from './fuelCalculator';
 
 const baseFlight = {
   weight_zfw_ofp: 180.0,
@@ -111,5 +111,19 @@ describe('calculateFuelEngine', () => {
       expect(rjoo.mdf).not.toBeNull();
       expect(rjoo.mdf).toBeCloseTo(2.0 + baseFlight.fuel_reserve_ofp);
     });
+  });
+});
+
+describe('getStandbyFuelT', () => {
+  it('subtracts the standby buffer from the frozen OFP plan_fuel_total', () => {
+    expect(getStandbyFuelT({ plan_fuel_total: 47.425 })).toBeCloseTo(47.425 - STANDBY_FUEL_BUFFER_T);
+  });
+
+  it('falls back to the default OFP figure when plan_fuel_total is missing', () => {
+    expect(getStandbyFuelT({})).toBeCloseTo(DEFAULT_OFP_FUEL_T - STANDBY_FUEL_BUFFER_T);
+  });
+
+  it('never returns a negative value', () => {
+    expect(getStandbyFuelT({ plan_fuel_total: 2.0 })).toBe(0);
   });
 });

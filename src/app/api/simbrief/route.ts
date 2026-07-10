@@ -98,8 +98,8 @@ export async function POST(request: Request) {
 
       pax_f: 0, pax_j: 0, pax_w: 0, pax_y: 0,
       cargo_bulk: 0, cargo_hold_1: 0, cargo_hold_2: 0, cargo_hold_3: 0, cargo_hold_4: 0,
-      final_fuel_request: 0, actual_uplift: 0, fuel_left_main: 0, fuel_center: 0, fuel_right_main: 0,
-      fuel_is_standard: false, fuel_on_board: 0,
+      final_fuel_request: 0, actual_uplift: 0, estimated_uplift: 0, fuel_left_main: 0, fuel_center: 0, fuel_right_main: 0,
+      fuel_on_board: 0,
 
       navlog: parsedNavlog,
       alternates: parsedAlternates,
@@ -110,7 +110,6 @@ export async function POST(request: Request) {
       prelim_ls_sent: false,
       final_ls_sent: false,
       
-      standby_fuel_sent: false,
       fuel_receipt_sent: false,
       final_fuel_accepted: false,
       

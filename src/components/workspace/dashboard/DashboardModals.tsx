@@ -101,7 +101,10 @@ export default function DashboardModals({ activeModal, setActiveModal }: { activ
           {activeModal === 'Refuelling' && <ModalRefuelling flightData={flightData} updateFlightData={updateFlightData} setActiveModal={setActiveModal} />}
           {activeModal === 'SNN' && <ModalSNN flightData={flightData} />}
           {activeModal === 'DOCS' && <ModalDOCS flightData={flightData} />}
-          {activeModal === 'AcceptFuel' && <ModalAcceptFuel flightData={flightData} calc={fullCalc} handlers={handlers} setActiveModal={setActiveModal} />}
+          {/* 🌟 修復：以前呢度冇傳 updateFlightData，令 ModalAcceptFuel 入面
+              `if (updateFlightData)` 個 guard 恆定 false，Log Fuel/estimated_uplift
+              寫入靜靜雞冇咗，淨係 handlers.handleAcceptFuel() 真正生效 */}
+          {activeModal === 'AcceptFuel' && <ModalAcceptFuel flightData={flightData} updateFlightData={updateFlightData} calc={fullCalc} handlers={handlers} setActiveModal={setActiveModal} />}
         </div>
       </div>
     </div>
