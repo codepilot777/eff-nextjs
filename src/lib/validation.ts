@@ -126,7 +126,22 @@ export const loginBodySchema = z.object({
 });
 
 // 🌟 Flight-list/is_published patch 欄位受保護（教官專屬）：睇 route 層點用
-export const PROTECTED_FLIGHT_PATCH_FIELDS = ['is_published', 'activated_version'] as const;
+// 🌟 修復：metar_dep/taf_dep/metar_arr/taf_arr/notam_dep/notam_arr/alternates
+// 淨係 WxTab.tsx/NotamTab.tsx/ConfigTab.tsx（全部喺教官專屬嘅 /instructor/ios 底下）
+// 會寫，但 /api/flight/update 以前對呢啲欄位完全冇 auth check——任何人都可以直接
+// POST 偽造天氣/NOTAM，同之前修好嘅 pdcApprove/atisDeliver/acarsDispatchAppend
+// 係同一類「扮教官」漏洞，呢次補返
+export const PROTECTED_FLIGHT_PATCH_FIELDS = [
+  'is_published',
+  'activated_version',
+  'metar_dep',
+  'taf_dep',
+  'metar_arr',
+  'taf_arr',
+  'notam_dep',
+  'notam_arr',
+  'alternates',
+] as const;
 
 export function hasProtectedFlightFields(patch: Record<string, unknown>): boolean {
   return PROTECTED_FLIGHT_PATCH_FIELDS.some((field) => field in patch);

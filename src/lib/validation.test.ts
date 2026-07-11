@@ -215,4 +215,14 @@ describe('hasProtectedFlightFields', () => {
     expect(hasProtectedFlightFields({ fuel_manual_mode: true, trainee_input_zfw: 180 })).toBe(false);
     expect(hasProtectedFlightFields({})).toBe(false);
   });
+
+  it('flags WxTab/NotamTab fields (metar_dep/taf_dep/metar_arr/taf_arr/notam_dep/notam_arr/alternates) — only instructor-only components ever write these', () => {
+    expect(hasProtectedFlightFields({ metar_dep: 'METAR VHHH...' })).toBe(true);
+    expect(hasProtectedFlightFields({ taf_dep: 'TAF VHHH...' })).toBe(true);
+    expect(hasProtectedFlightFields({ metar_arr: 'METAR RJBB...' })).toBe(true);
+    expect(hasProtectedFlightFields({ taf_arr: 'TAF RJBB...' })).toBe(true);
+    expect(hasProtectedFlightFields({ notam_dep: 'A1234/26...' })).toBe(true);
+    expect(hasProtectedFlightFields({ notam_arr: 'A5678/26...' })).toBe(true);
+    expect(hasProtectedFlightFields({ alternates: [{ icao: 'RJGG' }] })).toBe(true);
+  });
 });

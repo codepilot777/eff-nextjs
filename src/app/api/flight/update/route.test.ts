@@ -160,4 +160,36 @@ describe('POST /api/flight/update', () => {
       { time: expect.any(String), sender: 'DISPATCH', content: 'roger, cleared to push' },
     ]);
   });
+
+  it('rejects unauthenticated forged METAR/TAF/NOTAM/alternates writes (WxTab/NotamTab fields)', async () => {
+    await seedFlight('TEST-WXNOTAM', { flight_no: 'TEST-WXNOTAM', metar_dep: 'REAL METAR', notam_dep: 'REAL NOTAM', alternates: [{ icao: 'RJGG' }] });
+
+    const metarRes = await POST(makeRequest({ id: 'TEST-WXNOTAM', data: { metar_dep: 'FAKE STORM DATA' } }));
+    expect(metarRes.status).toBe(401);
+
+    const notamRes = await POST(makeRequest({ id: 'TEST-WXNOTAM', data: { notam_dep: 'FAKE NOTAM' } }));
+    expect(notamRes.status).toBe(401);
+
+    const altnRes = await POST(makeRequest({ id: 'TEST-WXNOTAM', data: { alternates: [{ icao: 'FORGED' }] } }));
+    expect(altnRes.status).toBe(401);
+
+    const row = await db.execute({ sql: 'SELECT data FROM flights WHERE flight_no = ?', args: ['TEST-WXNOTAM'] });
+    const data = JSON.parse(row.rows[0].data as string);
+    expect(data.metar_dep).toBe('REAL METAR');
+    expect(data.notam_dep).toBe('REAL NOTAM');
+    expect(data.alternates).toEqual([{ icao: 'RJGG' }]);
+  });
+
+  it('allows an authenticated instructor to write METAR/TAF/NOTAM/alternates', async () => {
+    await seedFlight('TEST-WXNOTAM2', { flight_no: 'TEST-WXNOTAM2' });
+    const { token } = createSessionToken();
+    const res = await POST(makeRequest(
+      { id: 'TEST-WXNOTAM2', data: { metar_dep: 'REAL METAR', notam_dep: 'REAL NOTAM', alternates: [{ icao: 'RJGG', metar: 'ALTN METAR' }] } },
+      `${SESSION_COOKIE_NAME}=${token}`
+    ));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.metar_dep).toBe('REAL METAR');
+    expect(body.data.alternates).toEqual([{ icao: 'RJGG', metar: 'ALTN METAR' }]);
+  });
 });
