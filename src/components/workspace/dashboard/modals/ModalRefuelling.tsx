@@ -74,20 +74,36 @@ export function ModalRefuelling({ flightData, updateFlightData, setActiveModal }
           
           {/* 下半部：操作按鈕 */}
           <div className="mt-auto shrink-0">
-            {!flightData?.pilots_signed_fuel ? (
-              <button 
-                onClick={() => {
-                  updateFlightData({ pilots_signed_fuel: true });
-                  setActiveModal(null);
-                }}
-                className="w-full py-3.5 bg-[#C6FF00] text-black font-black text-[0.8rem] uppercase tracking-widest rounded-lg hover:bg-[#b0e600] shadow-md transition-colors"
-              >
-                Accept Fuel Receipt
-              </button>
-            ) : (
+            {flightData?.pilots_signed_fuel ? (
               <div className="bg-[#00E676]/15 border border-[#00E676]/30 text-[#00E676] p-3.5 rounded-lg flex items-center justify-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-[#C6FF00] text-black flex items-center justify-center font-black text-xs">✓</span>
                 <span className="font-bold text-[0.8rem] uppercase tracking-widest mt-px">Fuel Receipt Accepted</span>
+              </div>
+            ) : flightData?.fuel_receipt_rejected ? (
+              // 🌟 拒收咗嘅 receipt 冇得再 accept，一定要等教官重新 DISPATCH FUEL RECEIPT
+              // 先會清返呢個狀態（同 PRELIM 嘅 "WAITING FOR REVISION..." 一樣嘅設計）
+              <div className="bg-[#FF1744]/10 border border-[#FF1744]/50 text-[#FF1744] p-3.5 rounded-lg flex flex-col items-center gap-1.5 text-center">
+                <span className="font-bold text-[0.8rem] uppercase tracking-widest">❌ Fuel Receipt Rejected</span>
+                <span className="text-[#8fa0a6] text-xs leading-relaxed">{flightData.fuel_receipt_reject_reason}</span>
+                <span className="text-[#FF1744]/80 text-[0.65rem] uppercase tracking-widest font-bold mt-1">Waiting for corrected receipt...</span>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setActiveModal('RejectFuel')}
+                  className="flex-1 py-3.5 bg-[#FF1744]/10 border border-[#FF1744]/50 text-[#FF1744] font-black text-[0.8rem] uppercase tracking-widest rounded-lg hover:bg-[#FF1744] hover:text-white transition-colors"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => {
+                    updateFlightData({ pilots_signed_fuel: true });
+                    setActiveModal(null);
+                  }}
+                  className="flex-[2] py-3.5 bg-[#C6FF00] text-black font-black text-[0.8rem] uppercase tracking-widest rounded-lg hover:bg-[#b0e600] shadow-md transition-colors"
+                >
+                  Accept Fuel Receipt
+                </button>
               </div>
             )}
           </div>

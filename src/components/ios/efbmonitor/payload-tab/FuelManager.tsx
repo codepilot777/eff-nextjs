@@ -72,18 +72,23 @@ export default function FuelManager({ payload, setPayload, flightData, ofpTotalF
       </div>
       
       {/* 派發按鈕 */}
+      {/* 🌟 修復：以前送咗一次就永久 disabled，冇任何辦法補發——依家 trainee 可以拒收
+          張 receipt（fuel_receipt_rejected），呢個掣一定要喺拒收咗之後重新啟用，
+          等教官補發一張改正嘅 receipt，先可以清返個 rejected 狀態 */}
       <button
         onClick={() => handleTransmit("FUEL_RECEIPT")}
-        disabled={flightData?.fuel_receipt_sent || isUpdating}
+        disabled={(flightData?.fuel_receipt_sent && !flightData?.fuel_receipt_rejected) || isUpdating}
         className={`w-full py-3 mt-4 rounded-lg font-black tracking-widest text-xs transition-colors ${
-          flightData?.fuel_receipt_sent
-            ? 'bg-[#2979FF]/20 border border-[#2979FF] text-[#2979FF] cursor-not-allowed'
-            : isUpdating
-              ? 'bg-[#2979FF]/50 text-white/60 cursor-not-allowed'
-              : 'bg-[#2979FF] text-white hover:bg-blue-600 shadow-md'
+          flightData?.fuel_receipt_rejected
+            ? 'bg-[#FF1744] text-white hover:bg-[#D50000] shadow-md'
+            : flightData?.fuel_receipt_sent
+              ? 'bg-[#2979FF]/20 border border-[#2979FF] text-[#2979FF] cursor-not-allowed'
+              : isUpdating
+                ? 'bg-[#2979FF]/50 text-white/60 cursor-not-allowed'
+                : 'bg-[#2979FF] text-white hover:bg-blue-600 shadow-md'
         }`}
       >
-        {flightData?.fuel_receipt_sent ? '✅ FUEL RECEIPT DISPATCHED' : 'DISPATCH FUEL RECEIPT'}
+        {flightData?.fuel_receipt_rejected ? '⚠️ RESEND CORRECTED FUEL RECEIPT' : flightData?.fuel_receipt_sent ? '✅ FUEL RECEIPT DISPATCHED' : 'DISPATCH FUEL RECEIPT'}
       </button>
     </div>
   );

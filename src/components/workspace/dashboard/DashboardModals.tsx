@@ -75,6 +75,7 @@ export default function DashboardModals({ activeModal, setActiveModal }: { activ
     case 'Loadsheet': modalTitle = 'Loadsheet & Payload Detail'; break;
     case 'RejectPrelim': modalTitle = 'Reject PRELIM Loadsheet'; break;
     case 'RejectFinal': modalTitle = 'Reject FINAL Loadsheet'; break;
+    case 'RejectFuel': modalTitle = 'Reject Fuel Receipt'; break;
     case 'Airports': modalTitle = 'Airports'; break;
     case 'Refuelling': modalTitle = 'Refuelling Order & Receipt'; break;
     case 'SNN': modalTitle = 'Special Navigation Note'; break;
@@ -97,6 +98,7 @@ export default function DashboardModals({ activeModal, setActiveModal }: { activ
           {activeModal === 'Loadsheet' && <ModalLoadsheet calc={fullCalc} flightData={flightData} updateFlightData={updateFlightData} setActiveModal={setActiveModal} />}
           {activeModal === 'RejectPrelim' && <ModalReject type="PRELIM" flightData={flightData} updateFlightData={updateFlightData} setActiveModal={setActiveModal} />}
           {activeModal === 'RejectFinal' && <ModalReject type="FINAL" flightData={flightData} updateFlightData={updateFlightData} setActiveModal={setActiveModal} />}
+          {activeModal === 'RejectFuel' && <ModalReject type="FUEL" flightData={flightData} updateFlightData={updateFlightData} setActiveModal={setActiveModal} />}
           {activeModal === 'Airports' && <ModalAirports calc={fullCalc} flightData={flightData} /> }
           {activeModal === 'Refuelling' && <ModalRefuelling flightData={flightData} updateFlightData={updateFlightData} setActiveModal={setActiveModal} />}
           {activeModal === 'SNN' && <ModalSNN flightData={flightData} />}

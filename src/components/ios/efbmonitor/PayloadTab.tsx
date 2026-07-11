@@ -297,6 +297,11 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
       // 呢度凍結返派發嗰刻嘅機上殘油（fobKg），令 ModalRefuelling 之後就算 fuel_on_board
       // 再變動都唔會影響返個已經簽發咗嘅 receipt 顯示嘅 Total FOB。
       updates.fob_before_uplift = fobKg / 1000;
+      // 🌟 新增：重新 dispatch 咗張改正嘅 receipt 就要清返之前嘅 rejected 狀態（同
+      // PRELIM/FINAL 一樣嘅設計），並且要求機師對住新數重新 review 一次先可以 accept
+      updates.fuel_receipt_rejected = false;
+      updates.fuel_receipt_reject_reason = "";
+      updates.pilots_signed_fuel = false;
     }
     
     // 🌟 PRELIM/FINAL 係真正嘅派發文件，超重/CG 爆晒都可以照送（呢個係訓練工具，
