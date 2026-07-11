@@ -42,6 +42,23 @@ describe('flightUpdateBodySchema', () => {
     expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', data: { acars_messages: [] } }).success).toBe(false);
   });
 
+  it('rejects ofp_history/activated_version smuggled inside data (must go through ofpDispatchAppend/ofpActivate)', () => {
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', data: { ofp_history: [] } }).success).toBe(false);
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', data: { activated_version: 2 } }).success).toBe(false);
+  });
+
+  it('accepts ofpDispatchAppend/ofpActivate directive shapes', () => {
+    expect(flightUpdateBodySchema.safeParse({
+      id: 'CPA 564', ofpDispatchAppend: { snapshot: { route_id: 'DCT' } },
+    }).success).toBe(true);
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', ofpActivate: { version: 2 } }).success).toBe(true);
+  });
+
+  it('rejects a non-positive/non-integer ofpActivate version', () => {
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', ofpActivate: { version: 0 } }).success).toBe(false);
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', ofpActivate: { version: 1.5 } }).success).toBe(false);
+  });
+
   it('accepts each directive shape', () => {
     expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', pdcRequestAppend: { atis: 'A' } }).success).toBe(true);
     expect(flightUpdateBodySchema.safeParse({
@@ -67,19 +84,22 @@ describe('flightUpdateBodySchema', () => {
 describe('requiresInstructorAuthForFlight', () => {
   it('gates the protected flat fields', () => {
     expect(requiresInstructorAuthForFlight({ data: { is_published: true } })).toBe(true);
-    expect(requiresInstructorAuthForFlight({ data: { activated_version: 2 } })).toBe(true);
   });
 
-  it('gates pdcApprove/atisDeliver/acarsDispatchAppend ("pretend to be ATC/DISPATCH" actions)', () => {
+  it('gates pdcApprove/atisDeliver/acarsDispatchAppend/ofpDispatchAppend ("pretend to be ATC/DISPATCH" actions)', () => {
     expect(requiresInstructorAuthForFlight({ pdcApprove: { time: '0100Z', clearance_payload: 'x' } })).toBe(true);
     expect(requiresInstructorAuthForFlight({ atisDeliver: { time: '0100Z', response: 'x' } })).toBe(true);
     expect(requiresInstructorAuthForFlight({ acarsDispatchAppend: { content: 'x' } })).toBe(true);
+    expect(requiresInstructorAuthForFlight({ ofpDispatchAppend: { snapshot: { route_id: 'DCT' } } })).toBe(true);
   });
 
-  it('does NOT gate trainee-initiated request/append directives or ordinary field writes', () => {
+  it('does NOT gate trainee-initiated request/append directives, ofpActivate, or ordinary field writes', () => {
     expect(requiresInstructorAuthForFlight({ pdcRequestAppend: { atis: 'A' } })).toBe(false);
     expect(requiresInstructorAuthForFlight({ atisRequestAppend: { icao: 'VHHH', type: 'DEPARTURE' } })).toBe(false);
     expect(requiresInstructorAuthForFlight({ acarsCockpitAppend: { content: 'wilco' } })).toBe(false);
+    // 🌟 activate 係 trainee/commander 接受一個已 dispatch 版本嘅動作，唔應該要教官登入——
+    // 真正防偽造靠 applyFlightDirectives 核實個 version 存唔存在喺 ofp_history
+    expect(requiresInstructorAuthForFlight({ ofpActivate: { version: 2 } })).toBe(false);
     expect(requiresInstructorAuthForFlight({ data: { trainee_input_zfw: 180 } })).toBe(false);
     expect(requiresInstructorAuthForFlight({})).toBe(false);
   });
@@ -211,7 +231,6 @@ describe('loginBodySchema', () => {
 describe('hasProtectedFlightFields', () => {
   it('flags instructor-only fields and lets everything else through', () => {
     expect(hasProtectedFlightFields({ is_published: true })).toBe(true);
-    expect(hasProtectedFlightFields({ activated_version: 2 })).toBe(true);
     expect(hasProtectedFlightFields({ fuel_manual_mode: true, trainee_input_zfw: 180 })).toBe(false);
     expect(hasProtectedFlightFields({})).toBe(false);
   });

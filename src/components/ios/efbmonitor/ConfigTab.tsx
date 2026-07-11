@@ -1,13 +1,15 @@
 "use client";
 import { useState, useEffect } from "react"; // 🌟 加咗 useEffect
-import { useFlightData } from "@/hooks/useFlightData"; 
+import { useFlightData } from "@/hooks/useFlightData";
+import { buildOfpSnapshot } from "@/lib/flight/ofpHistory";
 
 export default function ConfigTab() {
-  const { flightData, updateFlightData } = useFlightData();
+  const { flightData, sendFlightDirective } = useFlightData();
 
   const [sbUser, setSbUser] = useState("EFFSIM");
   const [isFetchingUpdate, setIsFetchingUpdate] = useState(false);
   const [pendingUpdateData, setPendingUpdateData] = useState<any>(null);
+  const [isDispatching, setIsDispatching] = useState(false);
 
   if (!flightData) return null;
 
@@ -47,12 +49,16 @@ export default function ConfigTab() {
     }
   };
 
-  const handleConfirmUpdate = () => {
+  // 🌟 修復：以前呢度用 updateFlightData 直接覆寫成班 top-level 欄位（route_id/
+  // std_z/navlog...），trainee 眼前嘅內容會即刻靜靜雞轉晒版，冇任何 accept 步驟。
+  // 而家改為 ofpDispatchAppend directive，淨係 append 落 ofp_history——trainee
+  // 要自己去 EFB Flight Selection 揀呢個新版本再撳 ACTIVATE，先至會變成佢哋眼前嘅內容
+  // （真.commander 接受新 dispatch release 嘅概念）
+  const handleConfirmUpdate = async () => {
     if (!pendingUpdateData) return;
     const sb = pendingUpdateData;
     const formatTime = (unix: number) => unix ? new Date(unix * 1000).toISOString().substring(11, 16).replace(":", "") + "Z" : "0000Z";
 
-    const nextVersion = (flightData.ofp_version || 1) + 1;
     const rawNavlog = sb.navlog?.fix || [];
     const parsedNavlog = (Array.isArray(rawNavlog) ? rawNavlog : [rawNavlog]).map((fix: any) => ({
       ident: fix.ident || "UKN", time_accum: Math.floor(parseInt(fix.time_total || 0) / 60), efob: parseInt(fix.fuel_plan_onboard || 0) / 1000.0
@@ -63,7 +69,7 @@ export default function ConfigTab() {
       icao: a.icao_code || "N/A", burn: parseInt(a.burn || 0) / 1000.0, time: Math.floor(parseInt(a.time || 0) / 60), notam: "NIL"
     }));
 
-    updateFlightData({
+    const snapshot = buildOfpSnapshot({
       route_id: sb.general?.route || "DCT",
       std_z: formatTime(parseInt(sb.times?.est_out || 0)), sta_z: formatTime(parseInt(sb.times?.est_in || 0)),
       cruise_alt: sb.general?.initial_altitude || "35000",
@@ -72,18 +78,35 @@ export default function ConfigTab() {
       weight_zfw_ofp: parseInt(sb.weights?.est_zfw || 0) / 1000.0,
       weight_tow_ofp: parseInt(sb.weights?.est_tow || 0) / 1000.0,
       ofp_telex_text: sb.text?.plan_html,
-      ofp_version: nextVersion,
       navlog: parsedNavlog, alternates: parsedAlternates,
-      ezfw_sent: true, azf_sent: false, prelim_ls_sent: false, final_ls_sent: false
     });
-    setPendingUpdateData(null);
-    alert(`✅ Updated to OFP V${nextVersion}!`);
+
+    setIsDispatching(true);
+    try {
+      await sendFlightDirective({ ofpDispatchAppend: { snapshot } });
+      setPendingUpdateData(null);
+      alert(`✅ Dispatched OFP V${(flightData.ofp_version || 1) + 1} to trainee — it becomes active once they accept it in EFB Flight Selection.`);
+    } catch {
+      alert("Failed to dispatch new OFP version.");
+    } finally {
+      setIsDispatching(false);
+    }
   };
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       <div className="bg-lido-800 border border-[#333333] rounded-xl p-4">
-        <h5 className="text-white font-bold mb-2">📡 Active Flight Plan (V{flightData.ofp_version || 1})</h5>
+        {/* 🌟 修復：以前呢度成句寫「Active Flight Plan (V{ofp_version})」，但呢個文字下面
+            嘅內容其實讀緊 raw_simbrief/ofp_telex_text——即係 trainee 已經 activate 咗嗰個
+            版本，唔係 ofp_version（最新 dispatch 咗嘅版本）。兩個數之前一直畀呢個標題混埋一齊 */}
+        <h5 className="text-white font-bold mb-2 flex items-center gap-2 flex-wrap">
+          📡 OFP Text (Trainee Active: V{flightData.activated_version || 1})
+          {(flightData.ofp_version || 1) > (flightData.activated_version || 1) && (
+            <span className="text-[0.65rem] text-[#FF9100] font-black uppercase tracking-widest bg-[#FF9100]/15 border border-[#FF9100]/30 px-2 py-0.5 rounded">
+              V{flightData.ofp_version} dispatched · awaiting trainee accept
+            </span>
+          )}
+        </h5>
         <div className="bg-[#0a0a0a] text-text-main p-4 rounded-lg overflow-y-auto max-h-[400px] border border-[#404040]" dangerouslySetInnerHTML={{ __html: getOfpHtml() }} />
       </div>
 
@@ -100,8 +123,10 @@ export default function ConfigTab() {
         <div className="bg-lido-800 border border-[#00bfa5] rounded-xl p-6">
           <h4 className="text-status-teal font-bold text-xl mb-4">📝 Verify and Upgrade</h4>
           <div className="flex gap-4">
-            <button onClick={() => setPendingUpdateData(null)} className="flex-1 py-4 bg-lido-800 text-white rounded-lg font-bold">❌ CANCEL</button>
-            <button onClick={handleConfirmUpdate} className="flex-1 py-4 bg-[#C6FF00] text-black font-black rounded-lg">📤 SEND V{(flightData.ofp_version || 1) + 1}</button>
+            <button onClick={() => setPendingUpdateData(null)} disabled={isDispatching} className="flex-1 py-4 bg-lido-800 text-white rounded-lg font-bold disabled:opacity-50">❌ CANCEL</button>
+            <button onClick={handleConfirmUpdate} disabled={isDispatching} className="flex-1 py-4 bg-[#C6FF00] text-black font-black rounded-lg disabled:opacity-50">
+              {isDispatching ? "⏳ DISPATCHING..." : `📤 DISPATCH V${(flightData.ofp_version || 1) + 1} TO TRAINEE`}
+            </button>
           </div>
         </div>
       )}

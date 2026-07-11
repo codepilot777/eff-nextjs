@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import db, { ensureSchema } from '@/lib/db';
 import { isInstructorAuthed } from '@/lib/auth';
 import { simbriefBodySchema } from '@/lib/validation';
+import { buildOfpSnapshot, type OfpSnapshot } from '@/lib/flight/ofpHistory';
 
 export async function POST(request: Request) {
   try {
@@ -90,6 +91,11 @@ export async function POST(request: Request) {
       dow: parseInt(weights.oew || 161968),
       eet_seconds: parseInt(times.est_time_enroute || 0),
       ofp_version: 1,
+      // 🌟 V1 一開機就當已經係 trainee 嘅 live 版本（教官起機嗰刻已經係佢哋要用嘅
+      // flight plan，唔使多一步「先 activate V1」），ofp_history 喺下面用 flightData
+      // 本身嘅 snapshot 補返
+      activated_version: 1,
+      ofp_history: [] as { version: number; dispatched_at: string; snapshot: OfpSnapshot }[],
 
       captain: "INSTRUCTOR",
       // 🌟 教官喺建立表單度填嘅 Commander Name；呢個欄位喺 FmcCrewColumn.tsx/
@@ -138,6 +144,10 @@ export async function POST(request: Request) {
       final_ls_rejected: false,
       final_ls_reject_reason: ""
     };
+
+    flightData.ofp_history = [
+      { version: 1, dispatched_at: new Date().toISOString(), snapshot: buildOfpSnapshot(flightData) },
+    ];
 
     await ensureSchema();
 

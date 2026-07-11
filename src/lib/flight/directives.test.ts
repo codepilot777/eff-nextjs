@@ -89,4 +89,51 @@ describe('applyFlightDirectives', () => {
     ]);
     expect((merged.acars_messages as Array<{ time: string }>)[0].time).not.toBe('NOW');
   });
+
+  it('ofpDispatchAppend archives a new version without touching the live top-level fields', () => {
+    const current = {
+      route_id: 'OLDROUTE', ofp_version: 1,
+      ofp_history: [{ version: 1, dispatched_at: '', snapshot: { route_id: 'OLDROUTE' } }],
+    };
+    const merged = applyFlightDirectives(current, { ofpDispatchAppend: { snapshot: { route_id: 'NEWROUTE' } } });
+    // 🌟 live 欄位（route_id）唔應該即刻變——trainee 未 activate 之前都係見返舊嘅
+    expect(merged.route_id).toBe('OLDROUTE');
+    expect(merged.ofp_version).toBe(2);
+    expect(merged.ofp_history).toEqual([
+      { version: 1, dispatched_at: '', snapshot: { route_id: 'OLDROUTE' } },
+      { version: 2, dispatched_at: expect.any(String), snapshot: { route_id: 'NEWROUTE' } },
+    ]);
+  });
+
+  it('ofpDispatchAppend backfills history for a legacy flight with no ofp_history yet', () => {
+    const current = { route_id: 'LEGACY', ofp_version: 1 };
+    const merged = applyFlightDirectives(current, { ofpDispatchAppend: { snapshot: { route_id: 'NEWROUTE' } } });
+    expect(merged.ofp_version).toBe(2);
+    expect((merged.ofp_history as Array<{ version: number }>).map((e) => e.version)).toEqual([1, 2]);
+  });
+
+  it('ofpActivate copies the target version snapshot onto the live fields and sets activated_version', () => {
+    const current = {
+      route_id: 'OLDROUTE', activated_version: 1,
+      ofp_history: [
+        { version: 1, dispatched_at: '', snapshot: { route_id: 'OLDROUTE' } },
+        { version: 2, dispatched_at: '2026-01-01T00:00:00.000Z', snapshot: { route_id: 'NEWROUTE' } },
+      ],
+      prelim_ls_sent: true, final_ls_sent: true,
+    };
+    const merged = applyFlightDirectives(current, { ofpActivate: { version: 2 } });
+    expect(merged.route_id).toBe('NEWROUTE');
+    expect(merged.activated_version).toBe(2);
+    // 🌟 接受咗新版本要重新走一次 loadsheet workflow
+    expect(merged.prelim_ls_sent).toBe(false);
+    expect(merged.final_ls_sent).toBe(false);
+  });
+
+  it('ofpActivate rejects a version that was never dispatched', () => {
+    const current = {
+      activated_version: 1,
+      ofp_history: [{ version: 1, dispatched_at: '', snapshot: { route_id: 'OLDROUTE' } }],
+    };
+    expect(() => applyFlightDirectives(current, { ofpActivate: { version: 99 } })).toThrow(/never dispatched/);
+  });
 });

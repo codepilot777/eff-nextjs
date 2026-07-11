@@ -3,6 +3,8 @@
 // array 覆寫（舊寫法會用 local 可能已過時嘅 flightData 做 base，同 techlog 修正前
 // 一樣有並發覆寫風險），改為由 server 對住自己啱啱讀到嘅最新一份 row 逐個 directive 咁 apply。
 
+import { getOfpHistory, type OfpHistoryEntry } from './ofpHistory';
+
 export interface FlightPatch {
   data?: Record<string, unknown>;
   pdcRequestAppend?: { atis: string; facility?: string; gate?: string };
@@ -11,6 +13,10 @@ export interface FlightPatch {
   atisDeliver?: { time: string; response: string };
   acarsCockpitAppend?: { content: string };
   acarsDispatchAppend?: { content: string };
+  // 🌟 教官：dispatch 新 OFP 版本落歷史（唔會即刻改 trainee 眼前嘅 live 內容）
+  ofpDispatchAppend?: { snapshot: Record<string, unknown> };
+  // 🌟 Trainee/commander：接受一個已經 dispatch 咗嘅版本，令佢正式成為 live 內容
+  ofpActivate?: { version: number };
 }
 
 type FlightRow = Record<string, unknown>;
@@ -76,6 +82,36 @@ export function applyFlightDirectives(current: FlightRow, patch: FlightPatch): F
   if (patch.acarsDispatchAppend) {
     const messages = (merged.acars_messages as RowArray | undefined) || (current.acars_messages as RowArray | undefined) || [];
     merged.acars_messages = [...messages, { time: nowUtcZ(), sender: 'DISPATCH', content: patch.acarsDispatchAppend.content }];
+  }
+
+  if (patch.ofpDispatchAppend) {
+    // 🌟 nextVersion 喺 server 度對住自己啱啱讀到嘅最新 row 計，唔信 client 送嚟嘅
+    // 版本號——兩個教官幾乎同時 dispatch 都唔會撞版本號
+    const history = getOfpHistory(current);
+    const latestVersion = history.reduce((max, e) => Math.max(max, e.version), 0);
+    const nextVersion = Math.max(latestVersion, Number(current.ofp_version) || 1) + 1;
+    merged.ofp_history = [
+      ...history,
+      { version: nextVersion, dispatched_at: new Date().toISOString(), snapshot: patch.ofpDispatchAppend.snapshot },
+    ];
+    merged.ofp_version = nextVersion;
+  }
+
+  if (patch.ofpActivate) {
+    const { version } = patch.ofpActivate;
+    const history = (merged.ofp_history as OfpHistoryEntry[] | undefined) || getOfpHistory(current);
+    const entry = history.find((e) => e.version === version);
+    if (!entry) {
+      throw new Error(`Cannot activate OFP version ${version}: it was never dispatched for this flight`);
+    }
+    Object.assign(merged, entry.snapshot);
+    merged.activated_version = version;
+    // 🌟 Trainee 真正接受咗新版本先算「新一輪」——之前嗰輪 EZFW/prelim/final loadsheet
+    // 嘅 sign-off 狀態要重置，等佢哋要就住新版本嘅數重新走一次 loadsheet workflow
+    merged.ezfw_sent = true;
+    merged.azf_sent = false;
+    merged.prelim_ls_sent = false;
+    merged.final_ls_sent = false;
   }
 
   return merged;
