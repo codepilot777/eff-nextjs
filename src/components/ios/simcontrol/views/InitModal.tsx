@@ -2,22 +2,25 @@
 import { useState, useEffect } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
 import { getStandbyFuelT } from "@/lib/fuelCalculator";
+import { getLatestSnapshot } from "@/lib/loadsheet/loadsheetHelpers";
+import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import { injectMETAR } from "@/services/weatherService";
 import { fireCDUMacro } from "@/services/pmdgService";
-import { adaptEfbPayloadToPmdg } from "@/services/payloadAdapter";
+import { adaptEfbPayloadToPmdg, buildEfbLoadingPayload } from "@/services/payloadAdapter";
 import { buildFullPayloadMacro, buildFuelMacro } from "@/services/dynamicMacroBuilder";
 import { CDU } from "@/data/pmdgCommands";
 
 interface InitModalProps {
   isOpen: boolean;
   onClose: () => void;
+  isConnected: boolean;
   sendToFSUIPC: (payload: any) => void;
 }
 
 // 定義每個 Step 嘅專屬狀態
 type StepStatus = "IDLE" | "RUNNING" | "DONE" | "ERROR";
 
-export default function InitModal({ isOpen, onClose, sendToFSUIPC }: InitModalProps) {
+export default function InitModal({ isOpen, onClose, isConnected, sendToFSUIPC }: InitModalProps) {
   const { flightData } = useFlightData();
   
   // 🎯 用 Object 獨立管理每一個 Step 嘅狀態
@@ -26,7 +29,6 @@ export default function InitModal({ isOpen, onClose, sendToFSUIPC }: InitModalPr
     metar: "IDLE",
     payload: "IDLE",
     fuel: "IDLE",
-    acars: "IDLE"
   });
 
   useEffect(() => {
@@ -37,7 +39,6 @@ export default function InitModal({ isOpen, onClose, sendToFSUIPC }: InitModalPr
         metar: "IDLE",
         payload: "IDLE",
         fuel: "IDLE",
-        acars: "IDLE"
       });
     }
   }, [isOpen]);
@@ -83,9 +84,10 @@ export default function InitModal({ isOpen, onClose, sendToFSUIPC }: InitModalPr
 
   // Phase 1: 注入天氣
   const handleInjectMetar = async () => {
+    if (!isConnected) return updateStatus("metar", "ERROR");
     updateStatus("metar", "RUNNING");
     try {
-      const metarString = `GLOB 000000Z 00000KT 9999 CAVOK 15/10 Q1013`; 
+      const metarString = `GLOB 000000Z 00000KT 9999 CAVOK 15/10 Q1013`;
       injectMETAR(sendToFSUIPC, metarString);
       await delay(1500);
       updateStatus("metar", "DONE");
@@ -95,26 +97,20 @@ export default function InitModal({ isOpen, onClose, sendToFSUIPC }: InitModalPr
   };
 
   // Phase 2: 注入 Payload
+  // 🌟 修復：以前呢度讀緊 flightData.zone_oa_weight/hold1_weight 呢啲全程式從未寫過嘅
+  // 死欄位，結果永遠送一份全零 payload 落 sim，但個 UI 一定顯示成功。改為讀返
+  // 「最後一次派發嘅 loadsheet」真實 snapshot（同 LoadsheetAirportColumn/ModalLoadsheet
+  // 共用 getLatestSnapshot），冇 snapshot 就老實報錯，唔好夾硬送假數。
   const handleInjectPayload = async () => {
     if (!flightData) return;
+    if (!isConnected) return updateStatus("payload", "ERROR");
+    const snapshot = getLatestSnapshot(flightData) as { pax?: Record<string, unknown>; cargo?: Record<string, unknown> } | null;
+    if (!snapshot) return updateStatus("payload", "ERROR");
+
     updateStatus("payload", "RUNNING");
     try {
-      const efbLoadingData = {
-        paxWeights: {
-          zoneOA: flightData?.zone_oa_weight || 0,
-          zoneOB: flightData?.zone_ob_weight || 0,
-          zoneOC: flightData?.zone_oc_weight || 0,
-          zoneOD: flightData?.zone_od_weight || 0,
-        },
-        cargoWeights: {
-          hold1: flightData?.hold1_weight || 0,
-          hold2: flightData?.hold2_weight || 0,
-          hold3: flightData?.hold3_weight || 0,
-          hold4: flightData?.hold4_weight || 0,
-          bulk:  flightData?.bulk_weight  || 0,
-        }
-      };
-
+      const ahm = AIRCRAFT_REGISTRY[aircraftReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
+      const efbLoadingData = buildEfbLoadingPayload(ahm, snapshot);
       const pmdgPayload = adaptEfbPayloadToPmdg(efbLoadingData, aircraftReg);
       const payloadSequence = [CDU.MENU, CDU.R6, CDU.L1].concat(buildFullPayloadMacro(pmdgPayload));
 
@@ -127,6 +123,7 @@ export default function InitModal({ isOpen, onClose, sendToFSUIPC }: InitModalPr
 
   // Phase 3: 注入 Fuel
   const handleInjectFuel = async () => {
+    if (!isConnected) return updateStatus("fuel", "ERROR");
     updateStatus("fuel", "RUNNING");
     try {
       const fuelSequence = [CDU.MENU, CDU.R6, CDU.L2].concat(buildFuelMacro(targetFuel));
@@ -134,17 +131,6 @@ export default function InitModal({ isOpen, onClose, sendToFSUIPC }: InitModalPr
       updateStatus("fuel", "DONE");
     } catch (e) {
       updateStatus("fuel", "ERROR");
-    }
-  };
-
-  // Phase 4: ACARS Datalink
-  const handleSetupAcars = async () => {
-    updateStatus("acars", "RUNNING");
-    try {
-      await delay(1500); // 模擬連線
-      updateStatus("acars", "DONE");
-    } catch (e) {
-      updateStatus("acars", "ERROR");
     }
   };
 
@@ -183,9 +169,9 @@ export default function InitModal({ isOpen, onClose, sendToFSUIPC }: InitModalPr
               <span className="text-gray-400 font-mono text-xs">⛽ Stdby Fuel</span>
               <span className="font-black tracking-wider text-white">{targetFuel} <span className="text-[0.6rem] text-gray-500">TONS</span></span>
             </div>
-            <div className="mt-auto bg-[#ff9100]/10 border border-[#ff9100]/20 rounded-lg p-3">
-              <p className="text-[0.65rem] text-[#ff9100] m-0 leading-relaxed uppercase font-mono">
-                * Execute steps individually. FSUIPC WebSocket must be connected before triggering FMC macros.
+            <div className={`mt-auto rounded-lg p-3 ${isConnected ? 'bg-[#ff9100]/10 border border-[#ff9100]/20' : 'bg-[#FF1744]/10 border border-[#FF1744]/30'}`}>
+              <p className={`text-[0.65rem] m-0 leading-relaxed uppercase font-mono ${isConnected ? 'text-[#ff9100]' : 'text-[#FF1744]'}`}>
+                {isConnected ? '* Execute steps individually. FSUIPC WebSocket must be connected before triggering FMC macros.' : '* SIM OFFLINE — connect FSUIPC before running steps 1-3.'}
               </p>
             </div>
           </div>
@@ -193,42 +179,38 @@ export default function InitModal({ isOpen, onClose, sendToFSUIPC }: InitModalPr
           {/* 右側：可獨立控制嘅連技列表 */}
           <div className="flex flex-col gap-3 lg:col-span-2">
             <h4 className="text-gray-500 font-bold text-xs tracking-widest uppercase border-b border-[#333] pb-2">Execution Modules</h4>
-            
-            <ActionRow 
-              status={stepStatus.config} 
+
+            <ActionRow
+              status={stepStatus.config}
               onExecute={handleDownloadConfig}
               title={`Phase 0: Download ${aircraftReg}.ini`}
               desc="Save to PMDG Aircraft folder & Reload Panel State"
             />
-            
-            <ActionRow 
-              status={stepStatus.metar} 
+
+            <ActionRow
+              status={stepStatus.metar}
               onExecute={handleInjectMetar}
+              disabled={!isConnected}
               title={`Phase 1: Inject ${originIcao} METAR`}
               desc="Update simulator active weather scenario"
             />
-            
-            <ActionRow 
-              status={stepStatus.payload} 
+
+            <ActionRow
+              status={stepStatus.payload}
               onExecute={handleInjectPayload}
+              disabled={!isConnected}
               title={`Phase 2: FMC Payload Balancer`}
               desc={`Ghost Macro: Inject ZFW ${targetZFW}T into Stations`}
             />
 
-            <ActionRow 
-              status={stepStatus.fuel} 
+            <ActionRow
+              status={stepStatus.fuel}
               onExecute={handleInjectFuel}
+              disabled={!isConnected}
               title={`Phase 3: FMC Standby Fuel`}
               desc={`Ghost Macro: Fill Block Fuel ${targetFuel}T`}
             />
 
-            <ActionRow 
-              status={stepStatus.acars} 
-              onExecute={handleSetupAcars}
-              title="Phase 4: ACARS Datalink"
-              desc="Arm route uplink for crew request"
-            />
-            
           </div>
         </div>
       </div>
@@ -237,15 +219,16 @@ export default function InitModal({ isOpen, onClose, sendToFSUIPC }: InitModalPr
 }
 
 // 🎯 專門用嚟 Render 每一行獨立任務嘅小組件
-function ActionRow({ status, onExecute, title, desc }: { status: StepStatus, onExecute: () => void, title: string, desc: string }) {
+function ActionRow({ status, onExecute, title, desc, disabled }: { status: StepStatus, onExecute: () => void, title: string, desc: string, disabled?: boolean }) {
   return (
     <div className={`flex justify-between items-center p-3 rounded-lg border transition-all ${
-      status === "RUNNING" ? "bg-[#333]/50 border-[#FF9100]" : 
-      status === "DONE" ? "bg-[#00E676]/5 border-[#00E676]/30" : 
+      status === "RUNNING" ? "bg-[#333]/50 border-[#FF9100]" :
+      status === "DONE" ? "bg-[#00E676]/5 border-[#00E676]/30" :
+      status === "ERROR" ? "bg-[#FF1744]/5 border-[#FF1744]/30" :
       "bg-[#1A1A1A] border-[#333] hover:border-[#555]"
     }`}>
       <div className="flex flex-col">
-        <span className={`font-mono text-sm font-bold tracking-wide ${status === "DONE" ? "text-[#00E676]" : "text-white"}`}>
+        <span className={`font-mono text-sm font-bold tracking-wide ${status === "DONE" ? "text-[#00E676]" : status === "ERROR" ? "text-[#FF1744]" : "text-white"}`}>
           {title}
         </span>
         <span className="text-[0.65rem] text-gray-500 uppercase">{desc}</span>
@@ -253,14 +236,15 @@ function ActionRow({ status, onExecute, title, desc }: { status: StepStatus, onE
 
       <button
         onClick={onExecute}
-        disabled={status === "RUNNING" || status === "DONE"}
+        disabled={disabled || status === "RUNNING" || status === "DONE"}
         className={`px-4 py-2 rounded font-black text-xs tracking-widest uppercase transition-all w-28 text-center ${
           status === "RUNNING" ? "bg-transparent text-[#FF9100] border border-[#FF9100]" :
           status === "DONE" ? "bg-transparent text-[#00E676]" :
+          disabled ? "bg-[#1A1A1A] text-[#555] cursor-not-allowed" :
           "bg-[#2A2A2A] text-white hover:bg-[#00bfa5] hover:text-black"
         }`}
       >
-        {status === "RUNNING" ? "EXECUTING" : status === "DONE" ? "✓ DONE" : "EXECUTE"}
+        {status === "RUNNING" ? "EXECUTING" : status === "DONE" ? "✓ DONE" : status === "ERROR" ? "⚠ RETRY" : disabled ? "OFFLINE" : "EXECUTE"}
       </button>
     </div>
   );

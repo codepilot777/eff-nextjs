@@ -8,11 +8,21 @@ export function useSim() {
 
   useEffect(() => {
     const savedWsUrl = typeof window !== 'undefined' ? localStorage.getItem("ios_fsuipc_url") : null;
-    const WS_URL = savedWsUrl || "ws://localhost:2048/fsuipc"; 
-    
+    const WS_URL = savedWsUrl || "ws://localhost:2048/fsuipc";
+
     console.log(`🔌 [P3D LINK] Attempting connection to: ${WS_URL}`);
-    
-    const ws = new WebSocket(WS_URL, "fsuipc");
+
+    // 🌟 WS_URL 可以由 localStorage/SettingsModal 自由編輯，格式錯咗（例如漏咗 scheme）
+    // 會令 WebSocket constructor 喺 useEffect 入面直接 throw，變成一個未捕捉嘅 render
+    // 期間錯誤，而唔係一個可以理解嘅「連線失敗」狀態
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(WS_URL, "fsuipc");
+    } catch (e) {
+      // isConnected 本身已經預設 false，唔使喺呢度再 set 一次
+      console.error("🔌 [P3D LINK] Invalid WebSocket URL, staying offline:", e);
+      return;
+    }
     socketRef.current = ws;
 
     ws.onopen = () => {

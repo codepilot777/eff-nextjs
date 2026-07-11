@@ -66,7 +66,7 @@ export default function StatusBar({ isConnected, sendToFSUIPC, currentModuleDesc
         </div>
       </div>
 
-      <InitModal isOpen={isInitModalOpen} onClose={() => setIsInitModalOpen(false)} sendToFSUIPC={sendToFSUIPC} />
+      <InitModal isOpen={isInitModalOpen} onClose={() => setIsInitModalOpen(false)} isConnected={isConnected} sendToFSUIPC={sendToFSUIPC} />
       
       {/* 🌟 掛載 Settings Modal */}
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />

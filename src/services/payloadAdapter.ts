@@ -1,4 +1,34 @@
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
+import { PAX_CLASS_WEIGHTS } from "@/lib/loadsheet/LoadsheetEngine";
+import type { AircraftAHM560 } from "@/lib/loadsheet/types";
+
+// 🌟 由 PayloadTab.tsx 嘅 handleSyncToPmdgSim 抽出嚟嘅共用邏輯：將一份「zone-keyed
+// 人數 + 貨艙重量」嘅 snapshot（例如 flightData 最後一次派發嘅 loadsheet snapshot）
+// 轉做 adaptEfbPayloadToPmdg 需要嘅 { paxWeights, cargoWeights } 形狀。
+export function buildEfbLoadingPayload(
+  ahm: AircraftAHM560,
+  snapshot: { pax?: Record<string, unknown>; cargo?: { h1?: unknown; h2?: unknown; h3?: unknown; h4?: unknown; bulk?: unknown } } | null | undefined
+) {
+  const pax = snapshot?.pax || {};
+  const paxWeights: Record<string, number> = {};
+  Object.entries(pax).forEach(([zoneKey, count]) => {
+    const zoneClass = (ahm.stations.pax[zoneKey]?.primaryClass || "Y") as "J" | "W" | "Y";
+    const standardWeight = PAX_CLASS_WEIGHTS[zoneClass] ?? PAX_CLASS_WEIGHTS.Y;
+    paxWeights[zoneKey] = (Number(count) || 0) * standardWeight;
+  });
+
+  const cargo = snapshot?.cargo || {};
+  return {
+    paxWeights,
+    cargoWeights: {
+      hold1: Number(cargo.h1) || 0,
+      hold2: Number(cargo.h2) || 0,
+      hold3: Number(cargo.h3) || 0,
+      hold4: Number(cargo.h4) || 0,
+      bulk: Number(cargo.bulk) || 0,
+    },
+  };
+}
 
 export interface PmdgPayloadOutput {
   paxCabins: {

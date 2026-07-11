@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db, { ensureSchema } from '@/lib/db';
+import { isInstructorAuthed } from '@/lib/auth';
 
 export async function GET(request: Request) {
   // 從 URL 獲取 flight id，例如 /api/flight?id=CPA%20564
@@ -21,6 +22,14 @@ export async function GET(request: Request) {
     if (row && row.data) {
       // 將字串解析回 JSON Object (加上 as string 確保 TypeScript 不會報錯)
       const flightData = JSON.parse(row.data as string);
+
+      // 🌟 修復：同 /api/flights 一樣嘅缺口——未 publish 嘅草稿唔應該畀未登入嘅人
+      // 靠估/enumerate flight_no 直接讀到。教官喺 /instructor/ios 準備緊嘅草稿
+      // 仍然睇到（有 session cookie）；未登入嘅一律當唔存在，唔洩露有呢個 flight。
+      if (!flightData.is_published && !isInstructorAuthed(request)) {
+        return NextResponse.json({ error: 'Flight not found' }, { status: 404 });
+      }
+
       return NextResponse.json(flightData);
     } else {
       return NextResponse.json({ error: 'Flight not found' }, { status: 404 });

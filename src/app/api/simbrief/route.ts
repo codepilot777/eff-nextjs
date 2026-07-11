@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid request body' }, { status: 400 });
     }
-    const { username, flightNo } = parsed.data;
+    const { username, flightNo, created_by, is_published, commander_override, zfw_override } = parsed.data;
 
     // 🌟 修正：舊版冇 encode username 就直接砌入 URL，
     // 如果 username 有特殊字符（例如 &）會篡改成個 query string
@@ -83,14 +83,24 @@ export async function POST(request: Request) {
       plan_fuel_total: parseInt(fuel.plan_ramp || 0) / 1000.0,
       weight_fuel_reqd_ofp: parseInt(fuel.plan_takeoff || 0) / 1000.0, 
 
-      weight_zfw_ofp: parseInt(weights.est_zfw || 0) / 1000.0,
+      // 🌟 教官喺建立表單度填嘅 ZFW Target(Tons)覆寫預設由 SimBrief 計出嚟嘅 OFP ZFW
+      weight_zfw_ofp: zfw_override && zfw_override > 0 ? zfw_override : parseInt(weights.est_zfw || 0) / 1000.0,
       weight_tow_ofp: parseInt(weights.est_tow || 0) / 1000.0,
       weight_lw_ofp: parseInt(weights.est_ldw || 0) / 1000.0,
       dow: parseInt(weights.oew || 161968),
       eet_seconds: parseInt(times.est_time_enroute || 0),
       ofp_version: 1,
-      
+
       captain: "INSTRUCTOR",
+      // 🌟 教官喺建立表單度填嘅 Commander Name；呢個欄位喺 FmcCrewColumn.tsx/
+      // ModalFMS.tsx 都有讀，以前一直冇寫入過
+      commander_override: commander_override || "",
+      // 🌟 邊個教官起呢班機，用嚟喺 instructor/page.tsx 嘅「Your Simulator Sessions」
+      // 篩選返自己起嘅機；以前冇寫入，起機嗰個教官會即刻見唔返自己起嘅機
+      created_by: created_by || "",
+      // 🌟 以前呢個扁平欄位由始至終冇寫入過，PUBLISH 掣個成功彈窗淨係睇 client 端
+      // 傳落嚟嘅值，唔理實際有冇寫入 DB，令「已 publish」變成假成功訊息
+      is_published: is_published === true,
       dispatcher: "SYSTEM AUTO",
       crew_fd: 2,
       crew_cc: 14,
