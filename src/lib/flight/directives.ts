@@ -17,6 +17,8 @@ export interface FlightPatch {
   ofpDispatchAppend?: { snapshot: Record<string, unknown> };
   // 🌟 Trainee/commander：接受一個已經 dispatch 咗嘅版本，令佢正式成為 live 內容
   ofpActivate?: { version: number };
+  // 🌟 Trainee：撳走個 toggle switch，清返做「冇任何版本生效」，唔改 live 欄位
+  ofpDeactivate?: true;
 }
 
 type FlightRow = Record<string, unknown>;
@@ -112,6 +114,12 @@ export function applyFlightDirectives(current: FlightRow, patch: FlightPatch): F
     merged.azf_sent = false;
     merged.prelim_ls_sent = false;
     merged.final_ls_sent = false;
+  }
+
+  if (patch.ofpDeactivate) {
+    // 🌟 淨係清返個 flag——冇任何版本生效嘅時候，live 欄位保持原狀（同舊時個 toggle
+    // 一樣，撳走個掣都唔會夾硬變返做邊個版本嘅內容）
+    merged.activated_version = 0;
   }
 
   return merged;

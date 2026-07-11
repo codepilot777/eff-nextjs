@@ -43,6 +43,26 @@ const FlightListColumn = ({ flights, selectedFlight, onSelect }: { flights: any[
   </div>
 );
 
+// ==========================================
+// 🌟 內部組件 2: iOS 風格 Toggle Switch
+// ==========================================
+const ToggleSwitch = ({ checked, onChange, disabled }: { checked: boolean, onChange: () => void, disabled: boolean }) => (
+  <button
+    type="button"
+    onClick={() => !disabled && onChange()}
+    disabled={disabled}
+    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+      disabled ? "opacity-50 cursor-not-allowed" : ""
+    } ${checked ? "bg-[#C6FF00]" : "bg-[#333333]"}`}
+  >
+    <span
+      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+        checked ? "translate-x-5 bg-black" : "translate-x-0"
+      }`}
+    />
+  </button>
+);
+
 const formatDispatchedAt = (iso: string) => {
   if (!iso) return "Initial flight plan";
   const d = new Date(iso);
@@ -94,6 +114,26 @@ function FlightSelectContent() {
     onError: (e: Error) => alert(e.message || 'Failed to activate OFP version'),
   });
 
+  // 🌟 撳走個 toggle switch：清返 activated_version 做 0（冇任何版本生效）
+  const ofpDeactivateMutation = useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      const res = await fetch('/api/flight/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ofpDeactivate: true })
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to deactivate OFP version');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['flights', 'available'] });
+    },
+    onError: (e: Error) => alert(e.message || 'Failed to deactivate OFP version'),
+  });
+
   const selectedFlight = flights.find((f: any) => f._db_id === selectedFlightId) || null;
 
   // 🌟 修復：以前呢度成個 OFP Versions 清單係 Array.from({length: ofp_version})
@@ -102,7 +142,10 @@ function FlightSelectContent() {
   const history = getOfpHistory(selectedFlight);
   const selectedEntry = history.find((e) => e.version === selectedVersion) || history[history.length - 1] || null;
   const latestEntry = history[history.length - 1] || null;
-  const activatedVersion = selectedFlight?.activated_version || history[0]?.version || 1;
+  // 🌟 修復：以前用 || 會將「0（已經撳走 toggle，冇任何版本生效）」同「undefined（舊
+  // flight 冇呢個欄位）」搞埋一齊，兩個都會 silently fallback 落第一個版本，令個 toggle
+  // 撳走咗都仲係即刻顯示返「有版本生效」。用 ?? 先分得返 0 同 undefined
+  const activatedVersion = selectedFlight?.activated_version ?? history[0]?.version ?? 1;
   const isCurrentVersionActive = selectedVersion === activatedVersion;
   const isViewingOutdated = !!latestEntry && selectedEntry?.version !== latestEntry.version;
   const selectedVersionDxRmk = (selectedEntry?.snapshot?.raw_simbrief as { general?: { dx_rmk?: string } } | undefined)?.general?.dx_rmk;
@@ -118,10 +161,16 @@ function FlightSelectContent() {
     setShowCompare(false);
   };
 
-  const handleActivate = () => {
-    if (!selectedFlight || isCurrentVersionActive) return;
-    ofpActivateMutation.mutate({ id: selectedFlight._db_id, version: selectedVersion });
+  const handleToggleActivate = () => {
+    if (!selectedFlight) return;
+    if (isCurrentVersionActive) {
+      ofpDeactivateMutation.mutate({ id: selectedFlight._db_id });
+    } else {
+      ofpActivateMutation.mutate({ id: selectedFlight._db_id, version: selectedVersion });
+    }
   };
+
+  const isTogglePending = ofpActivateMutation.isPending || ofpDeactivateMutation.isPending;
 
   return (
     <div className="h-screen bg-[#0a0a0a] text-[#e2e8f0] font-sans p-6 md:p-8 flex flex-col overflow-hidden">
@@ -285,25 +334,27 @@ function FlightSelectContent() {
                       </div>
                     </div>
 
-                    {/* 🌟 底部控制列：ACTIVATE 而家係真正嘅 trainee/commander 接受動作——
-                        揀緊嘅已經係 active 版本就淨係顯示狀態，冇得「撤銷」（同真實世界一樣，
-                        接受咗嘅 dispatch release 唔會走數） */}
+                    {/* 🌟 底部控制列：ACTIVATE 用返 toggle switch——撳開係真正嘅
+                        trainee/commander 接受呢個版本嘅 ofpActivate directive，撳走就係
+                        ofpDeactivate（清返做冇任何版本生效），兩邊都行過核實嘅 server 路徑 */}
                     <div className="flex justify-between items-center border-t border-[#333333] pt-5 shrink-0">
 
-                      <div className="flex flex-col select-none">
-                        {isCurrentVersionActive ? (
-                          <span className="text-xs font-black tracking-widest uppercase text-[#C6FF00] flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-[#C6FF00]" /> V{selectedVersion} ACTIVATED
+                      <div className="flex items-center gap-3">
+                        <ToggleSwitch
+                          checked={isCurrentVersionActive}
+                          onChange={handleToggleActivate}
+                          disabled={isTogglePending}
+                        />
+                        <div className="flex flex-col select-none">
+                          <span className="text-xs font-black tracking-widest uppercase text-white">
+                            {isTogglePending
+                              ? "PROCESSING..."
+                              : isCurrentVersionActive
+                                ? `V${selectedVersion} ACTIVATED`
+                                : `ACTIVATE V${selectedVersion}`
+                            }
                           </span>
-                        ) : (
-                          <button
-                            onClick={handleActivate}
-                            disabled={ofpActivateMutation.isPending}
-                            className="px-6 py-3 bg-[#C6FF00] text-black hover:bg-[#b0e600] disabled:opacity-50 font-black text-[0.75rem] tracking-widest uppercase rounded-xl shadow-md transition-colors"
-                          >
-                            {ofpActivateMutation.isPending ? "ACTIVATING..." : `ACTIVATE V${selectedVersion}`}
-                          </button>
-                        )}
+                        </div>
                       </div>
 
                       {/* 右側：VIEW 按鈕 */}
