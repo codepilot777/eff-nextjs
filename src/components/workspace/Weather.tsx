@@ -104,12 +104,15 @@ export default function Weather() {
   altnArray.forEach((altn: any, idx: number) => {
     const icao = altn.icao_code || altn.icao;
     if (icao && !seenIcaos.has(icao)) {
+      // 🌟 修復：以前呢度淨係讀原始 SimBrief 數據，完全跳過咗 WxTab.tsx 教官編輯/
+      // AI 生成後寫入嘅 flightData.alternates[idx].metar/taf override，令教官「SAVE
+      // & PUBLISH」咗都好，trainee 呢邊永遠見唔到，同 DEP/ARR 嘅正確行為唔一致
       renderList.push({
         id: `altn-${icao}-${idx}`,
         type: "ALTN",
         icao: icao,
-        metar: altn.metar || "NO METAR FILED",
-        taf: altn.taf || "NO TAF FILED"
+        metar: getWx(alternates[idx]?.metar, altn.metar),
+        taf: getWx(alternates[idx]?.taf, altn.taf)
       });
       seenIcaos.add(icao);
     }

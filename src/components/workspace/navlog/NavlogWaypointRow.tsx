@@ -34,21 +34,6 @@ export default function NavlogWaypointRow({ fix, index, isExpanded, onToggleExpa
     return `${newH.toString().padStart(2, '0')}${newM.toString().padStart(2, '0')}z`;
   };
 
-  const getDeterministicMockData = (ident: string) => {
-    let hash = 0;
-    for (let i = 0; i < ident.length; i++) hash = ident.charCodeAt(i) + ((hash << 5) - hash);
-    const getRand = (min: number, max: number, offset: number) => {
-       const x = Math.sin(hash + offset) * 10000;
-       return Math.floor((x - Math.floor(x)) * (max - min + 1)) + min;
-    };
-    return {
-       mora: getRand(30, 80, 1), track: getRand(1, 360, 2).toString().padStart(3, '0') + "°",
-       dist: getRand(5, 120, 3) + "NM", gs: getRand(450, 520, 4) + "KTS",
-       lat: `N 22 ${getRand(10, 50, 5)}.${getRand(0, 9, 6)}`, lon: `E114 ${getRand(10, 50, 7)}.${getRand(0, 9, 8)}`,
-       wind: `${getRand(1, 360, 9).toString().padStart(3, '0')}/${getRand(5, 120, 10).toString().padStart(3, '0')}KTS`
-    };
-  };
-
   const ident = fix.ident;
   const efob = parseFloat(fix.fuel_plan_onboard || "0") / 1000;
   
@@ -58,8 +43,13 @@ export default function NavlogWaypointRow({ fix, index, isExpanded, onToggleExpa
   const eetStr = `Δ+${timeAccumHoursStr}${timeAccumMinsStr}`;
   
   const etaTime = formatEta(flightData?.std_z, timeAccumMins);
-  
-  const mock = getDeterministicMockData(ident);
+
+  // 🌟 修復：以前呢度成組 track/dist/GS/風向/經緯度都係靠 ident 個字串做 hash
+  // 生成嘅假數（getDeterministicMockData），寫死喺香港附近經緯度，完全冇根據
+  // 呢個 fix 實際嘅位置/航段。MORA 呢個同一個 fix object 已經有真實欄位可以讀
+  // （同 FmcCrewColumn.tsx/ModalFMS.tsx 一致），冇真數據支持嘅欄位改為誠實顯示 "--"
+  const moraRaw = parseInt(fix.mora_feet || fix.mora);
+  const mora = !isNaN(moraRaw) ? Math.floor(moraRaw / 100) : null;
   const zfw = flightData?.weight_zfw_ofp || 200;
   const wt = `${(zfw + efob).toFixed(1)}T`;
   
@@ -103,19 +93,19 @@ export default function NavlogWaypointRow({ fix, index, isExpanded, onToggleExpa
           <div className="flex-[2.4] flex flex-col font-mono text-[0.85rem] text-text-main font-bold">
             <div className="flex justify-between mb-0.5">
               <span className="bg-[#e2e8f0] text-[#111] px-1 rounded-sm text-[0.75rem]">{getFlightLevel(fix.altitude_feet || flightData?.cruise_alt)}</span>
-              <span>{mock.track}</span><span>{mock.dist}</span>
+              <span>--</span><span>--</span>
             </div>
             <div className="flex justify-between text-text-muted text-xs">
-              <span>{mock.mora}</span><span></span><span>{mock.gs}</span>
+              <span>{mora !== null ? mora : "--"}</span><span></span><span>--</span>
             </div>
           </div>
           <div className="flex-[2.6] flex flex-col font-mono text-[0.85rem] text-text-main font-bold px-4">
             <div className="flex justify-between mb-0.5">
-              <span className="text-text-muted text-xs">{mock.lat}</span>
-              <span>{mock.wind}</span>
+              <span className="text-text-muted text-xs">--</span>
+              <span>--</span>
             </div>
             <div className="flex justify-between text-text-muted text-xs">
-              <span>{mock.lon}<br/>--</span>
+              <span>--<br/>--</span>
               <span>{wt}</span>
             </div>
           </div>
@@ -152,11 +142,11 @@ export default function NavlogWaypointRow({ fix, index, isExpanded, onToggleExpa
               <div className="text-text-muted text-xs mb-1">FL</div>
               <input type="text" defaultValue={wpData.ex_fl || ""} onBlur={(e) => handleWpInputChange("ex_fl", e.target.value)} className="w-full p-2 bg-white text-black font-black text-right rounded outline-none" />
             </div>
-            <div className="flex-[2.5] font-mono text-xs text-text-main border-l border-[#555] pl-3 leading-snug flex flex-col justify-center">
-              <div><span className="text-text-muted">{getFlightLevel(fix.altitude_feet || flightData?.cruise_alt)}</span> 213/014-M040</div>
-              <div><span className="text-text-muted">FL310</span> 186/009-M031</div>
-              <div><span className="text-text-muted">FL200</span> 035/006-M007</div>
-              <div><span className="text-text-muted">FL150</span> 129/004-P003</div>
+            <div className="flex-[2.5] font-mono text-xs text-text-main border-l border-[#555] pl-3 leading-snug flex flex-col justify-center text-text-muted">
+              {/* 🌟 移除舊有嘅靜態 step-climb/descent 參考表——除咗頂行嘅 FL 標籤，
+                  底下嘅 213/014-M040 呢啲數字全部係寫死字串，每程機都一樣，冇真數據支持 */}
+              <span className="text-text-muted">{getFlightLevel(fix.altitude_feet || flightData?.cruise_alt)}</span>
+              <span className="italic">Step-climb reference not available.</span>
             </div>
           </div>
 

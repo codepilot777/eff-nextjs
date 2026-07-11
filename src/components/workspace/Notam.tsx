@@ -128,11 +128,14 @@ export default function Notam() {
   altnArray.forEach((altn: any, idx: number) => {
     const icao = altn.icao_code || altn.icao;
     if (icao && !seenIcaos.has(icao)) {
+      // 🌟 修復：以前呢度個 overrideValue 寫死 undefined，完全跳過咗
+      // NotamTab.tsx 教官編輯/AI 生成後寫入嘅 flightData.alternates[idx].notam，
+      // 同 DEP/ARR 嘅正確行為唔一致
       renderList.push({
         id: `altn-${idx}`,
         type: "ALTN",
         icao: icao,
-        notams: parseNotams(undefined, altn.notam)
+        notams: parseNotams(alternates[idx]?.notam, altn.notam)
       });
       seenIcaos.add(icao);
     }

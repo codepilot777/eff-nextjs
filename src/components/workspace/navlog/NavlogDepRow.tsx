@@ -30,7 +30,7 @@ export default function NavlogDepRow() {
       </div>
       <div className="flex-[4.6] text-xs text-text-muted font-mono pt-3">RWY</div>
       <div className="flex-[1.0] flex flex-col items-end gap-1">
-        <div className="text-[0.95rem] font-bold font-mono text-text-main">{reqdOfp.toFixed(1)}T <span className="text-[#00E676] text-[0.7rem]">3.6</span></div>
+        <div className="text-[0.95rem] font-bold font-mono text-text-main">{reqdOfp.toFixed(1)}T</div>
         <input 
           type="number" step="0.1" placeholder="T" defaultValue={depTimes.fuel || ""}
           onBlur={(e) => handleDepInputChange("fuel", e.target.value)}
