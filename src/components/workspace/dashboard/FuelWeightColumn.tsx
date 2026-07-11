@@ -20,7 +20,7 @@ export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: a
   const ahm = getDynamicAhm(flightData);
 
   // 🌟 真正由 payload 文件計出嚟嘅 weights，學員未發送過任何文件之前係 null（唔夾硬計假數）
-  const engineWeights = getEngineWeights(flightData);
+  const engineWeights = getEngineWeights(flightData, calc);
 
   // ==========================================
   // 1. Time / Endurance 計算邏輯 (保留純 UI 顯示用)

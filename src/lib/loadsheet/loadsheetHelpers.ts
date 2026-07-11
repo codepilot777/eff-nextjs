@@ -59,15 +59,22 @@ export const getCommonFlightInfo = (flightData: any, calc: any) => {
 // 2. 構建 Loadsheet Engine 所需的 Payload (🌟 徹底自適應客艙分區)
 // ==========================================
 // ==========================================
-// 2. 構建 Loadsheet Engine 所需的 Payload (🌟 動態接收 Taxi Fuel)
+// 2. 構建 Loadsheet Engine 所需的 Payload (🌟 動態接收 Taxi Fuel + Trip Fuel)
 // ==========================================
-export const buildEnginePayload = (snapshot: any, flightData: any, taxiFuelKg: number) => {
+// 🌟 修復：trip 以前恆定讀 flightData.fuel_trip_ofp（原始未修訂嘅 OFP 數），但
+// taxiFuelKg 就一直容許外面傳入「revised」嘅即時數（睇 LeftPanel/HistoryPanel 嘅
+// revisedTaxiKg）。結果學員一用 ZFW revision / 揀第個 alternate / manual fuel /
+// Desired Fuel: On Landing 呢啲會令 fuelCalculator.ts 重新計 trip fuel 嘅功能，
+// 呢度個 LAW（Landing Weight = TOW - trip）就同 LeftPanel 顯示緊嘅 Trip Fuel
+// 唔同步，令 loadsheet 印出嚟嘅 Landing Weight/LAW margin/L flag 全部用緊舊數。
+// 而家同 taxiFuelKg 一樣，要求呼叫方明確傳入想用邊個 trip fuel 數源。
+export const buildEnginePayload = (snapshot: any, flightData: any, taxiFuelKg: number, tripFuelKg: number) => {
   if (!snapshot) return null;
   const ahm = getDynamicAhm(flightData);
 
   const dynamicPaxObj: Record<string, number> = {};
   Object.keys(ahm.stations.pax).forEach(zoneKey => {
-    const shortKey = zoneKey.replace("zone", ""); 
+    const shortKey = zoneKey.replace("zone", "");
     dynamicPaxObj[zoneKey] = Number(snapshot.pax?.[shortKey]) || Number(snapshot.pax?.[zoneKey]) || 0;
   });
 
@@ -77,12 +84,12 @@ export const buildEnginePayload = (snapshot: any, flightData: any, taxiFuelKg: n
 
   return {
     pax: dynamicPaxObj,
-    paxWeights: { J: 85, Y: 81 }, 
+    paxWeights: { J: 85, Y: 81 },
     cargo: { hold1: Number(snapshot.cargo?.h1)||0, hold2: Number(snapshot.cargo?.h2)||0, hold3: Number(snapshot.cargo?.h3)||0, hold4: Number(snapshot.cargo?.h4)||0, bulk: Number(snapshot.cargo?.bulk)||0 },
-    waterFraction: Number(flightData?.water_fraction) || 15, 
+    waterFraction: Number(flightData?.water_fraction) || 15,
     fuel: {
-      takeoff: takeoffFuelKg, 
-      trip: flightData?.fuel_trip_ofp ? Number(flightData.fuel_trip_ofp) * 1000 : 18500,
+      takeoff: takeoffFuelKg,
+      trip: tripFuelKg,
       isStandard: false,
       tanks: { leftMain: Number(snapshot.fuel?.left)||0, center: Number(snapshot.fuel?.center)||0, rightMain: Number(snapshot.fuel?.right)||0 }
     }
@@ -151,7 +158,7 @@ ${dynamicPaxLine}
 T${(w.totalCargoWeight).toString().padEnd(5)} .1/${snapshot.cargo.h1.toString().padEnd(4)} .2/${snapshot.cargo.h2.toString().padEnd(4)} .3/${snapshot.cargo.h3.toString().padEnd(4)} .4/${snapshot.cargo.h4.toString().padEnd(4)} .5/${snapshot.cargo.bulk.toString().padEnd(4)}
 
 ${calc?.arrIata || 'KIX'}  ${dynamicPaxBreakdown}
-TTL PAX ${w.paxCount.toString().padEnd(5)}  UNDERLOAD   ${marginZFW}
+TTL PAX ${w.paxCount.toString().padEnd(5)}  UNDERLOAD   ${minMargin}
 
 CMDR NAME
 SIGN
@@ -174,11 +181,12 @@ LOADSHEETER/${info.dispatcher}/HKG1576`;
 export const getAzfText = (flightData: any, calc: any) => {
   const ahm = getDynamicAhm(flightData);
   
-  // 🌟 提取 OFP Taxi Fuel (預設 200kg)
+  // 🌟 提取 OFP Taxi Fuel (預設 200kg) + OFP Trip Fuel——AZF 係早期文件，同 taxi 一樣
+  // 特登唔用即時 revised 數，保持起飛前呢個時間點嘅原始 OFP 基準
   const ofpTaxiKg = flightData?.fuel_taxi_ofp ? Math.round(Number(flightData.fuel_taxi_ofp) * 1000) : 200;
-  
-  // 🎯 傳入第 3 個參數：ofpTaxiKg
-  const payload = buildEnginePayload(flightData?.azf_snapshot, flightData, ofpTaxiKg);
+  const ofpTripKg = flightData?.fuel_trip_ofp ? Math.round(Number(flightData.fuel_trip_ofp) * 1000) : 18500;
+
+  const payload = buildEnginePayload(flightData?.azf_snapshot, flightData, ofpTaxiKg, ofpTripKg);
   if (!payload) return "LOADING SNAPSHOT...";
   
   const engine = new LoadsheetEngine(ahm, payload);
@@ -197,11 +205,11 @@ export const getEzfwText = (flightData: any, calc: any) => {
   const ahm = getDynamicAhm(flightData);
   const snapshot = flightData?.ezfw_snapshot;
   
-  // 🌟 提取 OFP Taxi Fuel
+  // 🌟 提取 OFP Taxi Fuel + OFP Trip Fuel——EZFW 同 AZF 一樣係早期文件，保持原始 OFP 基準
   const ofpTaxiKg = flightData?.fuel_taxi_ofp ? Math.round(Number(flightData.fuel_taxi_ofp) * 1000) : 200;
-  
-  // 🎯 傳入第 3 個參數：ofpTaxiKg
-  const payload = buildEnginePayload(snapshot, flightData, ofpTaxiKg);
+  const ofpTripKg = flightData?.fuel_trip_ofp ? Math.round(Number(flightData.fuel_trip_ofp) * 1000) : 18500;
+
+  const payload = buildEnginePayload(snapshot, flightData, ofpTaxiKg, ofpTripKg);
   if (!payload) return "LOADING SNAPSHOT...";
   
   const engine = new LoadsheetEngine(ahm, payload);
@@ -236,14 +244,18 @@ export const getLatestSnapshot = (flightData: Record<string, unknown>) => {
 };
 
 // 🌟 喺學員未真正發送過任何 payload 文件之前，返 null（唔好夾硬計一個假數出嚟）
-export const getEngineWeights = (flightData: Record<string, unknown>) => {
+// 🌟 calc 係可選——有就用返 fuelCalculator.ts 即時 revised 嘅 trip fuel（同 ModalLoadsheet
+// FINAL/PRELIM 階段一致嘅計法），冇就 fallback 落靜態 OFP trip fuel
+export const getEngineWeights = (flightData: Record<string, unknown>, calc?: { currTrip?: number }) => {
   const snapshot = getLatestSnapshot(flightData);
   if (!snapshot) return null;
 
   const ahm = getDynamicAhm(flightData);
   const taxiFuelKg = flightData?.fuel_taxi_ofp ? Math.round(Number(flightData.fuel_taxi_ofp) * 1000) : 200;
+  const ofpTripKg = flightData?.fuel_trip_ofp ? Math.round(Number(flightData.fuel_trip_ofp) * 1000) : 18500;
+  const tripFuelKg = calc?.currTrip ? Math.round(Number(calc.currTrip) * 1000) : ofpTripKg;
 
-  const payload = buildEnginePayload(snapshot, flightData, taxiFuelKg);
+  const payload = buildEnginePayload(snapshot, flightData, taxiFuelKg, tripFuelKg);
   if (!payload) return null;
 
   const engine = new LoadsheetEngine(ahm, payload);
