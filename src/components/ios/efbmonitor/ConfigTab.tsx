@@ -99,9 +99,12 @@ export default function ConfigTab() {
         {/* 🌟 修復：以前呢度成句寫「Active Flight Plan (V{ofp_version})」，但呢個文字下面
             嘅內容其實讀緊 raw_simbrief/ofp_telex_text——即係 trainee 已經 activate 咗嗰個
             版本，唔係 ofp_version（最新 dispatch 咗嘅版本）。兩個數之前一直畀呢個標題混埋一齊 */}
+        {/* 🌟 修復 2：flight-select 而家有返可以撳走嘅 toggle switch（ofpDeactivate 會將
+            activated_version 清做 0），以前呢度用 `|| 1` 會將「0（trainee 撳走咗）」同
+            「1（真係 activate 緊 V1）」混淆，靜靜雞當咗 V1 生效緊 */}
         <h5 className="text-white font-bold mb-2 flex items-center gap-2 flex-wrap">
-          📡 OFP Text (Trainee Active: V{flightData.activated_version || 1})
-          {(flightData.ofp_version || 1) > (flightData.activated_version || 1) && (
+          📡 OFP Text (Trainee Active: {flightData.activated_version > 0 ? `V${flightData.activated_version}` : "NONE"})
+          {(flightData.ofp_version || 1) > (flightData.activated_version || 0) && (
             <span className="text-[0.65rem] text-[#FF9100] font-black uppercase tracking-widest bg-[#FF9100]/15 border border-[#FF9100]/30 px-2 py-0.5 rounded">
               V{flightData.ofp_version} dispatched · awaiting trainee accept
             </span>

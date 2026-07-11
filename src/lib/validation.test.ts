@@ -47,11 +47,16 @@ describe('flightUpdateBodySchema', () => {
     expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', data: { activated_version: 2 } }).success).toBe(false);
   });
 
-  it('accepts ofpDispatchAppend/ofpActivate directive shapes', () => {
+  it('accepts ofpDispatchAppend/ofpActivate/ofpDeactivate directive shapes', () => {
     expect(flightUpdateBodySchema.safeParse({
       id: 'CPA 564', ofpDispatchAppend: { snapshot: { route_id: 'DCT' } },
     }).success).toBe(true);
     expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', ofpActivate: { version: 2 } }).success).toBe(true);
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', ofpDeactivate: true }).success).toBe(true);
+  });
+
+  it('rejects ofpDeactivate set to false (must be the true literal or absent)', () => {
+    expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', ofpDeactivate: false }).success).toBe(false);
   });
 
   it('rejects a non-positive/non-integer ofpActivate version', () => {
@@ -100,6 +105,8 @@ describe('requiresInstructorAuthForFlight', () => {
     // 🌟 activate 係 trainee/commander 接受一個已 dispatch 版本嘅動作，唔應該要教官登入——
     // 真正防偽造靠 applyFlightDirectives 核實個 version 存唔存在喺 ofp_history
     expect(requiresInstructorAuthForFlight({ ofpActivate: { version: 2 } })).toBe(false);
+    // 🌟 deactivate（撳走 toggle switch）都係 trainee 自己嘅動作，唔應該要教官登入
+    expect(requiresInstructorAuthForFlight({ ofpDeactivate: true })).toBe(false);
     expect(requiresInstructorAuthForFlight({ data: { trainee_input_zfw: 180 } })).toBe(false);
     expect(requiresInstructorAuthForFlight({})).toBe(false);
   });

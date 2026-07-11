@@ -136,4 +136,19 @@ describe('applyFlightDirectives', () => {
     };
     expect(() => applyFlightDirectives(current, { ofpActivate: { version: 99 } })).toThrow(/never dispatched/);
   });
+
+  it('ofpDeactivate clears activated_version to 0 without touching any other live field', () => {
+    const current = {
+      route_id: 'CURRENTROUTE', activated_version: 2,
+      ofp_history: [
+        { version: 1, dispatched_at: '', snapshot: { route_id: 'OLDROUTE' } },
+        { version: 2, dispatched_at: '', snapshot: { route_id: 'CURRENTROUTE' } },
+      ],
+    };
+    const merged = applyFlightDirectives(current, { ofpDeactivate: true });
+    expect(merged.activated_version).toBe(0);
+    // 🌟 同舊時個 toggle 一樣咁單純——撳走唔會夾硬變返做邊個版本嘅內容
+    expect(merged.route_id).toBe('CURRENTROUTE');
+    expect(merged.ofp_history).toEqual(current.ofp_history);
+  });
 });

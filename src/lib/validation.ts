@@ -68,6 +68,10 @@ export const ofpActivateSchema = z.object({
   version: z.number().int().positive(),
 });
 
+// 🌟 Trainee 專屬：撳走 flight-select 個 toggle switch，淨係清返 activated_version
+// 做返 0（冇任何版本生效），唔會改動任何 live 欄位——同舊時個 toggle 一樣咁單純
+export const ofpDeactivateSchema = z.literal(true);
+
 export const flightUpdateBodySchema = z.object({
   id: flightIdSchema,
   data: flightDataSchema.optional().default({}),
@@ -79,6 +83,7 @@ export const flightUpdateBodySchema = z.object({
   acarsDispatchAppend: acarsDispatchAppendSchema.optional(),
   ofpDispatchAppend: ofpDispatchAppendSchema.optional(),
   ofpActivate: ofpActivateSchema.optional(),
+  ofpDeactivate: ofpDeactivateSchema.optional(),
 });
 
 export const flightDeleteBodySchema = z.object({
