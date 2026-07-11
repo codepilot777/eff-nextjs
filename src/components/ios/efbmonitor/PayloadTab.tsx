@@ -201,12 +201,15 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
   const revisedTaxiKg = (calc?.currTaxi || flightData?.fuel_taxi_ofp || 0.2) * 1000;
   const blockFuelKg = (Number(payload.fuel.left) || 0) + (Number(payload.fuel.center) || 0) + (Number(payload.fuel.right) || 0);
   const takeoffFuelKg = Math.max(0, blockFuelKg - revisedTaxiKg);
+  // 🌟 修復：以前呢度恆定讀靜態 flightData.fuel_trip_ofp 計 LAW，同上面 taxi 已經用緊嘅
+  // revised 數（calc.currTaxi）唔同步，令教官自己嘅 Payload Tab 都睇緊過時嘅 Landing Weight
+  const revisedTripKg = (calc?.currTrip || flightData?.fuel_trip_ofp || 18.5) * 1000;
 
   const enginePayload = {
     pax: payload.pax as any,
     cargo: { hold1: Number(payload.cargo.h1) || 0, hold2: Number(payload.cargo.h2) || 0, hold3: Number(payload.cargo.h3) || 0, hold4: Number(payload.cargo.h4) || 0, bulk: Number(payload.cargo.bulk) || 0 },
     waterFraction: Number(flightData?.water_fraction) || 15,
-    fuel: { takeoff: takeoffFuelKg, trip: flightData?.fuel_trip_ofp ? Number(flightData.fuel_trip_ofp) * 1000 : 18500, isStandard: false, tanks: { leftMain: Number(payload.fuel.left) || 0, center: Number(payload.fuel.center) || 0, rightMain: Number(payload.fuel.right) || 0 } }
+    fuel: { takeoff: takeoffFuelKg, trip: revisedTripKg, isStandard: false, tanks: { leftMain: Number(payload.fuel.left) || 0, center: Number(payload.fuel.center) || 0, rightMain: Number(payload.fuel.right) || 0 } }
   };
 
   const engine = new LoadsheetEngine(ahm, enginePayload as any);

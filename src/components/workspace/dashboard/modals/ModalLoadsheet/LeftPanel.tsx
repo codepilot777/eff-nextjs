@@ -9,9 +9,13 @@ export function LeftPanel({ flightData, calc }: any) {
   const currentReg = flightData?.aircraft_reg || "B-HNQ";
   const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
 
-  // 🌟 準備兩條 Taxi Fuel (單位: KG)
+  // 🌟 準備兩條 Taxi Fuel + 兩條 Trip Fuel (單位: KG)——FINAL/PRELIM 用 revised
+  // （即時，會隨 ZFW revision/manual fuel/Desired Fuel 改變），AZF/EZFW 保持
+  // OFP 原始基準，同 loadsheetHelpers.ts buildEnginePayload 嘅 trip fuel 修復對齊
   const ofpTaxiKg = flightData?.fuel_taxi_ofp ? Math.round(Number(flightData.fuel_taxi_ofp) * 1000) : 200;
   const revisedTaxiKg = calc?.currTaxi ? Math.round(Number(calc.currTaxi) * 1000) : ofpTaxiKg;
+  const ofpTripKg = flightData?.fuel_trip_ofp ? Math.round(Number(flightData.fuel_trip_ofp) * 1000) : 18500;
+  const revisedTripKg = calc?.currTrip ? Math.round(Number(calc.currTrip) * 1000) : ofpTripKg;
 
   let currentStage = "AWAITING";
   let stageZfw = 0;
@@ -29,7 +33,7 @@ export function LeftPanel({ flightData, calc }: any) {
 
     stageBg = flightData?.pilots_signed_final ? "bg-[#C6FF00]" : "bg-[#2979FF]";
     stageText = flightData?.pilots_signed_final ? "text-black" : "text-white";
-    const p = buildEnginePayload(latestFinal?.snapshot, flightData, revisedTaxiKg);
+    const p = buildEnginePayload(latestFinal?.snapshot, flightData, revisedTaxiKg, revisedTripKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
 
   } else if (flightData?.prelim_ls_sent) {
@@ -39,19 +43,19 @@ export function LeftPanel({ flightData, calc }: any) {
     currentStage = `PRELIM ${activeVer.toString().padStart(2, '0')}`;
 
     stageBg = "bg-[#FF9100]"; stageText = "text-black";
-    const p = buildEnginePayload(latestPrelim?.snapshot, flightData, revisedTaxiKg);
+    const p = buildEnginePayload(latestPrelim?.snapshot, flightData, revisedTaxiKg, revisedTripKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
 
   } else if (flightData?.azf_sent) {
     currentStage = "AZF";
     stageBg = "bg-[#00E676]"; stageText = "text-black";
-    const p = buildEnginePayload(flightData.azf_snapshot, flightData, ofpTaxiKg);
+    const p = buildEnginePayload(flightData.azf_snapshot, flightData, ofpTaxiKg, ofpTripKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
-  
+
   } else if (flightData?.ezfw_sent) {
     currentStage = "EZFW";
     stageBg = "bg-[#00bfa5]"; stageText = "text-black";
-    const p = buildEnginePayload(flightData.ezfw_snapshot, flightData, ofpTaxiKg);
+    const p = buildEnginePayload(flightData.ezfw_snapshot, flightData, ofpTaxiKg, ofpTripKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   }
 

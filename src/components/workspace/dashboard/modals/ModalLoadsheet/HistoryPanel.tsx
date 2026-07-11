@@ -13,10 +13,16 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
   const currentReg = flightData?.aircraft_reg || "B-HNQ";
   const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
 
-  // 🌟 核心定錨：獲取學員 Revised 的 Taxi Fuel (轉做 KG)
-  const revisedTaxiKg = calc?.currTaxi 
-    ? Math.round(calc.currTaxi * 1000) 
+  // 🌟 核心定錨：獲取學員 Revised 的 Taxi Fuel + Trip Fuel (轉做 KG)——trip fuel 修復：
+  // 以前 buildEnginePayload 內部恆定讀靜態 flightData.fuel_trip_ofp，同呢度 taxi fuel
+  // 一早已經用緊嘅 revised 數唔同步，令 FINAL/PRELIM 印出嚟嘅 Landing Weight/LAW margin
+  // 喺學員修訂咗 ZFW/alternate/manual fuel/Desired Fuel 之後仲係用緊舊數
+  const revisedTaxiKg = calc?.currTaxi
+    ? Math.round(calc.currTaxi * 1000)
     : (flightData?.fuel_taxi_ofp ? Math.round(flightData.fuel_taxi_ofp * 1000) : 200);
+  const revisedTripKg = calc?.currTrip
+    ? Math.round(calc.currTrip * 1000)
+    : (flightData?.fuel_trip_ofp ? Math.round(flightData.fuel_trip_ofp * 1000) : 18500);
 
   // Highlight Token 演算法 (保持原樣)
   const renderHighlightedFinal = (newText: string, oldText: string) => {
@@ -59,16 +65,14 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
           const isLatest = reverseIndex === 0;
           const isRejected = !isLatest || flightData?.final_ls_rejected;
           
-          // 🎯 傳入第 3 個參數：revisedTaxiKg
-          const payloadObj = buildEnginePayload(doc.snapshot, flightData, revisedTaxiKg);
+          const payloadObj = buildEnginePayload(doc.snapshot, flightData, revisedTaxiKg, revisedTripKg);
           const engine = new LoadsheetEngine(ahm, payloadObj!);
           const text = generateLSText("FINAL", doc.version, doc.snapshot, engine, payloadObj, flightData, calc, limits);
 
           const latestPrelim = flightData?.prelim_history?.[flightData.prelim_history.length - 1];
           let pText = "";
           if (latestPrelim && isLatest) {
-            // 🎯 傳入第 3 個參數：revisedTaxiKg
-            const pPayload = buildEnginePayload(latestPrelim.snapshot, flightData, revisedTaxiKg);
+            const pPayload = buildEnginePayload(latestPrelim.snapshot, flightData, revisedTaxiKg, revisedTripKg);
             const pEngine = new LoadsheetEngine(ahm, pPayload!);
             pText = generateLSText("PRELIM", latestPrelim.version, latestPrelim.snapshot, pEngine, pPayload, flightData, calc, limits);
           }
@@ -112,8 +116,7 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
           const isLatest = reverseIndex === 0;
           const isRejected = !isLatest || flightData?.prelim_ls_rejected;
           
-          // 🎯 傳入第 3 個參數：revisedTaxiKg
-          const payloadObj = buildEnginePayload(doc.snapshot, flightData, revisedTaxiKg);
+          const payloadObj = buildEnginePayload(doc.snapshot, flightData, revisedTaxiKg, revisedTripKg);
           const engine = new LoadsheetEngine(ahm, payloadObj!);
           const text = generateLSText("PRELIM", doc.version, doc.snapshot, engine, payloadObj, flightData, calc, limits);
 
