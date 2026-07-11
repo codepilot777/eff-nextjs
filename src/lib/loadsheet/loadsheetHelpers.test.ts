@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildEnginePayload, generateLSText } from './loadsheetHelpers';
+import { buildEnginePayload, generateLSText, getEffectiveWeightLimits } from './loadsheetHelpers';
 import { LoadsheetEngine } from './LoadsheetEngine';
 import { AIRCRAFT_REGISTRY } from './MockAHM';
 
@@ -32,6 +32,39 @@ describe('buildEnginePayload', () => {
   it('still computes takeoff fuel from the snapshot tanks minus the given taxi fuel', () => {
     const payload = buildEnginePayload(snapshot, flightData, 200, 25000);
     expect(payload!.fuel.takeoff).toBe(10000 + 0 + 10000 - 200);
+  });
+});
+
+describe('getEffectiveWeightLimits', () => {
+  const ahm = AIRCRAFT_REGISTRY['B-HNQ'];
+
+  it('returns the AHM system limits when is_custom_weight is off, even if custom_* fields are set', () => {
+    const limits = getEffectiveWeightLimits(ahm, {
+      is_custom_weight: false,
+      custom_mzfw: 150, custom_mtow: 180, custom_mlaw: 160,
+    });
+    expect(limits.isCustomWt).toBe(false);
+    expect(limits.MZFW).toBe(ahm.limits.MZFW);
+    expect(limits.MTOW).toBe(ahm.limits.MTOW);
+    expect(limits.MLAW).toBe(ahm.limits.MLAW);
+  });
+
+  it('returns the custom limits (in KG) when is_custom_weight is on', () => {
+    const limits = getEffectiveWeightLimits(ahm, {
+      is_custom_weight: true,
+      custom_mzfw: 150, custom_mtow: 180, custom_mlaw: 160, custom_mlaw_margin: 5,
+    });
+    expect(limits.isCustomWt).toBe(true);
+    expect(limits.MZFW).toBe(150000);
+    expect(limits.MTOW).toBe(180000);
+    expect(limits.MLAW).toBe((160 - 5) * 1000); // margin subtracted, same as ModalLoadsheet's effectiveMlaw
+  });
+
+  it('falls back to the system limit for any custom_* field left unset while custom mode is on', () => {
+    const limits = getEffectiveWeightLimits(ahm, { is_custom_weight: true });
+    expect(limits.MZFW).toBe(ahm.limits.MZFW);
+    expect(limits.MTOW).toBe(ahm.limits.MTOW);
+    expect(limits.MLAW).toBe(ahm.limits.MLAW);
   });
 });
 

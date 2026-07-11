@@ -157,12 +157,18 @@ export class LoadsheetEngine {
     return ((cgArm - this.ahm.macConstants.lemac) / this.ahm.macConstants.macLength) * 100;
   }
 
-  public checkLimits() {
+  // 🌟 overrideLimits 係可選——冇傳就用返 AHM 原廠上限（同以前行為一致）；教官/trainee
+  // 喺 ModalLoadsheet CUST 開關度設定咗自訂上限嘅話，呼叫方應該傳返 getEffectiveWeightLimits()
+  // 出嚟嘅 KG 數，等呢個 check 反映緊真正生效嘅限制，而唔係恆定睇死機嘅原廠上限
+  public checkLimits(overrideLimits?: { MZFW?: number; MTOW?: number; MLAW?: number }) {
     const weights = this.calculateWeights();
     const cg = this.calculateCG();
-    const isZFWExceeded = weights.ZFW > this.ahm.limits.MZFW;
-    const isTOWExceeded = weights.TOW > this.ahm.limits.MTOW;
-    const isLAWExceeded = weights.LAW > this.ahm.limits.MLAW;
+    const mzfw = overrideLimits?.MZFW ?? this.ahm.limits.MZFW;
+    const mtow = overrideLimits?.MTOW ?? this.ahm.limits.MTOW;
+    const mlaw = overrideLimits?.MLAW ?? this.ahm.limits.MLAW;
+    const isZFWExceeded = weights.ZFW > mzfw;
+    const isTOWExceeded = weights.TOW > mtow;
+    const isLAWExceeded = weights.LAW > mlaw;
     const isCgOutOfTrim = cg.MACTOW < 14.1 || cg.MACTOW > 38.6;
     return {
       isValid: !isZFWExceeded && !isTOWExceeded && !isLAWExceeded && !isCgOutOfTrim,
