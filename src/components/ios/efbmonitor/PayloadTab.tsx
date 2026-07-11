@@ -4,6 +4,7 @@ import { useFlightData } from "@/hooks/useFlightData";
 import { DEFAULT_OFP_FUEL_T, getStandbyFuelT } from "@/lib/fuelCalculator";
 import { LoadsheetEngine, AutoLoader, PAX_CLASS_WEIGHTS, CREW_PANTRY_REGISTRY, getWaterWeight, getMainTankCapacity } from "@/lib/loadsheet/LoadsheetEngine";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
+import { getEffectiveWeightLimits } from "@/lib/loadsheet/loadsheetHelpers";
 // 🌟 引入我們先前編寫好的跨界適配器大腦
 import { adaptEfbPayloadToPmdg, buildEfbLoadingPayload } from "@/services/payloadAdapter";
 import { buildPayloadAndFuelSyncMacro } from "@/services/dynamicMacroBuilder";
@@ -213,9 +214,13 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
   };
 
   const engine = new LoadsheetEngine(ahm, enginePayload as any);
-  const weights = engine.calculateWeights(); 
-  const cg = engine.calculateCG(); 
-  const limits = engine.checkLimits();
+  const weights = engine.calculateWeights();
+  const cg = engine.calculateCG();
+  // 🌟 修復：以前呢度用 engine.checkLimits() 冇傳參數，恆定同 AHM 原廠上限比較，完全睇唔到
+  // trainee 喺 ModalLoadsheet CUST 開關度設定嘅 custom_mzfw/mtow/mlaw——令教官自己嘅 Payload
+  // Tab（Act ZFW 紅色警示）同 trainee 睇緊嘅 loadsheet 文本得出兩個唔同嘅「過唔過 limit」結論
+  const effectiveLimits = getEffectiveWeightLimits(ahm, flightData);
+  const limits = engine.checkLimits(effectiveLimits);
   
   const safeZFW = weights?.ZFW ? (weights.ZFW / 1000).toFixed(1) : "0.0";
   const safeLIZFW = cg?.LIZFW ? cg.LIZFW.toFixed(0) : "0"; 

@@ -13,6 +13,30 @@ export const getDynamicAhm = (flightData: any) => {
   return AIRCRAFT_REGISTRY[reg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
 };
 
+// 🌟 單一嘅「有效重量限制」計法，畀 ModalLoadsheet（trainee 可以喺度撳 CUST 設定
+// custom_mzfw/custom_mtow/custom_mlaw/custom_mlaw_margin）同 PayloadTab（教官自己
+// 嗰邊嘅 Act ZFW 過limit 紅色警示）共用。修復：以前 PayloadTab.tsx 嘅
+// engine.checkLimits() 恆定用 ahm.limits 嘅系統原廠上限，完全睇唔到 trainee 喺
+// loadsheet 度設定咗嘅 custom 限制——同一班機兩邊見到唔同嘅「過唔過 limit」結論。
+export const getEffectiveWeightLimits = (ahm: AircraftAHM560, flightData: Record<string, unknown>) => {
+  const isCustomWt = Boolean(flightData?.is_custom_weight);
+  const sysMzfw = ahm.limits.MZFW / 1000;
+  const sysMtow = ahm.limits.MTOW / 1000;
+  const sysMlaw = ahm.limits.MLAW / 1000;
+
+  const dispMzfw = isCustomWt ? (Number(flightData?.custom_mzfw) || sysMzfw) : sysMzfw;
+  const dispMtow = isCustomWt ? (Number(flightData?.custom_mtow) || sysMtow) : sysMtow;
+  const dispMlaw = isCustomWt ? (Number(flightData?.custom_mlaw) || sysMlaw) : sysMlaw;
+  const dispMlawMargin = isCustomWt ? (Number(flightData?.custom_mlaw_margin) || 0.0) : 0.0;
+  const effectiveMlaw = dispMlaw - dispMlawMargin;
+
+  return {
+    isCustomWt, dispMzfw, dispMtow, dispMlaw, dispMlawMargin, effectiveMlaw,
+    // 🌟 KG 版本，方便直接同 LoadsheetEngine.calculateWeights() 嘅 KG 輸出比較
+    MZFW: dispMzfw * 1000, MTOW: dispMtow * 1000, MLAW: effectiveMlaw * 1000,
+  };
+};
+
 // 🔍 動態版本：唔再靠 hardcode 嘅 {J,W,Y} literal，改為由 ahm.config 實際出現嘅
 // class letter 做種，再逐個 zone 累加。日後加多個 class 都唔使再喺呢度改 code。
 export const buildClassCounts = (ahm: AircraftAHM560, pax: Record<string, unknown> | undefined): Record<string, number> => {
