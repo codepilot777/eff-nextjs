@@ -171,6 +171,33 @@ describe('simbriefBodySchema', () => {
     expect(simbriefBodySchema.safeParse({ username: 'a b' }).success).toBe(false);
     expect(simbriefBodySchema.safeParse({ username: '' }).success).toBe(false);
   });
+
+  it('accepts the create-flight form fields (created_by/is_published/commander_override/zfw_override) instead of silently stripping them', () => {
+    const result = simbriefBodySchema.safeParse({
+      username: 'EFFSIM',
+      flightNo: 'CPA 564',
+      created_by: 'Capt. Chan',
+      is_published: true,
+      commander_override: 'CAPT. YEUNG',
+      zfw_override: 210.5,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.created_by).toBe('Capt. Chan');
+      expect(result.data.is_published).toBe(true);
+      expect(result.data.commander_override).toBe('CAPT. YEUNG');
+      expect(result.data.zfw_override).toBe(210.5);
+    }
+  });
+
+  it('still works without any of the optional create-flight fields', () => {
+    expect(simbriefBodySchema.safeParse({ username: 'EFFSIM' }).success).toBe(true);
+  });
+
+  it('rejects a non-positive zfw_override', () => {
+    expect(simbriefBodySchema.safeParse({ username: 'EFFSIM', zfw_override: 0 }).success).toBe(false);
+    expect(simbriefBodySchema.safeParse({ username: 'EFFSIM', zfw_override: -5 }).success).toBe(false);
+  });
 });
 
 describe('loginBodySchema', () => {

@@ -5,7 +5,7 @@ import { DEFAULT_OFP_FUEL_T, getStandbyFuelT } from "@/lib/fuelCalculator";
 import { LoadsheetEngine, AutoLoader, PAX_CLASS_WEIGHTS, CREW_PANTRY_REGISTRY, getWaterWeight, getMainTankCapacity } from "@/lib/loadsheet/LoadsheetEngine";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 // 🌟 引入我們先前編寫好的跨界適配器大腦
-import { adaptEfbPayloadToPmdg } from "@/services/payloadAdapter";
+import { adaptEfbPayloadToPmdg, buildEfbLoadingPayload } from "@/services/payloadAdapter";
 import { buildPayloadAndFuelSyncMacro } from "@/services/dynamicMacroBuilder";
 import { fireCDUMacro } from "@/services/pmdgService";
 
@@ -68,22 +68,8 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
     setIsSimSyncing(true);
 
     try {
-      // 📦 1. 抽離並組裝客艙總重量生肉
-      const calculatedPaxWeights: Record<string, number> = {};
-      Object.entries(payload.pax).forEach(([zoneKey, count]) => {
-        // 🌟 動態讀取 AHM 定義的 primaryClass 嚟決定重量，用返單一嘅 PAX_CLASS_WEIGHTS 表
-        const zoneClass = ((ahm.stations.pax as any)[zoneKey]?.primaryClass || "Y") as "J" | "W" | "Y";
-        const standardWeight = PAX_CLASS_WEIGHTS[zoneClass] ?? PAX_CLASS_WEIGHTS.Y;
-        calculatedPaxWeights[zoneKey] = count * standardWeight;
-      });
-
-      const efbLoadingPayload = {
-        paxWeights: calculatedPaxWeights,
-        cargoWeights: {
-          hold1: payload.cargo.h1, hold2: payload.cargo.h2, hold3: payload.cargo.h3, hold4: payload.cargo.h4, bulk: payload.cargo.bulk
-        }
-      };
-
+      // 📦 1. 抽離並組裝客艙總重量生肉（同 InitModal.tsx 共用同一個 helper）
+      const efbLoadingPayload = buildEfbLoadingPayload(ahm, { pax: payload.pax, cargo: payload.cargo });
       const pmdgPayloadOutput = adaptEfbPayloadToPmdg(efbLoadingPayload, currentReg);
       const targetTotalFuelKg = payload.fuel.left + payload.fuel.center + payload.fuel.right;
 

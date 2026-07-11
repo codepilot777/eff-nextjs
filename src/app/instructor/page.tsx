@@ -129,7 +129,9 @@ export default function InstructorHub() {
     
     setIsFetchingPreview(true);
     try {
-      const res = await fetch(`https://www.simbrief.com/api/xml.fetcher.php?username=${sbUser}&json=1`);
+      // 🌟 修正：同 /api/simbrief/route.ts 一樣嘅 bug——冇 encode username 就直接砌入
+      // URL，特殊字符（例如 &）會篡改成個 query string
+      const res = await fetch(`https://www.simbrief.com/api/xml.fetcher.php?username=${encodeURIComponent(sbUser)}&json=1`);
       const data = await res.json();
       
       if (data?.fetch?.status !== 'Success') {
