@@ -13,9 +13,13 @@ export const aircraftRegSchema = nonEmptyString('aircraft reg').max(20);
 // 🌟 pdc_requests/atis_requests/acars_messages 一定要行 directive 路徑，唔可以再喺
 // `data` 度直接塞成個 array 落嚟覆寫——否則任何人都可以送一個「status: APPROVED」
 // 嘅 pdc_requests patch，自己扮教官批准自己嘅 ATC clearance
+// 🌟 ofp_history/activated_version 同一道理：activated_version 一定要行
+// ofpActivate directive（server 會核實個 version 真係存在喺 ofp_history 先接受），
+// 唔可以再直接喺 data 度寫個任意數字落去扮咗已經 activate 咗一個根本冇 dispatch 過嘅版本
 const flightDataSchema = patchObjectSchema.refine(
-  (d) => !('pdc_requests' in d) && !('atis_requests' in d) && !('acars_messages' in d),
-  { message: 'pdc_requests/atis_requests/acars_messages must go through the directive fields, not data' }
+  (d) => !('pdc_requests' in d) && !('atis_requests' in d) && !('acars_messages' in d)
+    && !('ofp_history' in d) && !('activated_version' in d),
+  { message: 'pdc_requests/atis_requests/acars_messages/ofp_history/activated_version must go through the directive fields, not data' }
 );
 
 export const pdcRequestAppendSchema = z.object({
@@ -50,6 +54,20 @@ export const acarsDispatchAppendSchema = z.object({
   content: nonEmptyString('acarsDispatchAppend.content').max(500),
 });
 
+// 🌟 教官專屬：dispatch 一個新嘅 OFP 版本落 ofp_history，睇 requiresInstructorAuthForFlight。
+// 淨係 append 落歷史入面，唔會即刻覆寫 trainee 眼前嘅 live 欄位——trainee 要自己
+// 送 ofpActivate 先至真正切換去嗰個版本（真.commander accept 新 flight plan）
+export const ofpDispatchAppendSchema = z.object({
+  snapshot: z.record(z.string(), z.unknown()),
+});
+
+// 🌟 Trainee 專屬（唔使教官登入）：commander 接受一個已經 dispatch 咗嘅版本，
+// server 會核實呢個 version 真係存在喺 ofp_history 先至接受，唔可以話 activate
+// 一個從未 dispatch 過嘅版本
+export const ofpActivateSchema = z.object({
+  version: z.number().int().positive(),
+});
+
 export const flightUpdateBodySchema = z.object({
   id: flightIdSchema,
   data: flightDataSchema.optional().default({}),
@@ -59,6 +77,8 @@ export const flightUpdateBodySchema = z.object({
   atisDeliver: atisDeliverSchema.optional(),
   acarsCockpitAppend: acarsCockpitAppendSchema.optional(),
   acarsDispatchAppend: acarsDispatchAppendSchema.optional(),
+  ofpDispatchAppend: ofpDispatchAppendSchema.optional(),
+  ofpActivate: ofpActivateSchema.optional(),
 });
 
 export const flightDeleteBodySchema = z.object({
@@ -131,9 +151,10 @@ export const loginBodySchema = z.object({
 // 會寫，但 /api/flight/update 以前對呢啲欄位完全冇 auth check——任何人都可以直接
 // POST 偽造天氣/NOTAM，同之前修好嘅 pdcApprove/atisDeliver/acarsDispatchAppend
 // 係同一類「扮教官」漏洞，呢次補返
+// 🌟 activated_version 冇再喺呢個 list——佢而家連喺 data 度出現都會俾 zod 擋
+// 晒（睇 flightDataSchema 個 refine），一定要行已核實嘅 ofpActivate directive
 export const PROTECTED_FLIGHT_PATCH_FIELDS = [
   'is_published',
-  'activated_version',
   'metar_dep',
   'taf_dep',
   'metar_arr',
@@ -155,8 +176,12 @@ export function requiresInstructorAuthForFlight(patch: {
   pdcApprove?: unknown;
   atisDeliver?: unknown;
   acarsDispatchAppend?: unknown;
+  ofpDispatchAppend?: unknown;
 } & Record<string, unknown>): boolean {
   if (hasProtectedFlightFields(patch.data || {})) return true;
-  if (patch.pdcApprove || patch.atisDeliver || patch.acarsDispatchAppend) return true;
+  // 🌟 ofpActivate 特登唔喺呢度——嗰個係 trainee/commander 自己接受新 flight plan
+  // 嘅動作，唔應該要教官登入（同 pdcRequestAppend/atisRequestAppend 呢啲 trainee
+  // 動作一樣，靠 server 驗證 version 存唔存在嚟防偽造，唔靠登入）
+  if (patch.pdcApprove || patch.atisDeliver || patch.acarsDispatchAppend || patch.ofpDispatchAppend) return true;
   return false;
 }
