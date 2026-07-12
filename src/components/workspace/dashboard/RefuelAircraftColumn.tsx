@@ -1,27 +1,17 @@
 "use client";
 import React from "react";
-import { useQuery } from "@tanstack/react-query"; // 🌟 引入 React Query
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
+import { useTechlogData } from "@/hooks/useTechlogData";
 import { getStandbyFuelT } from "@/lib/fuelCalculator";
 
 // 🌟 Props 大清洗：只保留 setActiveModal 同 setCurrentTab
 export default function RefuelAircraftColumn({ setActiveModal, setCurrentTab }: { setActiveModal: any, setCurrentTab: any }) {
-  
+
   // 🌟 1. 從天上直接抽取 Flight 數據
   const { flightData, calc, updateFlightData } = useFlightData();
 
   // 🌟 2. 獨立自主！自己喺度 Fetch Techlog 數據 (完美封裝)
-  const reg = flightData?.aircraft_reg || flightData?.raw_simbrief?.general?.aircraft_reg || 'B-HNQ';
-  const { data: techlogData } = useQuery({
-    queryKey: ["techlog", reg],
-    queryFn: async () => {
-      const res = await fetch(`/api/techlog?reg=${reg}`);
-      if (!res.ok) throw new Error("Network error");
-      return res.json();
-    },
-    refetchInterval: 3000,
-    enabled: !!reg && !!flightData,
-  });
+  const { data: techlogData } = useTechlogData(flightData);
 
   // 防呆保護
   if (!flightData || !calc) return null;
