@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
+import { useTechlogData } from "@/hooks/useTechlogData";
 
 // 🌟 Props 大清洗：剷走晒 flightData 同 updateFlightData
 export default function InboxPanel() {
@@ -14,17 +14,7 @@ export default function InboxPanel() {
   // 唔喺 flights 表嘅 flightData 度——之前直接讀 flightData.tl_accept 永遠
   // undefined，令 Aircraft Accepted 狀態卡死喺 PENDING。跟返 RefuelAircraftColumn.tsx
   // 個做法，獨立自主 fetch 返 techlog data
-  const reg = flightData?.aircraft_reg || flightData?.raw_simbrief?.general?.aircraft_reg || 'B-HNQ';
-  const { data: techlogData } = useQuery({
-    queryKey: ["techlog", reg],
-    queryFn: async () => {
-      const res = await fetch(`/api/techlog?reg=${reg}`);
-      if (!res.ok) throw new Error("Network error");
-      return res.json();
-    },
-    refetchInterval: 3000,
-    enabled: !!reg && !!flightData,
-  });
+  const { data: techlogData } = useTechlogData(flightData);
 
   // 🌟 防呆保護：如果未 Load 到 Data，就唔好 Render
   if (!flightData) return null;
