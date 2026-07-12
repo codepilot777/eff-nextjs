@@ -5,7 +5,9 @@ export default function PaxCargoEditor({ ahm, payload, setPayload, targetZFW, ge
         <h4 className="text-white font-black uppercase tracking-widest text-lg flex items-center gap-2"><span className="text-[#00E676]">1.</span> Payload & ZFW</h4>
         <button onClick={() => {const g = generateExactPayload(targetZFW); setPayload({...payload, pax: g.pax, cargo: g.cargo});}} className="bg-[#00E676]/20 border border-[#00E676] text-[#00E676] px-4 py-1.5 rounded font-bold text-xs tracking-widest hover:bg-[#00E676] hover:text-black transition-colors">🔄 RE-LOAD</button>
       </div>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-4 mb-6">
+      {/* 🌟 修復：以前恆定 2 欄，冇任何 responsive fallback，喺 iPad 分到嘅窄
+          欄位入面會逼到好緊。而家窄過 sm:（640px）就 stack 做 1 欄 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 mb-6">
         <div className="col-span-2 text-[#00E676] text-xs font-black tracking-widest uppercase">Passengers</div>
         {Object.keys(ahm.stations.pax).map((zoneKey) => {
           const zoneInfo = ahm.stations.pax[zoneKey]; const currentCount = payload.pax[zoneKey] || 0;
@@ -47,7 +49,7 @@ export default function PaxCargoEditor({ ahm, payload, setPayload, targetZFW, ge
           );
         })}
       </div>
-      <div className="grid grid-cols-2 gap-4 border-t border-[#333333] pt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[#333333] pt-4">
         <button onClick={() => handleTransmit("EZFW")} disabled={isUpdating} className="bg-[#404040] text-white py-3 rounded-lg font-black tracking-widest text-xs hover:bg-[#555] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#404040]">TRANSMIT EZFW</button>
         <button onClick={() => handleTransmit("AZF")} disabled={isUpdating} className="bg-[#404040] text-white py-3 rounded-lg font-black tracking-widest text-xs hover:bg-[#555] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#404040]">TRANSMIT AZF</button>
       </div>

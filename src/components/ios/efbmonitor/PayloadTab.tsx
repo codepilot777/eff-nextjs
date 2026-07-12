@@ -325,12 +325,17 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
 
   return (
     <div className="animate-fade-in flex flex-col gap-6 font-sans text-white">
-      {/* 🌟 升級 1：加入 lg:grid-cols-[1fr_1.2fr]，完美迎合 iPad 橫排尺寸 */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] xl:grid-cols-[1fr_1.4fr] gap-6 items-start relative">
-        
+      {/* 🌟 修復：以前 lg:（1024px）就切 2 欄，但 iPad 橫向嘅實際可用 viewport
+          （扣走 Safari 嘅 chrome 之後）通常啱啱好落喺 1024px 上下——加上呢個 tab
+          仲要同隔籬嘅 InboxPanel 分緊寬度，實際分到嘅欄位遠比 1024px 窄。太早
+          切 2 欄會將 AircraftVisualizer + 成疊 PaxCargoEditor/FuelManager 逼晒
+          入窄欄，先至有「太多 info 逼埋一齊」嘅問題。而家淨係喺真正夠闊嘅
+          xl:（1280px，desktop / 大 iPad Pro 橫向）先切 2 欄，iPad portrait 同
+          大部分 iPad landscape 都保持成欄 stack，每個 card 攞晒成行寬度 */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1.3fr] gap-6 items-start relative">
+
         {/* 左側：飛機視圖 */}
-        {/* 🌟 升級 2：加入 sticky top-6，右邊碌嗰陣，架飛機定格不走！ */}
-        <div className="lg:sticky lg:top-6 z-10">
+        <div className="xl:sticky xl:top-6 z-10">
           <AircraftVisualizer 
             ahm={ahm} 
             payload={payload} 
