@@ -1,13 +1,30 @@
 "use client";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 
 // 🌟 Props 大清洗：剷走晒 flightData 同 updateFlightData
 export default function InboxPanel() {
   const [isGeneratingAtis, setIsGeneratingAtis] = useState<number | null>(null);
-  
+
   // 🌟 從天上直接抽取 Data 同 Update Function (全域共用，自帶樂觀更新！)
   const { flightData, sendFlightDirective } = useFlightData();
+
+  // 🌟 修復：tl_accept 淨係存喺獨立嘅 techlogs 表（keyed by aircraft reg），
+  // 唔喺 flights 表嘅 flightData 度——之前直接讀 flightData.tl_accept 永遠
+  // undefined，令 Aircraft Accepted 狀態卡死喺 PENDING。跟返 RefuelAircraftColumn.tsx
+  // 個做法，獨立自主 fetch 返 techlog data
+  const reg = flightData?.aircraft_reg || flightData?.raw_simbrief?.general?.aircraft_reg || 'B-HNQ';
+  const { data: techlogData } = useQuery({
+    queryKey: ["techlog", reg],
+    queryFn: async () => {
+      const res = await fetch(`/api/techlog?reg=${reg}`);
+      if (!res.ok) throw new Error("Network error");
+      return res.json();
+    },
+    refetchInterval: 3000,
+    enabled: !!reg && !!flightData,
+  });
 
   // 🌟 防呆保護：如果未 Load 到 Data，就唔好 Render
   if (!flightData) return null;
@@ -50,7 +67,7 @@ export default function InboxPanel() {
         </div>
         <div className="flex justify-between border-b border-dashed border-[#333333] py-2 text-sm">
           <span>Aircraft Accepted:</span>
-          {flightData.tl_accept ? <span className="text-[#00E676] font-bold">YES</span> : <span className="text-[#FF9100] font-bold">PENDING</span>}
+          {techlogData?.tl_accept ? <span className="text-[#00E676] font-bold">YES</span> : <span className="text-[#FF9100] font-bold">PENDING</span>}
         </div>
         <div className="flex justify-between border-b border-dashed border-[#333333] py-2 text-sm">
           <span>Final Fuel:</span>
