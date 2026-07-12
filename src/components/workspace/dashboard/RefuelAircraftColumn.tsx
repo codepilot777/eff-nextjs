@@ -47,9 +47,10 @@ export default function RefuelAircraftColumn({ setActiveModal, setCurrentTab }: 
     );
   } else if (tlReleased) {
     aircraftStatusBanner = (
-      <div className="bg-[#FF9100] text-black font-bold px-2.5 py-1.5 rounded-lg flex justify-between items-center shadow-sm leading-none cursor-pointer hover:bg-[#e68a00] transition-colors" 
-        onClick={() => {
-          if (setCurrentTab) setCurrentTab("TECHLOG"); 
+      <div className="bg-[#FF9100] text-black font-bold px-2.5 py-1.5 rounded-lg flex justify-between items-center shadow-sm leading-none cursor-pointer hover:bg-[#e68a00] transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (setCurrentTab) setCurrentTab("TECHLOG");
         }}
       >
         <span className="text-[0.75rem] uppercase tracking-widest flex items-center gap-1.5">
@@ -170,7 +171,10 @@ export default function RefuelAircraftColumn({ setActiveModal, setCurrentTab }: 
       </div>
       
       {/* 🌟 2. Aircraft 區塊 */}
-      <div className="bg-[#1E1E1E] rounded-xl p-3 flex-[1.4] flex flex-col min-h-0">
+      <div
+        onClick={() => setActiveModal('Defects')}
+        className="bg-[#1E1E1E] rounded-xl p-3 flex-[1.4] flex flex-col min-h-0 cursor-pointer hover:bg-[#252525] transition-colors"
+      >
         <div className="flex justify-between items-center shrink-0 mb-2">
           <h2 className="text-[1.05rem] font-bold text-white leading-none">Aircraft</h2>
           <span className="text-[#8fa0a6] text-lg font-light leading-none">›</span>
@@ -185,7 +189,7 @@ export default function RefuelAircraftColumn({ setActiveModal, setCurrentTab }: 
             <div className="text-right leading-tight">Bay<br/><span className="text-white font-bold text-[0.8rem] leading-none">{flightData?.bay_no || '--'}</span></div>
           </div>
           
-          <div className="bg-[#2A2A2A] rounded-lg px-2.5 py-1.5 flex justify-between items-center border border-[#333]">
+          <div className="bg-[#2A2A2A] rounded-lg px-2.5 py-1.5 flex justify-between items-center border border-[#333]" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col">
               <span className="text-[#00E676] text-[0.55rem] font-bold leading-none mb-0.5">Log Fuel</span>
               <div className="flex items-baseline leading-none">

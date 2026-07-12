@@ -1,16 +1,18 @@
 "use client";
 
 // 從 index.ts 一次過引入所有模組
-import { ModalReject, ModalFMS, ModalDOCS, ModalRefuelling, ModalSNN, ModalAcceptFuel } from "./modals"; 
+import { ModalReject, ModalFMS, ModalDOCS, ModalRefuelling, ModalSNN, ModalAcceptFuel, ModalDefects } from "./modals";
 import { ModalLoadsheet } from './modals/ModalLoadsheet/index'
 import { ModalAirports } from "./modals/ModalAirports/index";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
+import { useTechlogData } from "@/hooks/useTechlogData";
 
 // 🌟 Props 大清洗：只保留 activeModal 同 setActiveModal
 export default function DashboardModals({ activeModal, setActiveModal }: { activeModal: string | null, setActiveModal: any }) {
-  
+
   // 🌟 從 React Query 抽取資料
   const { flightData, calc: fuelCalc, handlers, updateFlightData } = useFlightData();
+  const { data: techlogData } = useTechlogData(flightData);
 
   if (!activeModal || !flightData || !fuelCalc) return null;
 
@@ -81,6 +83,7 @@ export default function DashboardModals({ activeModal, setActiveModal }: { activ
     case 'SNN': modalTitle = 'Special Navigation Note'; break;
     case 'DOCS': modalTitle = 'Operational Flight Plan'; break;
     case 'AcceptFuel': modalTitle = 'Accept Final Fuel Figures'; break;
+    case 'Defects': modalTitle = 'Aircraft Defects (PADD / SADD / ADD)'; break;
   }
 
   return (
@@ -107,6 +110,7 @@ export default function DashboardModals({ activeModal, setActiveModal }: { activ
               `if (updateFlightData)` 個 guard 恆定 false，Log Fuel/estimated_uplift
               寫入靜靜雞冇咗，淨係 handlers.handleAcceptFuel() 真正生效 */}
           {activeModal === 'AcceptFuel' && <ModalAcceptFuel flightData={flightData} updateFlightData={updateFlightData} calc={fullCalc} handlers={handlers} setActiveModal={setActiveModal} />}
+          {activeModal === 'Defects' && <ModalDefects techlogData={techlogData} />}
         </div>
       </div>
     </div>
