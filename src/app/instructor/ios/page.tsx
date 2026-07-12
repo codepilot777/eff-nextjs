@@ -121,7 +121,11 @@ function IOSPanelContent() {
         {activeModule === "EFB" && (
           <div className="flex gap-6 h-full">
             <InboxPanel />
-            <div className="flex-[2.6] bg-[#2a2a2a] border border-[#333333] rounded-xl p-6 flex flex-col h-full overflow-hidden">
+            {/* 🌟 修復：呢個 flex row 冇任何一邊有 min-w-0，flex child 預設
+                min-width:auto，唔會縮得過自己內容嘅 intrinsic 寬度，令成行喺
+                iPad 寬度爆晒出嚟（因為兩邊都畀 overflow-hidden 包住，冇 scrollbar
+                補鑊，直接靜靜雞裁走）。加返 min-w-0 先真正容許縮到啱 available 空間 */}
+            <div className="flex-[2.6] min-w-0 bg-[#2a2a2a] border border-[#333333] rounded-xl p-6 flex flex-col h-full overflow-hidden">
               <h4 className="text-[#00bfa5] font-bold text-lg mb-6">⏱️ WORKFLOW TIMELINE</h4>
               <div className="flex border-b border-[#333333] mb-6 overflow-x-auto shrink-0">
                 {efbWorkflowTabs.map(t => (

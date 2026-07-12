@@ -36,7 +36,10 @@ export default function InboxPanel() {
   };
 
   return (
-    <div className="flex-[1.4] flex flex-col gap-4 overflow-y-auto pr-2 pb-10">
+    // 🌟 min-w-0：同 instructor/ios/page.tsx 嗰邊嘅 flex-[2.6] 兄弟 div 一齊修復——
+    // 冇 min-w-0 呢個 flex child 唔會縮得過自己內容嘅 intrinsic 寬度，令成行喺 iPad
+    // 寬度爆出嚟俾 overflow-hidden 靜靜雞裁走
+    <div className="flex-[1.4] min-w-0 flex flex-col gap-4 overflow-y-auto pr-2 pb-10">
       <h4 className="text-status-teal font-bold text-lg mb-2">📥 INBOX & TELEMETRY</h4>
       
       <div className="bg-lido-800 border border-[#333333] rounded-xl p-4 shadow-sm">
@@ -138,9 +141,12 @@ export default function InboxPanel() {
           )}
         </div>
         <div className="flex gap-2">
-          <input 
-            type="text" id="acars_input" placeholder="Send Free Text..." 
-            className="flex-1 bg-lido-950 border border-[#404040] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#00bfa5] text-white" 
+          {/* 🌟 min-w-0：text input 預設 UA 樣式有個唔細嘅 intrinsic min-width，
+              flex-1 都唔會自動縮過佢，令 InboxPanel 喺 iPad portrait 分到嘅窄
+              欄位入面，呢一行連同 SEND 掣一齊靜靜雞內部 overflow */}
+          <input
+            type="text" id="acars_input" placeholder="Send Free Text..."
+            className="flex-1 min-w-0 bg-lido-950 border border-[#404040] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#00bfa5] text-white"
           />
           <button
             onClick={async () => {

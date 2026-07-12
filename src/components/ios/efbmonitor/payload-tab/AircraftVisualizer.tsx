@@ -1,8 +1,12 @@
 import { PayloadState } from "./types";
 
+// 🌟 修復：以前呢度 sticky top-6 冇任何 breakpoint 限制，同 PayloadTab.tsx 個
+// 父層 `xl:sticky xl:top-6` 撞埋一齊——喺 grid 仲係 stack 緊一欄嘅寬度（iPad
+// portrait/landscape）之下都會 sticky，同下面成疊 card 打斜疊埋一齊。而家淨係
+// 交返俾父層決定幾時先 sticky
 export default function AircraftVisualizer({ ahm, payload, targetZFW, limits, safeZFW, safeLIZFW, safeMACZFW, safeMACTOW }: any) {
   return (
-    <div className="sticky top-6 flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="bg-[#0a0a0a] border border-[#333333] rounded-xl p-6 flex flex-col items-center shadow-inner relative">
         <h4 className="text-[#00bfa5] font-black tracking-widest uppercase w-full text-center border-b border-[#333333] pb-3 mb-6">Aircraft Global State ({ahm.acType} - {ahm.reg})</h4>
         <div className="absolute top-4 left-4 text-[0.65rem] font-bold text-[#8fa0a6]">OFP TARGET ZFW<br/><span className="text-white text-lg">{(targetZFW / 1000).toFixed(1)} T</span></div>
@@ -22,10 +26,15 @@ export default function AircraftVisualizer({ ahm, payload, targetZFW, limits, sa
             })}
           </div>
 
-          <div className="relative w-full my-4 flex justify-center items-center z-10">
-            <div className="absolute right-[100%] w-24 h-12 bg-[#2979FF]/20 border-y-2 border-l-2 border-[#2979FF] rounded-l-full flex flex-col justify-center items-center"><span className="text-[0.6rem] text-[#2979FF] font-black tracking-widest">L MAIN</span><span className="text-white font-mono text-xs">{(payload.fuel.left/1000).toFixed(1)}T</span></div>
-            <div className="w-[90%] bg-[#2979FF]/30 border-2 border-[#2979FF] rounded p-2 text-center shadow-[0_0_15px_rgba(41,121,255,0.3)]"><div className="text-[0.6rem] text-[#2979FF] font-black tracking-widest">CTR TANK</div><div className="text-white font-mono text-sm">{(payload.fuel.center/1000).toFixed(1)}T</div></div>
-            <div className="absolute left-[100%] w-24 h-12 bg-[#2979FF]/20 border-y-2 border-r-2 border-[#2979FF] rounded-r-full flex flex-col justify-center items-center"><span className="text-[0.6rem] text-[#2979FF] font-black tracking-widest">R MAIN</span><span className="text-white font-mono text-xs">{(payload.fuel.right/1000).toFixed(1)}T</span></div>
+          {/* 🌟 修復：以前 L MAIN/R MAIN 用 absolute right-[100%]/left-[100%] 定位，
+              visually 伸出成個 w-48 機身盒之外（各 96px），但 position:absolute 元素
+              對 flex/grid 嘅寬度計算完全隱形——冇任何祖先 container 會為佢哋留位，
+              窄嘅 grid column（iPad）就會令呢兩舊嘢視覺上溢出，同右邊嘅 panel 疊埋。
+              而家改做正常嘅 3 等份 flex row，永遠留喺機身盒本身嘅寬度之內 */}
+          <div className="w-full px-4 flex gap-1.5 my-4">
+            <div className="flex-1 min-w-0 bg-[#2979FF]/20 border-2 border-[#2979FF] rounded-l-lg flex flex-col justify-center items-center py-1.5"><span className="text-[0.55rem] text-[#2979FF] font-black tracking-widest">L</span><span className="text-white font-mono text-[0.65rem]">{(payload.fuel.left/1000).toFixed(1)}T</span></div>
+            <div className="flex-1 min-w-0 bg-[#2979FF]/30 border-2 border-[#2979FF] rounded flex flex-col justify-center items-center py-1.5"><span className="text-[0.55rem] text-[#2979FF] font-black tracking-widest">CTR</span><span className="text-white font-mono text-[0.65rem]">{(payload.fuel.center/1000).toFixed(1)}T</span></div>
+            <div className="flex-1 min-w-0 bg-[#2979FF]/20 border-2 border-[#2979FF] rounded-r-lg flex flex-col justify-center items-center py-1.5"><span className="text-[0.55rem] text-[#2979FF] font-black tracking-widest">R</span><span className="text-white font-mono text-[0.65rem]">{(payload.fuel.right/1000).toFixed(1)}T</span></div>
           </div>
 
           <div className="w-full px-4 flex flex-col gap-2 mt-4">
