@@ -24,6 +24,19 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
     ? Math.round(calc.currTrip * 1000)
     : (flightData?.fuel_trip_ofp ? Math.round(flightData.fuel_trip_ofp * 1000) : 18500);
 
+  // 🌟 修復：以前呢個 revised fuel 一律套用晒所有歷史卡（連已經被取代嘅舊 version 都係），
+  // 令一份早已 superseded 嘅文件嘅 TOW/Landing Weight 跟住教官之後仲喺度改嘅 live fuel
+  // 「事後改變」。而家淨係最新一份先用 live 數，舊 version 用返 dispatch 嗰刻凍結咗嘅
+  // snapshot.taxiKg/tripKg（PayloadTab.tsx 新增），舊資料未有呢兩個欄位就 fallback 返
+  // OFP 靜態基準，作為最接近嘅近似值
+  const getEntryFuelKg = (doc: any, isLatest: boolean) => {
+    if (isLatest) return { taxiKg: revisedTaxiKg, tripKg: revisedTripKg };
+    return {
+      taxiKg: doc?.snapshot?.taxiKg ?? (flightData?.fuel_taxi_ofp ? Math.round(flightData.fuel_taxi_ofp * 1000) : 200),
+      tripKg: doc?.snapshot?.tripKg ?? (flightData?.fuel_trip_ofp ? Math.round(flightData.fuel_trip_ofp * 1000) : 18500),
+    };
+  };
+
   // Highlight Token 演算法 (保持原樣)
   const renderHighlightedFinal = (newText: string, oldText: string) => {
     if (!oldText || !newText) return newText;
@@ -63,9 +76,13 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
         {/* 🌟 FINAL LOADSHEET 歷史列表 */}
         {[...(flightData?.final_history || [])].reverse().map((doc: any, reverseIndex: number) => {
           const isLatest = reverseIndex === 0;
-          const isRejected = !isLatest || flightData?.final_ls_rejected;
-          
-          const payloadObj = buildEnginePayload(doc.snapshot, flightData, revisedTaxiKg, revisedTripKg);
+          // 🌟 修復：以前 !isLatest 就恆定當做 REJECTED，令任何被取代（SUPERSEDED）嘅
+          // 舊 version 都會同真正俾人拒收嘅文件一樣打晒個紅色「REJECTED」大浮水印，
+          // 同下面正確顯示緊「SUPERSEDED」嘅掣互相矛盾
+          const isRejected = isLatest && flightData?.final_ls_rejected;
+
+          const { taxiKg, tripKg } = getEntryFuelKg(doc, isLatest);
+          const payloadObj = buildEnginePayload(doc.snapshot, flightData, taxiKg, tripKg);
           const engine = new LoadsheetEngine(ahm, payloadObj!);
           const text = generateLSText("FINAL", doc.version, doc.snapshot, engine, payloadObj, flightData, calc, limits);
 
@@ -114,9 +131,10 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
         {/* 🌟 PRELIM LOADSHEET 歷史列表 */}
         {[...(flightData?.prelim_history || [])].reverse().map((doc: any, reverseIndex: number) => {
           const isLatest = reverseIndex === 0;
-          const isRejected = !isLatest || flightData?.prelim_ls_rejected;
-          
-          const payloadObj = buildEnginePayload(doc.snapshot, flightData, revisedTaxiKg, revisedTripKg);
+          const isRejected = isLatest && flightData?.prelim_ls_rejected;
+
+          const { taxiKg, tripKg } = getEntryFuelKg(doc, isLatest);
+          const payloadObj = buildEnginePayload(doc.snapshot, flightData, taxiKg, tripKg);
           const engine = new LoadsheetEngine(ahm, payloadObj!);
           const text = generateLSText("PRELIM", doc.version, doc.snapshot, engine, payloadObj, flightData, calc, limits);
 
