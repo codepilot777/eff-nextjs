@@ -179,19 +179,27 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
         </div>
       </div>
       
-      {/* 2. NOTOC 卡片 — 🌟 暫時冇真實 backing data model，老實顯示 disabled，
-          唔再扮有數/可撳（呢張卡本身冇 onClick，同 Loadsheet/Airport 唔同，之前個
-          chevron 淨係扮緊可以撳） */}
-      <div className="bg-[#1E1E1E] rounded-xl p-3 shrink-0 flex flex-col relative overflow-hidden opacity-50">
+      {/* 2. NOTOC 卡片 — 🌟 而家有真實 backing data model（flightData.notoc，教官
+          喺建立航班表單度可以揀生成 random NOTOC 危險品訓練演習），撳落去睇返
+          itemised 清單，同 Loadsheet/Airport 卡片一樣可以撳 */}
+      <div
+        onClick={() => setActiveModal('NOTOC')}
+        className="bg-[#1E1E1E] rounded-xl p-3 shrink-0 flex flex-col relative overflow-hidden cursor-pointer hover:bg-[#252525] transition-colors"
+      >
         {planeWatermark}
         <div className="flex justify-between items-center relative z-10">
-          <h2 className="text-[1.05rem] font-bold text-[#8fa0a6] leading-none">NOTOC</h2>
+          <h2 className="text-[1.05rem] font-bold text-white leading-none">NOTOC</h2>
+          <span className="text-[#8fa0a6] text-lg font-light leading-none">›</span>
         </div>
         <div className="flex items-center justify-center relative z-10 py-3">
-          <span className="text-[0.6rem] text-[#555] uppercase tracking-widest font-bold">Not Yet Available</span>
+          {flightData?.notoc?.hasDg ? (
+            <span className="text-[0.6rem] text-[#FF9100] uppercase tracking-widest font-bold">⚠️ DG Onboard</span>
+          ) : (
+            <span className="text-[0.6rem] text-[#8fa0a6] uppercase tracking-widest font-bold">Nil DG</span>
+          )}
         </div>
       </div>
-      
+
       {/* 3. Airport 卡片 */}
       <div onClick={() => setActiveModal('Airports')} className="bg-[#1E1E1E] rounded-xl p-3 flex-1 flex flex-col min-h-0 cursor-pointer hover:bg-[#252525] transition-colors relative overflow-hidden">
         
