@@ -70,13 +70,22 @@ export default function InboxPanel() {
            flightData.fuel_receipt_sent ? <span className="text-[#FF9100] font-bold">SENT (AWAITING SIGN)</span> :
            <span className="text-[#FF9100] font-bold">PENDING</span>}
         </div>
-        <div className="flex justify-between py-2 text-sm">
+        <div className="flex justify-between border-b border-dashed border-[#333333] py-2 text-sm">
           <span>Loadsheet Status:</span>
-          {flightData.final_ls_rejected ? <span className="text-[#FF1744] font-bold">❌ REJECTED (FINAL)</span> :
+          {flightData.final_ls_rejected ? <span className="text-[#FF1744] font-bold">❌ REJECTED (FINAL) — {flightData.final_ls_reject_reason}</span> :
            flightData.pilots_signed_final ? <span className="text-[#00E676] font-bold">SIGNED (FINAL)</span> :
-           flightData.prelim_ls_rejected ? <span className="text-[#FF1744] font-bold">❌ REJECTED (PRELIM)</span> :
+           flightData.prelim_ls_rejected ? <span className="text-[#FF1744] font-bold">❌ REJECTED (PRELIM) — {flightData.prelim_ls_reject_reason}</span> :
            flightData.prelim_ls_sent ? <span className="text-[#FF9100] font-bold">SENT (PRELIM)</span> :
            <span className="text-[#FF9100] font-bold">NO</span>}
+        </div>
+        <div className="flex justify-between py-2 text-sm">
+          <span>PDC Clearance:</span>
+          {/* 🌟 修復：pilots_accepted_pdc 之前淨係 PdcController.tsx（trainee 側）
+              自己讀自己寫，教官呢邊完全冇路睇到 trainee 真係撳咗「Accept Clearance」
+              未——同 tl_accept 個 bug 一樣嘅缺口，呢次係成行冇顯示過，唔係讀錯欄位 */}
+          {flightData.pilots_accepted_pdc ? <span className="text-[#00E676] font-bold">ACCEPTED</span> :
+           (flightData.pdc_requests || []).some((r: any) => r.status === "APPROVED") ? <span className="text-[#FF9100] font-bold">PENDING</span> :
+           <span className="text-[#8fa0a6] font-bold">N/A</span>}
         </div>
       </div>
 
