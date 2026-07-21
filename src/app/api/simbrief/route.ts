@@ -3,6 +3,7 @@ import db, { ensureSchema } from '@/lib/db';
 import { isInstructorAuthed } from '@/lib/auth';
 import { simbriefBodySchema } from '@/lib/validation';
 import { buildOfpSnapshot, type OfpSnapshot } from '@/lib/flight/ofpHistory';
+import { generateRandomNotoc, type Notoc } from '@/lib/dg/dgRegistry';
 
 export async function POST(request: Request) {
   try {
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid request body' }, { status: 400 });
     }
-    const { username, flightNo, created_by, is_published, commander_override, zfw_override } = parsed.data;
+    const { username, flightNo, created_by, is_published, commander_override, zfw_override, crew_fd_override, crew_cc_override, include_notoc } = parsed.data;
 
     // 🌟 修正：舊版冇 encode username 就直接砌入 URL，
     // 如果 username 有特殊字符（例如 &）會篡改成個 query string
@@ -108,9 +109,13 @@ export async function POST(request: Request) {
       // 傳落嚟嘅值，唔理實際有冇寫入 DB，令「已 publish」變成假成功訊息
       is_published: is_published === true,
       dispatcher: "SYSTEM AUTO",
-      crew_fd: 2,
-      crew_cc: 14,
+      // 🌟 教官喺建立表單度可以覆寫嘅機組人數，唔再永遠 hardcode 2/14
+      crew_fd: crew_fd_override || 2,
+      crew_cc: crew_cc_override || 14,
       water_fraction: 15,
+      // 🌟 教官可以開關嘅 random NOTOC 危險品訓練演習——大部分航班都應該係
+      // NIL（冇夾帶危險品），呢個先係現實入面最常見嘅結果
+      notoc: null as Notoc | null,
 
       pax_f: 0, pax_j: 0, pax_w: 0, pax_y: 0,
       cargo_bulk: 0, cargo_hold_1: 0, cargo_hold_2: 0, cargo_hold_3: 0, cargo_hold_4: 0,
@@ -148,6 +153,10 @@ export async function POST(request: Request) {
     flightData.ofp_history = [
       { version: 1, dispatched_at: new Date().toISOString(), snapshot: buildOfpSnapshot(flightData) },
     ];
+
+    if (include_notoc) {
+      flightData.notoc = generateRandomNotoc(flightData);
+    }
 
     await ensureSchema();
 

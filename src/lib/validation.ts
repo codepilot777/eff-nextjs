@@ -144,6 +144,11 @@ export const simbriefBodySchema = z.object({
   is_published: z.boolean().optional(),
   commander_override: z.string().trim().max(100).optional(),
   zfw_override: z.number().positive().optional(),
+  // 🌟 教官喺建立航班表單度可以覆寫嘅機組人數（唔再永遠 hardcode 2/14），
+  // 同埋 random NOTOC 危險品訓練演習開關
+  crew_fd_override: z.number().int().positive().max(10).optional(),
+  crew_cc_override: z.number().int().positive().max(30).optional(),
+  include_notoc: z.boolean().optional(),
 });
 
 export const loginBodySchema = z.object({

@@ -7,4 +7,5 @@ export { ModalRefuelling } from './ModalRefuelling';
 export { ModalSNN } from './ModalSNN'
 export { ModalAcceptFuel } from './ModalAcceptFuel'
 export { ModalDefects } from './ModalDefects'
+export { ModalNOTOC } from './ModalNOTOC'
 // 將你拆出黎果啲 export 晒出去

@@ -20,6 +20,9 @@ export default function InstructorHub() {
   // 覆寫欄位
   const [editZfw, setEditZfw] = useState<number>(0);
   const [editCmdr, setEditCmdr] = useState<string>("");
+  const [editCrewFd, setEditCrewFd] = useState<number>(0);
+  const [editCrewCc, setEditCrewCc] = useState<number>(0);
+  const [includeNotoc, setIncludeNotoc] = useState<boolean>(false);
   
   const [isFetchingPreview, setIsFetchingPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
@@ -46,7 +49,7 @@ export default function InstructorHub() {
   // 🌟 MUTATION 1: 建立新航班 Session
   // ==========================================
   const createFlightMutation = useMutation({
-    mutationFn: async (payload: { username: string; flightNo: string; created_by: string; is_published: boolean; zfw_override: number; commander_override: string }) => {
+    mutationFn: async (payload: { username: string; flightNo: string; created_by: string; is_published: boolean; zfw_override: number; commander_override: string; crew_fd_override?: number; crew_cc_override?: number; include_notoc?: boolean }) => {
       const res = await fetch('/api/simbrief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -163,7 +166,10 @@ export default function InstructorHub() {
       created_by: currentUser,
       is_published: publish,
       zfw_override: editZfw,
-      commander_override: editCmdr
+      commander_override: editCmdr,
+      crew_fd_override: editCrewFd || undefined,
+      crew_cc_override: editCrewCc || undefined,
+      include_notoc: includeNotoc
     });
   };
 
@@ -304,16 +310,51 @@ export default function InstructorHub() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-[#FF9100] uppercase mb-1">ZFW Target (Tons)</label>
-                <input 
-                  type="number" 
-                  step="0.1" 
-                  value={editZfw || ''} 
+                <input
+                  type="number"
+                  step="0.1"
+                  value={editZfw || ''}
                   placeholder="Leave 0 for Auto"
-                  onChange={e => setEditZfw(parseFloat(e.target.value) || 0)} 
-                  className="w-full bg-[#0a0a0a] border border-[#FF9100] rounded-md p-2 text-[#FF9100] font-black outline-none focus:border-[#00bfa5]" 
+                  onChange={e => setEditZfw(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-[#0a0a0a] border border-[#FF9100] rounded-md p-2 text-[#FF9100] font-black outline-none focus:border-[#00bfa5]"
                 />
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-[#FF9100] uppercase mb-1">Crew FD (Cockpit)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editCrewFd || ''}
+                  placeholder="Auto (2)"
+                  onChange={e => setEditCrewFd(parseInt(e.target.value) || 0)}
+                  className="w-full bg-[#0a0a0a] border border-[#FF9100] rounded-md p-2 text-[#FF9100] font-black outline-none focus:border-[#00bfa5]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#FF9100] uppercase mb-1">Crew CC (Cabin)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editCrewCc || ''}
+                  placeholder="Auto (14)"
+                  onChange={e => setEditCrewCc(parseInt(e.target.value) || 0)}
+                  className="w-full bg-[#0a0a0a] border border-[#FF9100] rounded-md p-2 text-[#FF9100] font-black outline-none focus:border-[#00bfa5]"
+                />
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 bg-[#0a0a0a] border border-[#FF9100] rounded-md p-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeNotoc}
+                onChange={e => setIncludeNotoc(e.target.checked)}
+                className="w-4 h-4 accent-[#FF9100]"
+              />
+              <span className="text-xs font-bold text-[#FF9100] uppercase">🎲 Generate Random NOTOC (Dangerous Goods Exercise)</span>
+            </label>
           </div>
 
           <div className="flex-1 flex flex-col justify-center gap-4 bg-[#0a0a0a] p-6 rounded-lg border border-[#1d2733]">
