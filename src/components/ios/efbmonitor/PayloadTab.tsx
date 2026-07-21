@@ -244,7 +244,15 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
     updates.cargo_hold_4 = payload.cargo.h4; 
     updates.cargo_bulk = payload.cargo.bulk;
     
-    const currentSnapshot = { pax: payload.pax, cargo: payload.cargo, fuel: payload.fuel };
+    // 🌟 修復：以前 snapshot 淨係凍結 pax/cargo/fuel-tanks，冇凍結 taxi/trip fuel——
+    // HistoryPanel.tsx 舊嘅（superseded）PRELIM/FINAL 卡一直用緊 live 嘅 calc.currTaxi/
+    // currTrip 重新計算，令一份已經被取代嘅文件嘅 TOW/Landing Weight 喺教官事後仲改緊
+    // ZFW/manual fuel 嘅時候「事後改變」，唔再係當時真正發送出去嗰份數
+    const currentSnapshot = {
+      pax: payload.pax, cargo: payload.cargo, fuel: payload.fuel,
+      taxiKg: Math.round((calc?.currTaxi || 0) * 1000),
+      tripKg: Math.round((calc?.currTrip || 0) * 1000),
+    };
     
     if (docType === "EZFW") { updates.ezfw_sent = true; updates.ezfw_snapshot = currentSnapshot; }
     if (docType === "AZF") { updates.azf_sent = true; updates.azf_snapshot = currentSnapshot; }

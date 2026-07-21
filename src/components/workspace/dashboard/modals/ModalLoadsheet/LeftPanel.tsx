@@ -2,6 +2,7 @@
 import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import { buildEnginePayload } from "@/lib/loadsheet/loadsheetHelpers";
+import { getZfwValue } from "@/lib/marginHelpers";
 
 export function LeftPanel({ flightData, calc }: any) {
   
@@ -31,8 +32,10 @@ export function LeftPanel({ flightData, calc }: any) {
     const activeVer = latestFinal?.version || 1;
     currentStage = `FINAL ${activeVer.toString().padStart(2, '0')}`;
 
-    stageBg = flightData?.pilots_signed_final ? "bg-[#C6FF00]" : "bg-[#2979FF]";
-    stageText = flightData?.pilots_signed_final ? "text-black" : "text-white";
+    // 🌟 修復：以前呢個 badge 完全冇理 final_ls_rejected，令俾拒收咗嘅 FINAL
+    // 同正常 pending 嘅 FINAL 顯示緊一模一樣嘅藍色標籤，睇唔出已經俾人拒收
+    if (flightData?.final_ls_rejected) { currentStage += " - REJECTED"; stageBg = "bg-[#FF1744]"; stageText = "text-white"; }
+    else { stageBg = flightData?.pilots_signed_final ? "bg-[#C6FF00]" : "bg-[#2979FF]"; stageText = flightData?.pilots_signed_final ? "text-black" : "text-white"; }
     const p = buildEnginePayload(latestFinal?.snapshot, flightData, revisedTaxiKg, revisedTripKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
 
@@ -42,7 +45,8 @@ export function LeftPanel({ flightData, calc }: any) {
     const activeVer = latestPrelim?.version || 1;
     currentStage = `PRELIM ${activeVer.toString().padStart(2, '0')}`;
 
-    stageBg = "bg-[#FF9100]"; stageText = "text-black";
+    if (flightData?.prelim_ls_rejected) { currentStage += " - REJECTED"; stageBg = "bg-[#FF1744]"; stageText = "text-white"; }
+    else { stageBg = "bg-[#FF9100]"; stageText = "text-black"; }
     const p = buildEnginePayload(latestPrelim?.snapshot, flightData, revisedTaxiKg, revisedTripKg);
     if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
 
@@ -93,7 +97,10 @@ export function LeftPanel({ flightData, calc }: any) {
             <tr><td className="text-[#8fa0a6] py-1.5 pt-2 font-sans flex items-center gap-1">Extra Fuel {calc?.currExtra > 0 && <span className="bg-[#FF9100] text-black px-1 rounded text-[0.5rem] leading-tight font-black">AUTO</span>}</td><td className="text-right font-bold text-[#FF9100] pt-2">{(calc?.currExtra || 0).toFixed(1)} T</td></tr>
             <tr className="border-b border-[#333]"><td className="text-[#00E676] py-2 font-sans font-bold">Total Block</td><td className="text-right font-black text-[#00E676] text-[1.1rem]">{(calc?.currTotal || 0).toFixed(1)} T</td></tr>
             
-            <tr><td className="text-[#8fa0a6] py-1.5 pt-4 font-sans">Zero Fuel Wt</td><td className="text-right font-bold pt-4 text-white">{(calc?.actualZfw > 0 ? calc.actualZfw : calc.ofpZfw).toFixed(1)} T</td></tr>
+            {/* 🌟 修復：以前呢度自己 inline 重寫咗一次 marginHelpers.ts 嘅 getZfwValue()
+                邏輯，漏咗 showRevVal 呢個 gate——而家改用返同一個共用 helper，
+                避免將來 formula 改咗喺呢度靜靜雞 drift 走 */}
+            <tr><td className="text-[#8fa0a6] py-1.5 pt-4 font-sans">Zero Fuel Wt</td><td className="text-right font-bold pt-4 text-white">{getZfwValue(calc).toFixed(1)} T</td></tr>
             <tr><td className="text-[#8fa0a6] py-1.5 font-sans">Takeoff Wt</td><td className="text-right font-bold text-white">{(calc?.currTow || 0).toFixed(1)} T</td></tr>
             <tr><td className="text-[#8fa0a6] py-1.5 font-sans">Landing Wt</td><td className="text-right font-bold text-white">{(calc?.currLw || 0).toFixed(1)} T</td></tr>
           </tbody>
