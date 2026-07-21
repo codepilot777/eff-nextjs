@@ -104,6 +104,14 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
   // 機長名
   const cmdrName = flightData?.commander_override || "SCOTT HILHORST";
 
+  // 🌟 修復：以前 FO/off-duty 呢兩行係兩個永遠唔變嘅假名（"MARTIN LEE"/
+  // "ALEX WONG"），淨係機長用真數據。而家跟返 crew_roster（喺 session
+  // 建立嗰刻跟 crew_fd/crew_cc 人數生成），舊 session 未有呢個欄位就老實
+  // 顯示「未指派」，唔再扮有數
+  const crewRoster = flightData?.crew_roster;
+  const firstOfficer = crewRoster?.flight_deck?.[0];
+  const otherCrewCount = (crewRoster?.flight_deck?.length || 0) - (firstOfficer ? 1 : 0) + (crewRoster?.cabin_crew?.length || 0);
+
   return (
     <div className="flex flex-col gap-2 h-full overflow-hidden font-sans text-white w-full max-w-[280px]">
       
@@ -234,14 +242,15 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
       </div>
 
       {/* 🌟 3. Crew 列表卡片 */}
-      <div className="bg-[#1E1E1E] rounded-xl p-3 flex-[0.8] flex flex-col min-h-0 overflow-hidden shadow-lg">
+      <div
+        onClick={() => setActiveModal('Crew')}
+        className="bg-[#1E1E1E] rounded-xl p-3 flex-[0.8] flex flex-col min-h-0 overflow-hidden shadow-lg cursor-pointer hover:bg-[#252525] transition-colors"
+      >
         <div className="flex justify-between items-center mb-1 shrink-0">
           <h2 className="text-[1.05rem] font-bold text-white leading-none">Crew</h2>
           <span className="text-[#8fa0a6] text-lg font-light leading-none">›</span>
         </div>
-        
-        {/* 🌟 flightData 冇 named crew roster 呢個欄位（淨係得 crew_fd/crew_cc 人數），
-            所以 FO/off-duty 呢兩行係固定嘅假名單，唔會跟返實際航班變；機長就用返真數據 */}
+
         <div className="flex-1 flex flex-col justify-between font-mono text-[0.8rem] pr-1 py-1">
           <div className="flex justify-between items-center text-white leading-none">
             <div className="flex items-center gap-2">
@@ -251,22 +260,24 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
             <span className="text-[#8fa0a6] text-[0.7rem] bg-[#333] px-1.5 rounded">T-CN</span>
           </div>
 
-          <div className="flex justify-between items-center text-white leading-none">
-            <div className="flex items-center gap-2">
-              <span className="text-[#C6FF00] text-[0.65rem]">✓</span>
-              <span>MARTIN LEE</span>
+          {firstOfficer ? (
+            <div className="flex justify-between items-center text-white leading-none">
+              <div className="flex items-center gap-2">
+                <span className="text-[#C6FF00] text-[0.65rem]">✓</span>
+                <span>{firstOfficer.name}</span>
+              </div>
+              <span className="text-[#8fa0a6] text-[0.7rem] bg-[#333] px-1.5 rounded">{firstOfficer.role}</span>
             </div>
-            <span className="text-[#8fa0a6] text-[0.7rem] bg-[#333] px-1.5 rounded">T-FO</span>
-          </div>
+          ) : (
+            <div className="flex justify-between items-center text-[#8fa0a6] leading-none opacity-60">
+              <span className="italic">No FO assigned</span>
+            </div>
+          )}
 
           <div className="w-full border-t border-[#333] my-1"></div>
 
-          <div className="flex justify-between items-center text-[#8fa0a6] leading-none opacity-50">
-            <div className="flex items-center gap-2">
-              <span className="text-[#0a0a0a] text-[0.6rem]">⊗</span>
-              <span>ALEX WONG</span>
-            </div>
-            <span className="text-[0.7rem]">U-IM</span>
+          <div className="flex justify-between items-center text-[#8fa0a6] leading-none">
+            <span className="italic">{otherCrewCount > 0 ? `+${otherCrewCount} more crew` : "No other crew assigned"}</span>
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { isInstructorAuthed } from '@/lib/auth';
 import { simbriefBodySchema } from '@/lib/validation';
 import { buildOfpSnapshot, type OfpSnapshot } from '@/lib/flight/ofpHistory';
 import { generateRandomNotoc, type Notoc } from '@/lib/dg/dgRegistry';
+import { generateCrewRoster, type CrewRoster } from '@/lib/crew/crewRoster';
 
 export async function POST(request: Request) {
   try {
@@ -116,6 +117,10 @@ export async function POST(request: Request) {
       // 🌟 教官可以開關嘅 random NOTOC 危險品訓練演習——大部分航班都應該係
       // NIL（冇夾帶危險品），呢個先係現實入面最常見嘅結果
       notoc: null as Notoc | null,
+      // 🌟 以前 Crew 卡淨係得機長用真數據，FO/cabin crew 係兩個永遠唔變嘅假名
+      // （"MARTIN LEE"/"ALEX WONG"），而家跟返教官填嘅 crew_fd/crew_cc 人數
+      // 生成一份真正嘅機組人員名單
+      crew_roster: null as CrewRoster | null,
 
       pax_f: 0, pax_j: 0, pax_w: 0, pax_y: 0,
       cargo_bulk: 0, cargo_hold_1: 0, cargo_hold_2: 0, cargo_hold_3: 0, cargo_hold_4: 0,
@@ -157,6 +162,8 @@ export async function POST(request: Request) {
     if (include_notoc) {
       flightData.notoc = generateRandomNotoc(flightData);
     }
+
+    flightData.crew_roster = generateCrewRoster(flightData);
 
     await ensureSchema();
 
