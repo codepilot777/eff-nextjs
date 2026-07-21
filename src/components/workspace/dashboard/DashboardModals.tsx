@@ -1,7 +1,7 @@
 "use client";
 
 // 從 index.ts 一次過引入所有模組
-import { ModalReject, ModalFMS, ModalDOCS, ModalRefuelling, ModalSNN, ModalAcceptFuel, ModalDefects, ModalNOTOC } from "./modals";
+import { ModalReject, ModalFMS, ModalDOCS, ModalRefuelling, ModalSNN, ModalAcceptFuel, ModalDefects, ModalNOTOC, ModalCrew } from "./modals";
 import { ModalLoadsheet } from './modals/ModalLoadsheet/index'
 import { ModalAirports } from "./modals/ModalAirports/index";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
@@ -85,6 +85,7 @@ export default function DashboardModals({ activeModal, setActiveModal }: { activ
     case 'AcceptFuel': modalTitle = 'Accept Final Fuel Figures'; break;
     case 'Defects': modalTitle = 'Aircraft Defects (PADD / SADD / ADD)'; break;
     case 'NOTOC': modalTitle = 'Notification to Captain (NOTOC)'; break;
+    case 'Crew': modalTitle = 'Crew Roster'; break;
   }
 
   return (
@@ -113,6 +114,7 @@ export default function DashboardModals({ activeModal, setActiveModal }: { activ
           {activeModal === 'AcceptFuel' && <ModalAcceptFuel flightData={flightData} updateFlightData={updateFlightData} calc={fullCalc} handlers={handlers} setActiveModal={setActiveModal} />}
           {activeModal === 'Defects' && <ModalDefects techlogData={techlogData} />}
           {activeModal === 'NOTOC' && <ModalNOTOC flightData={flightData} />}
+          {activeModal === 'Crew' && <ModalCrew flightData={flightData} />}
         </div>
       </div>
     </div>
