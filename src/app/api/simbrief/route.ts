@@ -5,6 +5,7 @@ import { simbriefBodySchema } from '@/lib/validation';
 import { buildOfpSnapshot, type OfpSnapshot } from '@/lib/flight/ofpHistory';
 import { generateRandomNotoc, type Notoc } from '@/lib/dg/dgRegistry';
 import { generateCrewRoster, type CrewRoster } from '@/lib/crew/crewRoster';
+import { syncTechlogForNewFlight } from '@/lib/techlog/techlogContinuity';
 
 export async function POST(request: Request) {
   try {
@@ -180,6 +181,24 @@ export async function POST(request: Request) {
     await db.execute({
       sql: 'REPLACE INTO flights (flight_no, data) VALUES (?, ?)',
       args: [finalFlightNo, JSON.stringify(flightData)]
+    });
+
+    // 🌟 起機嗰刻自動將呢架機嘅 techlog「Prepare Flight」同 continuity 同新 flight plan
+    // 同步（唔一定由 HKG 出發，例如今次係外地飛返香港），唔使 trainee 手動入 e-techlog
+    // 補一程先夾得返出發機場（睇 techlogContinuity.ts）
+    const techlogRow = await db.execute({
+      sql: 'SELECT data FROM techlogs WHERE reg = ?',
+      args: [flightData.aircraft_reg],
+    });
+    const existingTechlog = techlogRow.rows[0]?.data ? JSON.parse(techlogRow.rows[0].data as string) : null;
+    const syncedTechlog = syncTechlogForNewFlight(existingTechlog, {
+      flightNo: finalFlightNo,
+      depIata: orig.iata_code || flightData.dep_icao,
+      arrIata: dest.iata_code || flightData.arr_icao,
+    });
+    await db.execute({
+      sql: 'REPLACE INTO techlogs (reg, data) VALUES (?, ?)',
+      args: [flightData.aircraft_reg, JSON.stringify(syncedTechlog)],
     });
 
     return NextResponse.json({ success: true, flight_no: finalFlightNo });
