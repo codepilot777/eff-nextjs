@@ -9,15 +9,19 @@ describe('syncTechlogForNewFlight', () => {
     expect(result.tl_prep_arr).toBe('SIN');
   });
 
-  it('no bridging sector is inserted when the new departure matches the known current location', () => {
-    // DEFAULT_TECHLOG.tl_prev_arr === 'HKG', 起機由 HKG 出發，本身已經夾得返
+  it('always inserts a 10-sector history chain, even when the new departure already matches the known current location', () => {
+    // DEFAULT_TECHLOG.tl_prev_arr === 'HKG', 起機由 HKG 出發，本身已經夾得返，
+    // 但依然要無條件生成成條 10 程歷史鏈，唔可以因為冇 continuity gap 就乜都唔做
     const before = (DEFAULT_TECHLOG.flights as unknown[]).length;
     const result = syncTechlogForNewFlight(null, { flightNo: 'CX500', depIata: 'HKG', arrIata: 'NRT' });
-    expect((result.flights as unknown[]).length).toBe(before);
+    const flights = result.flights as Array<Record<string, unknown>>;
+
+    expect(flights.length).toBe(before + 10);
+    expect(String(flights[0].route).endsWith('➔ HKG')).toBe(true);
     expect(result.tl_prev_arr).toBe('HKG');
   });
 
-  it('auto-inserts a 10-sector bridging history chain when the new departure does not match the known current location', () => {
+  it('inserts a 10-sector history chain when the new departure does not match the known current location', () => {
     // 模擬「外地飛返香港」：existing techlog 話架機仲留喺 HKG，但新 flight plan 由 NRT 出發
     const existing: Record<string, unknown> = { ...DEFAULT_TECHLOG, tl_prev_arr: 'HKG' };
     const before = (existing.flights as unknown[]).length;
@@ -31,6 +35,14 @@ describe('syncTechlogForNewFlight', () => {
     expect(String(flights[9].route).startsWith('HKG ➔')).toBe(true);
     expect(result.tl_prev_arr).toBe('NRT');
     expect(result.tl_prep_dep).toBe('NRT');
+  });
+
+  it('the newest chain sector is always a closed ("Normal Close") sector', () => {
+    const result = syncTechlogForNewFlight(null, { flightNo: 'CX501', depIata: 'NRT', arrIata: 'HKG' });
+    const chain = (result.flights as Array<Record<string, unknown>>).slice(0, 10);
+    for (const sector of chain) {
+      expect(sector.action).toBe('Normal Close');
+    }
   });
 
   it('the bridging chain is internally consistent: each sector connects to the next, times in order', () => {
@@ -53,14 +65,14 @@ describe('syncTechlogForNewFlight', () => {
     }
   });
 
-  it('repeated syncs for an already-continuous location never keep inserting bridging sectors', () => {
+  it('repeated syncs keep growing the history by 10 sectors each time', () => {
     let techlog: Record<string, unknown> | null = null;
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 3; i++) {
       techlog = syncTechlogForNewFlight(techlog, { flightNo: `CX${i}`, depIata: 'HKG', arrIata: 'NRT' });
       techlog = { ...techlog, tl_prev_arr: 'HKG' }; // 模擬呢程完咗返返 HKG
     }
     const finalFlights = (techlog!.flights as unknown[]).length;
-    expect(finalFlights).toBe((DEFAULT_TECHLOG.flights as unknown[]).length);
+    expect(finalFlights).toBe((DEFAULT_TECHLOG.flights as unknown[]).length + 30);
   });
 
   it('defaults a missing depIata/arrIata to HKG/N-A instead of throwing', () => {
@@ -76,5 +88,15 @@ describe('syncTechlogForNewFlight', () => {
     expect(result.tl_checks).toBe(true);
     expect(result.tl_defects).toBe(true);
     expect(result.tl_release).toBe(true);
+  });
+
+  it('resets the trainee workflow state to "ready to Prepare Flight" on every sync, regardless of leftover state', () => {
+    // 模擬上一個 session 遺留低嘅「已經 prepared/accepted 緊」狀態
+    const existing = { ...DEFAULT_TECHLOG, tl_prepared: true, tl_accept: true, tl_flight_started: true, tl_flight_status: 'IN_FLIGHT' };
+    const result = syncTechlogForNewFlight(existing, { flightNo: 'CX901', depIata: 'HKG', arrIata: 'SIN' });
+    expect(result.tl_prepared).toBe(false);
+    expect(result.tl_accept).toBe(false);
+    expect(result.tl_flight_started).toBe(false);
+    expect(result.tl_flight_status).toBe('SCHEDULED');
   });
 });

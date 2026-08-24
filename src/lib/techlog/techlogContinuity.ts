@@ -214,15 +214,19 @@ function buildChainedHistorySectors(count: number, startStation: string, endStat
 }
 
 // 🌟 起機（SimBrief import）嗰刻自動將呢架機嘅 techlog「Prepare Flight」預設值（下一程去邊）
-// 同新起嗰個 flight plan 同步，唔使 trainee 再自己入 e-techlog 手動改。如果原有 techlog
-// 話架機仲留喺第個機場（同新 flight plan 嘅出發機場唔夾——例如今次係外地飛返香港），自動
-// 補一條由 BRIDGE_HISTORY_DEPTH 程 sector 組成嘅小歷史落 flights，令 tl_prev_arr／
-// TechLogTopBar 嘅「而家喺邊」同新 flight plan 嘅出發機場自動夾返，仲要睇落似真正
-// 累積落嚟嘅機隊歷史，唔係得一條孤零零、憑空出現嘅 positioning flight
+// 同新起嗰個 flight plan 同步，唔使 trainee 再自己入 e-techlog 手動改。每次起機都無條件
+// 生成一條由 BRIDGE_HISTORY_DEPTH 程 sector 組成嘅小歷史落 flights（唔止喺 continuity
+// gap 先補）——最舊一條仍然由原有 techlog 記錄嘅「上一個已知位置」開始銜接，令成個
+// flights 歷史保持連貫，但每次起機都刷新返一輪睇落似真正累積落嚟嘅機隊歷史
 //
-// 🌟 同時每次起機都強制將 engineer 嘅 release checklist（fluids/checks/defects/release）
-// 打晒 ✓——新一輪訓練 session 開始，架機理應已經俾 engineer release 咗，trainee 唔應該
-// 因為上一個 session 遺留低嘅未完成狀態而卡住冇嘢好做
+// 🌟 同時每次起機都強制：
+// 1. Engineer 嘅 release checklist（fluids/checks/defects/release）打晒 ✓——新一輪訓練
+//    session 開始，架機理應已經俾 engineer release 咗
+// 2. 上一個 sector 顯示做 closed（history 鏈最新一條 action 恆定 "Normal Close"）
+// 3. Trainee 嘅 workflow state 清返做未 prepare（tl_prepared/tl_accept/tl_flight_started
+//    reset false，tl_flight_status 返做 SCHEDULED）——唔會因為上一個 session 遺留低嘅
+//    「已經 prepared/accepted 緊」狀態，令 trainee 打開嚟見唔到 Prepare Flight 呢個
+//    應該係第一步嘅 pending action
 export function syncTechlogForNewFlight(
   existingTechlog: Record<string, unknown> | null,
   params: NewFlightContinuityParams
@@ -241,17 +245,20 @@ export function syncTechlogForNewFlight(
   base.tl_defects = true;
   base.tl_release = true;
 
-  if (currentLocation !== newDep) {
-    const chain = buildChainedHistorySectors(BRIDGE_HISTORY_DEPTH, currentLocation, newDep, new Date(), String(base.tl_cmdr || ''));
-    const newest = chain[0];
-    const newestDeparture = String(newest.route).split(' ➔ ')[0];
+  base.tl_prepared = false;
+  base.tl_accept = false;
+  base.tl_flight_started = false;
+  base.tl_flight_status = "SCHEDULED";
 
-    base.flights = [...chain, ...((base.flights as unknown[]) || [])];
-    base.tl_prev_flt = newest.flt;
-    base.tl_prev_dep = newestDeparture;
-    base.tl_prev_arr = newDep;
-    base.tl_prev_fob = newest.fuelArr;
-  }
+  const chain = buildChainedHistorySectors(BRIDGE_HISTORY_DEPTH, currentLocation, newDep, new Date(), String(base.tl_cmdr || ''));
+  const newest = chain[0];
+  const newestDeparture = String(newest.route).split(' ➔ ')[0];
+
+  base.flights = [...chain, ...((base.flights as unknown[]) || [])];
+  base.tl_prev_flt = newest.flt;
+  base.tl_prev_dep = newestDeparture;
+  base.tl_prev_arr = newDep;
+  base.tl_prev_fob = newest.fuelArr;
 
   return base;
 }

@@ -107,6 +107,34 @@ describe('/api/simbrief POST — techlog continuity side effect', () => {
     expect(tl.tl_release).toBe(true);
   });
 
+  it('still inserts a 10-sector chain even when the new departure already matches the known current location', async () => {
+    await db.execute({
+      sql: 'REPLACE INTO techlogs (reg, data) VALUES (?, ?)',
+      args: ['B-MATCHED1', JSON.stringify({
+        tl_prev_arr: 'NRT', tl_prev_dep: 'HKG', tl_prev_flt: 'CX564', tl_prev_fob: '10.5',
+        tl_fluids: true, tl_checks: true, tl_defects: true, tl_release: true,
+        tl_cmdr: 'CHAN T M',
+        flights: [{ id: 'SEC-OLD', date: '01 JAN 2026', action: 'Normal Close', flt: 'CX564', route: 'HKG ➔ NRT' }],
+      })],
+    });
+
+    // New flight also departs NRT — already continuous, no mismatch to bridge
+    mockSimbriefFetch({ aircraft: { reg: 'B-MATCHED1', icao_code: 'B773' } });
+
+    const res = await POST(authedPostRequest({ username: 'EFFSIM', flightNo: 'CX582' }));
+    expect(res.status).toBe(200);
+
+    const row = await db.execute({ sql: 'SELECT data FROM techlogs WHERE reg = ?', args: ['B-MATCHED1'] });
+    const tl = JSON.parse(row.rows[0].data as string);
+
+    expect(tl.flights.length).toBe(11); // 1 original + 10 chained sectors, unconditionally
+    expect(String(tl.flights[0].route).endsWith('➔ NRT')).toBe(true);
+    expect(tl.tl_prepared).toBe(false);
+    expect(tl.tl_accept).toBe(false);
+    expect(tl.tl_flight_started).toBe(false);
+    expect(tl.tl_flight_status).toBe('SCHEDULED');
+  });
+
   it('does not throw / still returns 200 even if the aircraft reg is missing from the SimBrief payload (falls back to B-HNQ)', async () => {
     mockSimbriefFetch({ aircraft: {} });
     const res = await POST(authedPostRequest({ username: 'EFFSIM', flightNo: 'CX777' }));
