@@ -251,9 +251,16 @@ export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: a
             )}
           </div>
 
+          {/* 🌟 修復：以前呢度顯示緊 LNDG CG/RAMP CG（%MAC），但呢兩個位應該係 weight
+              correction factor（每 1000kg weight 轉變，trip fuel burn 要加幾多），唔係 CG。
+              LNDG CORR 直接讀 SimBrief impacts.zfw_plus_1000 嘅 burn_difference（fuelCalculator.ts
+              已經用緊嚟計 Desired Fuel 引擎）；RAMP CORR 呢個 SimBrief 冇得直接俾，用返
+              「加油->變重->耗油增加->又要加油」嗰條複利公式 c/(1-c) 由 LNDG CORR 推——
+              多帶嘅 fuel 本身都係重量，都要再燒多啲油先運載到 RAMP 出發，所以 RAMP CORR
+              恆定會比 LNDG CORR 大少少 */}
           <div className="mt-3 grid grid-cols-2 gap-4 text-[0.6rem] font-mono text-[#8fa0a6] border-t border-[#333] pt-3 shrink-0">
-            <div className="flex justify-between leading-none"><span className="font-sans">LNDG CG</span><span className="text-white">{engineWeights ? `${engineWeights.macLaw.toFixed(1)}% MAC` : '--'}</span></div>
-            <div className="flex justify-between leading-none"><span className="font-sans">RAMP CG</span><span className="text-white">{engineWeights ? `${engineWeights.macTow.toFixed(1)}% MAC` : '--'}</span></div>
+            <div className="flex justify-between items-baseline leading-none"><span className="font-sans">LNDG CORR</span><span className="text-white whitespace-nowrap">{calc.lndgCorrKg >= 0 ? '+' : ''}{calc.lndgCorrKg.toFixed(0)} KG/T</span></div>
+            <div className="flex justify-between items-baseline leading-none"><span className="font-sans">RAMP CORR</span><span className="text-white whitespace-nowrap">{calc.rampCorrKg >= 0 ? '+' : ''}{calc.rampCorrKg.toFixed(0)} KG/T</span></div>
           </div>
         </div>
       </div>

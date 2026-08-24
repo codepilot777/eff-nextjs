@@ -73,6 +73,14 @@ export function calculateFuelEngine(flightData: any) {
     return deltaFixedWeight * (c / (1 - c));
   };
 
+  // 🌟 LNDG CORR / RAMP CORR：SimBrief 淨係俾到「ZFW 每加 1000kg，trip fuel burn 加幾多」
+  // 呢個數（即係 LNDG CORR，反映緊嗰個時刻嘅實際 burn 差），但冇 RAMP 階段實際要幾多
+  // extra fuel 先夠呢個數。RAMP CORR 要用返上面已經有嘅「加油 -> 變重 -> 耗油增加 ->
+  // 又要加油」複利公式（c/(1-c)）由 LNDG CORR 推：多帶嘅 fuel 本身都係重量，都要再燒多啲
+  // 油先運載到，所以 RAMP CORR 恆定會比 LNDG CORR 大少少
+  const lndgCorrKg = corrP * 1000;
+  const rampCorrKg = getLoopPenalty(1000);
+
   // 狀況 A：Default 最低法定油量 (只有 ZFW 同 Altn 改變，無 Extra Fuel)
   const deltaFixedBase = deltaZfw + (currAltnOfp - baseAltnOfp);
   const minReqdTrip = ofpTrip + getLoopPenalty(deltaFixedBase);
@@ -187,6 +195,6 @@ export function calculateFuelEngine(flightData: any) {
     isManual, ofpZfw, ofpTaxi, ofpTrip, ofpCont, ofpRes, baseAltnOfp, ofpReqdBase, ofpTotal,
     actualZfw, hasTraineeZfwInput, deltaZfw, autoTaxi, autoCont, autoTrip, autoTotal, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
     mf, currTaxi, currTrip, currCont, currTank, currExtra, currReqdBase, currTotal, currTow, currLw, showRevVal,
-    efobAtDest, processedAlternates
+    efobAtDest, processedAlternates, lndgCorrKg, rampCorrKg
   };
 }
