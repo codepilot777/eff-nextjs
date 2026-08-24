@@ -137,13 +137,12 @@ export const simbriefBodySchema = z.object({
     .max(50)
     .regex(/^[a-zA-Z0-9._-]+$/, 'SimBrief username contains invalid characters'),
   flightNo: z.string().trim().max(20).optional(),
-  // 🌟 修復：instructor/page.tsx 嘅建立航班表單以前送埋呢 4 個欄位，但呢個 schema
+  // 🌟 修復：instructor/page.tsx 嘅建立航班表單以前送埋呢啲欄位，但呢個 schema
   // 冇宣告過，zod 靜靜雞剝走晒，令 is_published/created_by/commander_override 從來
-  // 冇寫入過（PUBLISH 掣話你成功但實際上冇 publish），ZFW override 都冇效果
+  // 冇寫入過（PUBLISH 掣話你成功但實際上冇 publish）
   created_by: z.string().trim().max(100).optional(),
   is_published: z.boolean().optional(),
   commander_override: z.string().trim().max(100).optional(),
-  zfw_override: z.number().positive().optional(),
   // 🌟 教官喺建立航班表單度可以覆寫嘅機組人數（唔再永遠 hardcode 2/14），
   // 同埋 random NOTOC 危險品訓練演習開關
   crew_fd_override: z.number().int().positive().max(10).optional(),

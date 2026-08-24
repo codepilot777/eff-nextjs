@@ -1,6 +1,6 @@
 "use client";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
-import { getDynamicAhm, getLatestSnapshot, buildClassCounts } from "@/lib/loadsheet/loadsheetHelpers";
+import { getDynamicAhm, getLatestSnapshot, buildClassCounts, getActiveStageWeights } from "@/lib/loadsheet/loadsheetHelpers";
 // 🌟 Props 大清洗：只保留 setActiveModal
 export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveModal: any }) {
 
@@ -46,7 +46,15 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
   // =====================================================================
   // 🌟 3. 原本嘅計算邏輯 (修正為使用本地變數)
   // =====================================================================
-  const displayZfw = calc.actualZfw > 0 ? calc.actualZfw.toFixed(1) : (calc.ofpZfw?.toFixed(1) || '0.0');
+  // 🌟 修復：以前呢個卡直接顯示 calc.actualZfw——Fuel & Weight 卡度嗰個仲喺度郁緊嘅
+  // live Revised ZFW 輸入。令即使 AZF 已經派發咗一個真正嘅 ZFW（由當時嘅 payload
+  // 算出），trainee 之後再郁 Revised ZFW 輸入（未再派發任何新文件），呢張卡都會靜靜雞
+  // 跟住個 live 輸入變，顯示緊一個從未真正派發過嘅數。而家同 LeftPanel.tsx 一樣，
+  // 有已派發嘅 stage 就用返嗰個 stage 真正嘅 snapshot 數，未派發過先至用 live 估算
+  const activeStage = getActiveStageWeights(flightData, calc);
+  const displayZfw = activeStage.stage
+    ? (activeStage.zfw / 1000).toFixed(1)
+    : (calc.actualZfw > 0 ? calc.actualZfw.toFixed(1) : (calc.ofpZfw?.toFixed(1) || '0.0'));
 
   let dynamicPaxTot = 0;
   if (activeSnapshot?.pax) {

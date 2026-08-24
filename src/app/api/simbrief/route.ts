@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid request body' }, { status: 400 });
     }
-    const { username, flightNo, created_by, is_published, commander_override, zfw_override, crew_fd_override, crew_cc_override, include_notoc } = parsed.data;
+    const { username, flightNo, created_by, is_published, commander_override, crew_fd_override, crew_cc_override, include_notoc } = parsed.data;
 
     // 🌟 修正：舊版冇 encode username 就直接砌入 URL，
     // 如果 username 有特殊字符（例如 &）會篡改成個 query string
@@ -86,17 +86,22 @@ export async function POST(request: Request) {
       plan_fuel_total: parseInt(fuel.plan_ramp || 0) / 1000.0,
       weight_fuel_reqd_ofp: parseInt(fuel.plan_takeoff || 0) / 1000.0, 
 
-      // 🌟 教官喺建立表單度填嘅 ZFW Target(Tons)覆寫預設由 SimBrief 計出嚟嘅 OFP ZFW
-      weight_zfw_ofp: zfw_override && zfw_override > 0 ? zfw_override : parseInt(weights.est_zfw || 0) / 1000.0,
+      // 🌟 修復：以前教官可以喺建立表單填一個 zfw_override 直接覆寫呢個「OFP」欄位，
+      // 令 PayloadTab.tsx 嘅 auto-fill（targetZFW = weight_zfw_ofp）同 Dashboard 顯示緊嘅
+      // 「OFP ZFW」都唔再係真正 SimBrief flight plan 嘅數，變成教官自己作嘅數。
+      // OFP 呢個欄位一定要係真正 dispatch 咗嘅 flight plan 數據，trainee 想改就用
+      // Fuel & Weight 卡度嘅 Revised ZFW 輸入（trainee_input_zfw），唔應該喺建立航班
+      // 嗰刻就已經俾教官竄改咗個基準
+      weight_zfw_ofp: parseInt(weights.est_zfw || 0) / 1000.0,
       weight_tow_ofp: parseInt(weights.est_tow || 0) / 1000.0,
       weight_lw_ofp: parseInt(weights.est_ldw || 0) / 1000.0,
       dow: parseInt(weights.oew || 161968),
       eet_seconds: parseInt(times.est_time_enroute || 0),
       ofp_version: 1,
-      // 🌟 V1 一開機就當已經係 trainee 嘅 live 版本（教官起機嗰刻已經係佢哋要用嘅
-      // flight plan，唔使多一步「先 activate V1」），ofp_history 喺下面用 flightData
-      // 本身嘅 snapshot 補返
-      activated_version: 1,
+      // 🌟 修復：以前一開機就自動 activate V1，令 flight plan activation status 恆定
+      // 顯示「已 activate」，即使教官都未撳過個 activate 掣。而家跟返 ofpDeactivate
+      // directive 已有嘅 0 = 未 activate 呢個慣例，預設要教官自己揀先 activate
+      activated_version: 0,
       ofp_history: [] as { version: number; dispatched_at: string; snapshot: OfpSnapshot }[],
 
       captain: "INSTRUCTOR",

@@ -199,21 +199,19 @@ describe('simbriefBodySchema', () => {
     expect(simbriefBodySchema.safeParse({ username: '' }).success).toBe(false);
   });
 
-  it('accepts the create-flight form fields (created_by/is_published/commander_override/zfw_override) instead of silently stripping them', () => {
+  it('accepts the create-flight form fields (created_by/is_published/commander_override) instead of silently stripping them', () => {
     const result = simbriefBodySchema.safeParse({
       username: 'EFFSIM',
       flightNo: 'CPA 564',
       created_by: 'Capt. Chan',
       is_published: true,
       commander_override: 'CAPT. YEUNG',
-      zfw_override: 210.5,
     });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.created_by).toBe('Capt. Chan');
       expect(result.data.is_published).toBe(true);
       expect(result.data.commander_override).toBe('CAPT. YEUNG');
-      expect(result.data.zfw_override).toBe(210.5);
     }
   });
 
@@ -221,9 +219,15 @@ describe('simbriefBodySchema', () => {
     expect(simbriefBodySchema.safeParse({ username: 'EFFSIM' }).success).toBe(true);
   });
 
-  it('rejects a non-positive zfw_override', () => {
-    expect(simbriefBodySchema.safeParse({ username: 'EFFSIM', zfw_override: 0 }).success).toBe(false);
-    expect(simbriefBodySchema.safeParse({ username: 'EFFSIM', zfw_override: -5 }).success).toBe(false);
+  // 🌟 修復：zfw_override 已經剷走——OFP ZFW 一定要係真正 SimBrief flight plan 嘅數，
+  // 唔可以再俾教官喺建立航班嗰刻直接覆寫（PayloadTab.tsx auto-fill 同 Dashboard
+  // 顯示嘅「OFP」都靠呢個欄位，畀教官作低咗個基準會直接搞亂晒）
+  it('silently strips a zfw_override if somehow still sent (field no longer exists in the schema)', () => {
+    const result = simbriefBodySchema.safeParse({ username: 'EFFSIM', zfw_override: 210.5 });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>).zfw_override).toBeUndefined();
+    }
   });
 });
 
