@@ -2,9 +2,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
 import { DEFAULT_OFP_FUEL_T, getStandbyFuelT } from "@/lib/fuelCalculator";
-import { LoadsheetEngine, AutoLoader, PAX_CLASS_WEIGHTS, CREW_PANTRY_REGISTRY, getWaterWeight, getMainTankCapacity } from "@/lib/loadsheet/LoadsheetEngine";
+import { LoadsheetEngine, AutoLoader, PAX_CLASS_WEIGHTS, CREW_PANTRY_REGISTRY, getWaterWeight } from "@/lib/loadsheet/LoadsheetEngine";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
-import { getEffectiveWeightLimits } from "@/lib/loadsheet/loadsheetHelpers";
+import { getEffectiveWeightLimits, distributeFuelKg } from "@/lib/loadsheet/loadsheetHelpers";
 // 🌟 引入我們先前編寫好的跨界適配器大腦
 import { adaptEfbPayloadToPmdg, buildEfbLoadingPayload } from "@/services/payloadAdapter";
 import { buildPayloadAndFuelSyncMacro } from "@/services/dynamicMacroBuilder";
@@ -51,15 +51,8 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
   const fobKg = flightData?.fuel_on_board ? Math.round(flightData.fuel_on_board * 1000) : 0;
   const traineeFinalFuelKg = flightData?.final_fuel_request ? Math.round(flightData.final_fuel_request * 1000) : 0;
 
-  const distributeFuel = (val: number) => {
-    const maxMain = getMainTankCapacity(ahm);
-    if (val <= maxMain * 2) {
-      const half = Math.round(val / 2);
-      return { left: half, center: 0, right: val - half };
-    } else {
-      return { left: maxMain, center: val - (maxMain * 2), right: maxMain };
-    }
-  };
+  // 🌟 改用共用嘅 distributeFuelKg（見 loadsheetHelpers.ts），同 ModalAcceptFuel.tsx 一致
+  const distributeFuel = (val: number) => distributeFuelKg(ahm, val);
 
   // ==========================================
   // 🌟 PMDG 實時跨界同步引擎：真係接返 sendToFSUIPC，唔再係得個 console.table

@@ -24,6 +24,12 @@ export function getMainTankCapacity(ahm: AircraftAHM560): number {
   return Math.max(...ahm.individualFuelTables.mainLeftRight.map(e => e.weight));
 }
 
+// 🌟 同 getMainTankCapacity 一樣查表推算，畀 ModalAcceptFuel.tsx 嘅 non-standard
+// tank qty input 度做 center tank 上限提示
+export function getCenterTankCapacity(ahm: AircraftAHM560): number {
+  return Math.max(...ahm.individualFuelTables.center.map(e => e.weight));
+}
+
 export class LoadsheetEngine {
   private ahm: AircraftAHM560;
   private payload: FlightPayload;

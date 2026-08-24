@@ -143,7 +143,12 @@ export async function POST(request: Request) {
       
       fuel_receipt_sent: false,
       final_fuel_accepted: false,
-      
+      // 🌟 ModalAcceptFuel.tsx 新增嘅 tank distribution / 通知第三方欄位，
+      // 預設標準分配 + 兩邊都通知
+      final_fuel_tanks_standard: true,
+      final_fuel_notify_load_control: true,
+      final_fuel_notify_fuel_company: true,
+
       pilots_signed_prelim: false,
       pilots_signed_final: false,
       pilots_signed_fuel: false,
