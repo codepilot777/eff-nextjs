@@ -17,30 +17,40 @@ describe('syncTechlogForNewFlight', () => {
     expect(result.tl_prev_arr).toBe('HKG');
   });
 
-  it('auto-inserts a bridging positioning sector when the new departure does not match the known current location', () => {
+  it('auto-inserts a 10-sector bridging history chain when the new departure does not match the known current location', () => {
     // 模擬「外地飛返香港」：existing techlog 話架機仲留喺 HKG，但新 flight plan 由 NRT 出發
-    const existing = { ...DEFAULT_TECHLOG, tl_prev_arr: 'HKG' };
+    const existing: Record<string, unknown> = { ...DEFAULT_TECHLOG, tl_prev_arr: 'HKG' };
     const before = (existing.flights as unknown[]).length;
     const result = syncTechlogForNewFlight(existing, { flightNo: 'CX501', depIata: 'NRT', arrIata: 'HKG' });
 
     const flights = result.flights as Array<Record<string, unknown>>;
-    expect(flights.length).toBe(before + 1);
-    expect(flights[0].route).toBe('HKG ➔ NRT');
+    expect(flights.length).toBe(before + 10);
+    // 最新一條（index 0）嘅 arrival 一定係新 flight plan 嘅出發機場
+    expect(String(flights[0].route).endsWith('➔ NRT')).toBe(true);
+    // 最舊嗰條 bridging sector（index 9）嘅 departure 一定係原本已知嘅位置 HKG
+    expect(String(flights[9].route).startsWith('HKG ➔')).toBe(true);
     expect(result.tl_prev_arr).toBe('NRT');
-    expect(result.tl_prev_dep).toBe('HKG');
     expect(result.tl_prep_dep).toBe('NRT');
   });
 
-  it('the bridging sector is internally consistent (route matches from/to, times in order)', () => {
+  it('the bridging chain is internally consistent: each sector connects to the next, times in order', () => {
     const existing = { ...DEFAULT_TECHLOG, tl_prev_arr: 'BKK' };
     const result = syncTechlogForNewFlight(existing, { flightNo: 'CX123', depIata: 'KIX', arrIata: 'HKG' });
-    const bridge = (result.flights as Array<Record<string, unknown>>)[0];
+    const chain = (result.flights as Array<Record<string, unknown>>).slice(0, 10);
 
-    expect(bridge.route).toBe('BKK ➔ KIX');
+    for (let i = 0; i < chain.length - 1; i++) {
+      const dep = String(chain[i].route).split(' ➔ ')[0];
+      const olderArr = String(chain[i + 1].route).split(' ➔ ')[1];
+      expect(dep).toBe(olderArr);
+    }
+    expect(String(chain[chain.length - 1].route).split(' ➔ ')[0]).toBe('BKK');
+    expect(String(chain[0].route).split(' ➔ ')[1]).toBe('KIX');
+
     const toMin = (s: string) => parseInt(String(s).slice(0, 2), 10) * 60 + parseInt(String(s).slice(2, 4), 10);
-    expect(toMin(bridge.takeOff as string)).toBeGreaterThan(toMin(bridge.blocksOff as string));
-    expect(toMin(bridge.blocksOn as string)).toBeGreaterThan(toMin(bridge.landing as string));
-    expect(bridge.def).toEqual([]);
+    for (const sector of chain) {
+      expect(toMin(sector.takeOff as string)).toBeGreaterThan(toMin(sector.blocksOff as string));
+      expect(toMin(sector.blocksOn as string)).toBeGreaterThan(toMin(sector.landing as string));
+    }
   });
 
   it('repeated syncs for an already-continuous location never keep inserting bridging sectors', () => {
@@ -57,5 +67,14 @@ describe('syncTechlogForNewFlight', () => {
     expect(() => syncTechlogForNewFlight(null, { flightNo: 'CX1', depIata: '', arrIata: '' })).not.toThrow();
     const result = syncTechlogForNewFlight(null, { flightNo: 'CX1', depIata: '', arrIata: '' });
     expect(result.tl_prep_dep).toBe('HKG');
+  });
+
+  it('forces the engineer release checklist to true on every sync, regardless of leftover state', () => {
+    const existing = { ...DEFAULT_TECHLOG, tl_fluids: false, tl_checks: false, tl_defects: false, tl_release: false };
+    const result = syncTechlogForNewFlight(existing, { flightNo: 'CX900', depIata: 'HKG', arrIata: 'SIN' });
+    expect(result.tl_fluids).toBe(true);
+    expect(result.tl_checks).toBe(true);
+    expect(result.tl_defects).toBe(true);
+    expect(result.tl_release).toBe(true);
   });
 });
