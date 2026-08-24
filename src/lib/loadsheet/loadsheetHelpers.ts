@@ -1,6 +1,6 @@
 // src/lib/loadsheet/loadsheetHelpers.ts
 
-import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
+import { LoadsheetEngine, getMainTankCapacity } from "@/lib/loadsheet/LoadsheetEngine";
 // 🌟 核心修改：引入總註冊表大腦，全域剷走單一機型
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import type { AircraftAHM560 } from "@/lib/loadsheet/types";
@@ -11,6 +11,17 @@ import type { AircraftAHM560 } from "@/lib/loadsheet/types";
 export const getDynamicAhm = (flightData: any) => {
   const reg = flightData?.aircraft_reg || "B-HNQ";
   return AIRCRAFT_REGISTRY[reg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
+};
+
+// 🌟 單一嘅「標準 Left/Center/Right 油缸分配」計法，畀 PayloadTab.tsx（教官派發油量）
+// 同 ModalAcceptFuel.tsx（trainee 睇返/覆寫標準分配）共用，唔再各自各煮一份
+export const distributeFuelKg = (ahm: AircraftAHM560, totalKg: number) => {
+  const maxMain = getMainTankCapacity(ahm);
+  if (totalKg <= maxMain * 2) {
+    const half = Math.round(totalKg / 2);
+    return { left: half, center: 0, right: totalKg - half };
+  }
+  return { left: maxMain, center: totalKg - (maxMain * 2), right: maxMain };
 };
 
 // 🌟 單一嘅「有效重量限制」計法，畀 ModalLoadsheet（trainee 可以喺度撳 CUST 設定

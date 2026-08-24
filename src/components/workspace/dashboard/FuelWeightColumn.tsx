@@ -150,10 +150,13 @@ export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: a
 
         {/* Banner — 🌟 修復：以前綁死喺 calc.showRevVal（幾乎恆定 true），showRevVal 改啱咗
             之後如果淨係靠佢嚟決定顯唔顯示，未改過任何嘢嘅航班就會完全冇路入 AcceptFuel。
-            呢個係學員入 AcceptFuel 嘅唯一入口，一定要恆常顯示，淨係樣式跟 final_fuel_accepted 變 */}
+            呢個係學員入 AcceptFuel 嘅唯一入口，一定要恆常顯示，淨係樣式跟 final_fuel_accepted 變
+            🌟 修復：以前 final_fuel_accepted=true 之後個 onClick 直接 undefined 死，學員一旦
+            accept 咗就永遠冇得再撳返入去 review/re-request final fuel figures。而家掣恆常可撳，
+            淨係樣式（顏色/pulse）繼續反映已 accept 定未 */}
         <div
-          onClick={!flightData?.final_fuel_accepted ? () => setActiveModal('AcceptFuel') : undefined}
-          className={`mx-4 mt-3 rounded-lg px-3 py-2 flex justify-between items-center text-black shadow-md transition-all shrink-0 ${flightData?.final_fuel_accepted ? 'bg-[#C6FF00]' : 'bg-[#FFD600] cursor-pointer animate-pulse'}`}
+          onClick={() => setActiveModal('AcceptFuel')}
+          className={`mx-4 mt-3 rounded-lg px-3 py-2 flex justify-between items-center text-black shadow-md transition-all shrink-0 cursor-pointer ${flightData?.final_fuel_accepted ? 'bg-[#C6FF00]' : 'bg-[#FFD600] animate-pulse'}`}
         >
           <div className="font-bold text-[0.8rem] leading-none flex items-center">
             {flightData?.final_fuel_accepted ? 'Final fuel' : 'Pending fuel'} <span className="text-[1rem] font-black ml-1.5 leading-none">{calc.currTotal.toFixed(1)}<span className="text-[0.6rem] font-bold ml-[1px]">T</span></span>
