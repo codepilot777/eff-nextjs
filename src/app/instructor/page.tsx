@@ -18,7 +18,6 @@ export default function InstructorHub() {
   const [arr, setArr] = useState("RJBB");
   
   // 覆寫欄位
-  const [editZfw, setEditZfw] = useState<number>(0);
   const [editCmdr, setEditCmdr] = useState<string>("");
   const [editCrewFd, setEditCrewFd] = useState<number>(0);
   const [editCrewCc, setEditCrewCc] = useState<number>(0);
@@ -49,7 +48,7 @@ export default function InstructorHub() {
   // 🌟 MUTATION 1: 建立新航班 Session
   // ==========================================
   const createFlightMutation = useMutation({
-    mutationFn: async (payload: { username: string; flightNo: string; created_by: string; is_published: boolean; zfw_override: number; commander_override: string; crew_fd_override?: number; crew_cc_override?: number; include_notoc?: boolean }) => {
+    mutationFn: async (payload: { username: string; flightNo: string; created_by: string; is_published: boolean; commander_override: string; crew_fd_override?: number; crew_cc_override?: number; include_notoc?: boolean }) => {
       const res = await fetch('/api/simbrief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -143,10 +142,7 @@ export default function InstructorHub() {
       }
       
       setPreviewHtml(data.text?.plan_html || "<p>No briefing HTML available.</p>");
-      
-      if (!editZfw) {
-         setEditZfw(parseFloat(data.weights?.est_zfw || 0) / 1000);
-      }
+
       if (!editCmdr) {
          setEditCmdr(data.general?.captain || "INSTRUCTOR");
       }
@@ -165,7 +161,6 @@ export default function InstructorHub() {
       flightNo: fltNo,
       created_by: currentUser,
       is_published: publish,
-      zfw_override: editZfw,
       commander_override: editCmdr,
       crew_fd_override: editCrewFd || undefined,
       crew_cc_override: editCrewCc || undefined,
@@ -297,28 +292,19 @@ export default function InstructorHub() {
             </div>
             
             <hr className="border-[#333333] my-1" />
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-[#FF9100] uppercase mb-1">Commander Name</label>
-                <input 
-                  type="text" 
-                  value={editCmdr} 
-                  placeholder="e.g. CAPT. YEUNG"
-                  onChange={e => setEditCmdr(e.target.value)} 
-                  className="w-full bg-[#0a0a0a] border border-[#FF9100] rounded-md p-2 text-white outline-none focus:border-[#00bfa5] uppercase" 
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#FF9100] uppercase mb-1">ZFW Target (Tons)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={editZfw || ''}
-                  placeholder="Leave 0 for Auto"
-                  onChange={e => setEditZfw(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-[#0a0a0a] border border-[#FF9100] rounded-md p-2 text-[#FF9100] font-black outline-none focus:border-[#00bfa5]"
-                />
-              </div>
+            <div>
+              {/* 🌟 修復：以前呢度仲有個 ZFW Target 輸入，直接覆寫本應嚟自真實 SimBrief
+                  flight plan 嘅 OFP ZFW，令 PayloadTab.tsx 嘅 auto-fill 同 Dashboard 顯示
+                  嘅「OFP」都變成教官作嘅假數。trainee 想改 ZFW 應該用 Fuel & Weight 卡
+                  度嘅 Revised ZFW 輸入，唔應該喺建立航班嗰刻就竄改咗個基準 */}
+              <label className="block text-xs font-bold text-[#FF9100] uppercase mb-1">Commander Name</label>
+              <input
+                type="text"
+                value={editCmdr}
+                placeholder="e.g. CAPT. YEUNG"
+                onChange={e => setEditCmdr(e.target.value)}
+                className="w-full bg-[#0a0a0a] border border-[#FF9100] rounded-md p-2 text-white outline-none focus:border-[#00bfa5] uppercase"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

@@ -1,66 +1,37 @@
 "use client";
-import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
-import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
-import { buildEnginePayload } from "@/lib/loadsheet/loadsheetHelpers";
+import { getActiveStageWeights } from "@/lib/loadsheet/loadsheetHelpers";
 import { getZfwValue } from "@/lib/marginHelpers";
 
 export function LeftPanel({ flightData, calc }: any) {
-  
-  // 🌟 核心動態定錨：獲取目前執飛的飛機註冊號，查出專屬 AHM
-  const currentReg = flightData?.aircraft_reg || "B-HNQ";
-  const ahm = AIRCRAFT_REGISTRY[currentReg.toUpperCase()] || AIRCRAFT_REGISTRY["B-HNQ"];
 
-  // 🌟 準備兩條 Taxi Fuel + 兩條 Trip Fuel (單位: KG)——FINAL/PRELIM 用 revised
-  // （即時，會隨 ZFW revision/manual fuel/Desired Fuel 改變），AZF/EZFW 保持
-  // OFP 原始基準，同 loadsheetHelpers.ts buildEnginePayload 嘅 trip fuel 修復對齊
-  const ofpTaxiKg = flightData?.fuel_taxi_ofp ? Math.round(Number(flightData.fuel_taxi_ofp) * 1000) : 200;
-  const revisedTaxiKg = calc?.currTaxi ? Math.round(Number(calc.currTaxi) * 1000) : ofpTaxiKg;
-  const ofpTripKg = flightData?.fuel_trip_ofp ? Math.round(Number(flightData.fuel_trip_ofp) * 1000) : 18500;
-  const revisedTripKg = calc?.currTrip ? Math.round(Number(calc.currTrip) * 1000) : ofpTripKg;
+  // 🌟 修復：以前 stageZfw/stagePax 呢份運算成個 inline 喺呢個 component 度，
+  // 同 LoadsheetAirportColumn.tsx 嗰邊另一份幾乎一樣但唔同步嘅邏輯重複咗兩次。
+  // 而家兩邊共用返 getActiveStageWeights()，保證邊個階段就顯示緊嗰個階段真正
+  // dispatch 咗嘅 snapshot 數，唔會兩張卡各自顯示唔同數
+  const active = getActiveStageWeights(flightData, calc);
+  const stageZfw = active.zfw;
+  const stagePax = active.pax;
 
   let currentStage = "AWAITING";
-  let stageZfw = 0;
-  let stagePax = 0;
   let stageBg = "bg-[#333333]";
   let stageText = "text-[#8fa0a6]";
 
-  if (flightData?.final_ls_sent) {
-    // 🌟 修復：flightData.final_snapshot 呢個扁平欄位由始至終都冇寫過（PayloadTab.tsx
-    // 淨係識得 push 落 final_history 陣列），以前呢度恆定讀唔到嘢，令 FINAL 階段嘅
-    // PAX/ZFW 永遠顯示 "--"。改為直接攞返歷史陣列入面「最後發送」嗰份真正 snapshot。
-    const latestFinal = flightData?.final_history?.[flightData.final_history.length - 1];
-    const activeVer = latestFinal?.version || 1;
-    currentStage = `FINAL ${activeVer.toString().padStart(2, '0')}`;
-
+  if (active.stage === "FINAL") {
+    currentStage = `FINAL ${active.version!.toString().padStart(2, '0')}`;
     // 🌟 修復：以前呢個 badge 完全冇理 final_ls_rejected，令俾拒收咗嘅 FINAL
     // 同正常 pending 嘅 FINAL 顯示緊一模一樣嘅藍色標籤，睇唔出已經俾人拒收
-    if (flightData?.final_ls_rejected) { currentStage += " - REJECTED"; stageBg = "bg-[#FF1744]"; stageText = "text-white"; }
+    if (active.rejected) { currentStage += " - REJECTED"; stageBg = "bg-[#FF1744]"; stageText = "text-white"; }
     else { stageBg = flightData?.pilots_signed_final ? "bg-[#C6FF00]" : "bg-[#2979FF]"; stageText = flightData?.pilots_signed_final ? "text-black" : "text-white"; }
-    const p = buildEnginePayload(latestFinal?.snapshot, flightData, revisedTaxiKg, revisedTripKg);
-    if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
-
-  } else if (flightData?.prelim_ls_sent) {
-    // 🎯 核心修正：從歷史陣列中抽取出真正「最後發送」的版本號同 snapshot（同上）
-    const latestPrelim = flightData?.prelim_history?.[flightData.prelim_history.length - 1];
-    const activeVer = latestPrelim?.version || 1;
-    currentStage = `PRELIM ${activeVer.toString().padStart(2, '0')}`;
-
-    if (flightData?.prelim_ls_rejected) { currentStage += " - REJECTED"; stageBg = "bg-[#FF1744]"; stageText = "text-white"; }
+  } else if (active.stage === "PRELIM") {
+    currentStage = `PRELIM ${active.version!.toString().padStart(2, '0')}`;
+    if (active.rejected) { currentStage += " - REJECTED"; stageBg = "bg-[#FF1744]"; stageText = "text-white"; }
     else { stageBg = "bg-[#FF9100]"; stageText = "text-black"; }
-    const p = buildEnginePayload(latestPrelim?.snapshot, flightData, revisedTaxiKg, revisedTripKg);
-    if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
-
-  } else if (flightData?.azf_sent) {
+  } else if (active.stage === "AZF") {
     currentStage = "AZF";
     stageBg = "bg-[#00E676]"; stageText = "text-black";
-    const p = buildEnginePayload(flightData.azf_snapshot, flightData, ofpTaxiKg, ofpTripKg);
-    if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
-
-  } else if (flightData?.ezfw_sent) {
+  } else if (active.stage === "EZFW") {
     currentStage = "EZFW";
     stageBg = "bg-[#00bfa5]"; stageText = "text-black";
-    const p = buildEnginePayload(flightData.ezfw_snapshot, flightData, ofpTaxiKg, ofpTripKg);
-    if (p) { const e = new LoadsheetEngine(ahm, p); stageZfw = e.calculateWeights().ZFW; stagePax = e.calculateWeights().paxCount; }
   }
 
   return (

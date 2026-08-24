@@ -120,6 +120,51 @@ export const buildEnginePayload = (snapshot: any, flightData: any, taxiFuelKg: n
   };
 };
 
+// 🌟 單一嘅「而家實際處於邊個階段、嗰個階段真正 dispatch 咗嘅 ZFW/PAX」計法，
+// 畀 ModalLoadsheet/LeftPanel.tsx 同 LoadsheetAirportColumn.tsx 共用。修復：以前
+// LoadsheetAirportColumn.tsx 自己另外揸住一份邏輯，直接顯示 calc.actualZfw（trainee
+// Fuel & Weight 卡度嗰個仲喺度郁緊嘅 live 輸入），令 AZF 真係派發咗 205.3T 之後，
+// trainee 之後淨係喺 Revised ZFW 輸入 205.0T（未再派發過任何新文件），個 Dashboard
+// 卡就會靜靜雞由 205.3T 變 205.0T——顯示緊一個從未真正 send 出去過嘅數
+export const getActiveStageWeights = (flightData: any, calc: any) => {
+  const ahm = getDynamicAhm(flightData);
+
+  const ofpTaxiKg = flightData?.fuel_taxi_ofp ? Math.round(Number(flightData.fuel_taxi_ofp) * 1000) : 200;
+  const revisedTaxiKg = calc?.currTaxi ? Math.round(Number(calc.currTaxi) * 1000) : ofpTaxiKg;
+  const ofpTripKg = flightData?.fuel_trip_ofp ? Math.round(Number(flightData.fuel_trip_ofp) * 1000) : 18500;
+  const revisedTripKg = calc?.currTrip ? Math.round(Number(calc.currTrip) * 1000) : ofpTripKg;
+
+  const computeFrom = (snapshot: any, taxiKg: number, tripKg: number) => {
+    const p = buildEnginePayload(snapshot, flightData, taxiKg, tripKg);
+    if (!p) return null;
+    const e = new LoadsheetEngine(ahm, p);
+    const w = e.calculateWeights();
+    return { zfw: w.ZFW, pax: w.paxCount };
+  };
+
+  if (flightData?.final_ls_sent) {
+    const latestFinal = flightData?.final_history?.[flightData.final_history.length - 1];
+    const version = latestFinal?.version || 1;
+    const w = computeFrom(latestFinal?.snapshot, revisedTaxiKg, revisedTripKg);
+    return { stage: "FINAL" as const, version, rejected: !!flightData?.final_ls_rejected, zfw: w?.zfw || 0, pax: w?.pax || 0 };
+  }
+  if (flightData?.prelim_ls_sent) {
+    const latestPrelim = flightData?.prelim_history?.[flightData.prelim_history.length - 1];
+    const version = latestPrelim?.version || 1;
+    const w = computeFrom(latestPrelim?.snapshot, revisedTaxiKg, revisedTripKg);
+    return { stage: "PRELIM" as const, version, rejected: !!flightData?.prelim_ls_rejected, zfw: w?.zfw || 0, pax: w?.pax || 0 };
+  }
+  if (flightData?.azf_sent) {
+    const w = computeFrom(flightData.azf_snapshot, ofpTaxiKg, ofpTripKg);
+    return { stage: "AZF" as const, version: null, rejected: false, zfw: w?.zfw || 0, pax: w?.pax || 0 };
+  }
+  if (flightData?.ezfw_sent) {
+    const w = computeFrom(flightData.ezfw_snapshot, ofpTaxiKg, ofpTripKg);
+    return { stage: "EZFW" as const, version: null, rejected: false, zfw: w?.zfw || 0, pax: w?.pax || 0 };
+  }
+  return { stage: null, version: null, rejected: false, zfw: 0, pax: 0 };
+};
+
 // ==========================================
 // 3. 生成 FINAL / PRELIM Loadsheet 文本 (🌟 實現盲盒式自適應排版)
 // ==========================================

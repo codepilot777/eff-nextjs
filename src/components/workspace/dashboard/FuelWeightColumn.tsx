@@ -218,13 +218,18 @@ export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: a
                 ) : "") : ""}
               </div>
               <div className="text-right flex justify-end items-center pr-2">
-                <input 
-                  type="number" step="0.1" defaultValue={calc.actualZfw || ''} 
+                {/* 🌟 修復：以前 defaultValue 用 calc.actualZfw，但 actualZfw 本身已經
+                    fallback 落 ofpZfw（未輸入過就恆等於 OFP），令個 box 未撳過都已經
+                    「扮咗」有個真實輸入值。而家淨係讀 trainee 自己真正打落嘅
+                    trainee_input_zfw，未輸入過就真係 blank，用 placeholder 提示 OFP 數 */}
+                <input
+                  type="number" step="0.1" defaultValue={flightData?.trainee_input_zfw || ''}
+                  placeholder={calc.ofpZfw?.toFixed(1)}
                   onBlur={(e) => handlers.handleZfwInput(e.target.value)}
-                  key={`zfw-${calc.actualZfw}-${calc.isManual}`} 
-                  className={`w-14 text-right text-[0.8rem] font-bold rounded px-1 py-0.5 outline-none leading-none transition-all ${
-                    calc.isManual 
-                      ? 'bg-[#1a1a1a] text-[#00E676] border border-[#00E676]/50 focus:border-[#00E676]' 
+                  key={`zfw-${flightData?.trainee_input_zfw}-${calc.isManual}`}
+                  className={`w-14 text-right text-[0.8rem] font-bold rounded px-1 py-0.5 outline-none leading-none transition-all placeholder:text-[#00E676]/40 ${
+                    calc.isManual
+                      ? 'bg-[#1a1a1a] text-[#00E676] border border-[#00E676]/50 focus:border-[#00E676]'
                       : 'bg-[#153f36] text-[#00E676] border border-transparent focus:border-[#00E676]/50'
                   }`}
                 />
