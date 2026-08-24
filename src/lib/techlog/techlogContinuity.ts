@@ -149,11 +149,80 @@ export interface NewFlightContinuityParams {
   arrIata: string;
 }
 
+// 🌟 起機嗰刻，如果要補 continuity gap，一次過生成幾多條 bridging sector——單單一條
+// 「positioning flight」睇落太突兀（架機憑空跳咗過去），一條有返 10 程嘅小歷史先似樣
+const BRIDGE_HISTORY_DEPTH = 10;
+
+const REGIONAL_STATION_POOL = ["HKG", "SIN", "KIX", "BKK", "TPE", "NGO", "NRT", "ICN", "PVG", "MNL", "CGK", "KUL"];
+const COMMANDER_POOL = ["LEE M H", "CHEUNG W S", "WONG K K", "HO Y T", "CHAN T M", "NG S F", "TSANG P K", "YIP C W", "MAK K L", "FUNG T Y"];
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomStationExcluding(exclude: string): string {
+  const pool = REGIONAL_STATION_POOL.filter((s) => s !== exclude);
+  return pickRandom(pool.length > 0 ? pool : REGIONAL_STATION_POOL);
+}
+
+// 🌟 生成一條互相銜接嘅歷史 sector 鏈（新至舊排，index 0 最新）：最新一條嘅 arrival
+// 啱啱好等於 endStation（同新起嗰個 flight plan 接得上），最舊一條嘅 departure 啱啱好
+// 等於 startStation（同原有 techlog 記錄嘅「上一個已知位置」接得上），中間逐程互相銜接
+function buildChainedHistorySectors(count: number, startStation: string, endStation: string, mostRecentDate: Date, fallbackCmdr: string): Array<Record<string, unknown>> {
+  const sectors: Array<Record<string, unknown>> = [];
+  let arrival = endStation;
+  let date = new Date(mostRecentDate);
+
+  for (let i = 0; i < count; i++) {
+    const departure = (i === count - 1) ? startStation : randomStationExcluding(arrival);
+
+    const blocksOffMin = 60 + Math.floor(Math.random() * 600);
+    const takeOffMin = blocksOffMin + 15;
+    const flightDurMin = 60 + Math.floor(Math.random() * 180);
+    const landingMin = takeOffMin + flightDurMin;
+    const blocksOnMin = landingMin + 10;
+
+    const upliftT = (12 + Math.random() * 20).toFixed(1);
+    const arrFuelT = (5 + Math.random() * 8).toFixed(1);
+    const hasMinorDefect = Math.random() > 0.85;
+
+    sectors.push({
+      id: `SEC-${date.getTime().toString().slice(-6)}${i}`,
+      date: formatTechlogDate(date),
+      action: "Normal Close",
+      flt: `CX${100 + Math.floor(Math.random() * 800)}`,
+      route: `${departure} ➔ ${arrival}`,
+      blocksOff: hhmm(blocksOffMin),
+      takeOff: hhmm(takeOffMin),
+      landing: hhmm(landingMin),
+      blocksOn: hhmm(blocksOnMin),
+      def: hasMinorDefect ? [{ id: `S${1000 + Math.floor(Math.random() * 9000)}`, status: "CLEARED", description: "Minor cabin equipment defect rectified." }] : [],
+      checks: [Math.random() > 0.7 ? "Daily Check" : "Transit Check"],
+      serv: ["Nil Servicing Required"],
+      fuelUp: upliftT,
+      fuelArr: arrFuelT,
+      cmdr: i === 0 ? (fallbackCmdr || pickRandom(COMMANDER_POOL)) : pickRandom(COMMANDER_POOL),
+      landingsCount: "1", overshoots: "0", touchGo: "0",
+      edto: "No", autoland: "Not Attempted",
+    });
+
+    arrival = departure;
+    date = new Date(date.getTime() - (12 + Math.random() * 24) * 3600 * 1000);
+  }
+
+  return sectors;
+}
+
 // 🌟 起機（SimBrief import）嗰刻自動將呢架機嘅 techlog「Prepare Flight」預設值（下一程去邊）
 // 同新起嗰個 flight plan 同步，唔使 trainee 再自己入 e-techlog 手動改。如果原有 techlog
 // 話架機仲留喺第個機場（同新 flight plan 嘅出發機場唔夾——例如今次係外地飛返香港），自動
-// 補一條合理嘅 positioning sector 落歷史，令 tl_prev_arr／TechLogTopBar 嘅「而家喺邊」
-// 同新 flight plan 嘅出發機場自動夾返，唔使人手介入
+// 補一條由 BRIDGE_HISTORY_DEPTH 程 sector 組成嘅小歷史落 flights，令 tl_prev_arr／
+// TechLogTopBar 嘅「而家喺邊」同新 flight plan 嘅出發機場自動夾返，仲要睇落似真正
+// 累積落嚟嘅機隊歷史，唔係得一條孤零零、憑空出現嘅 positioning flight
+//
+// 🌟 同時每次起機都強制將 engineer 嘅 release checklist（fluids/checks/defects/release）
+// 打晒 ✓——新一輪訓練 session 開始，架機理應已經俾 engineer release 咗，trainee 唔應該
+// 因為上一個 session 遺留低嘅未完成狀態而卡住冇嘢好做
 export function syncTechlogForNewFlight(
   existingTechlog: Record<string, unknown> | null,
   params: NewFlightContinuityParams
@@ -167,44 +236,21 @@ export function syncTechlogForNewFlight(
   base.tl_prep_dep = newDep;
   base.tl_prep_arr = newArr;
 
+  base.tl_fluids = true;
+  base.tl_checks = true;
+  base.tl_defects = true;
+  base.tl_release = true;
+
   if (currentLocation !== newDep) {
-    const now = new Date();
-    const blocksOffMin = 60 + Math.floor(Math.random() * 600);
-    const takeOffMin = blocksOffMin + 15;
-    const flightDurMin = 60 + Math.floor(Math.random() * 180);
-    const landingMin = takeOffMin + flightDurMin;
-    const blocksOnMin = landingMin + 10;
+    const chain = buildChainedHistorySectors(BRIDGE_HISTORY_DEPTH, currentLocation, newDep, new Date(), String(base.tl_cmdr || ''));
+    const newest = chain[0];
+    const newestDeparture = String(newest.route).split(' ➔ ')[0];
 
-    const upliftT = (15 + Math.random() * 15).toFixed(1);
-    const arrFuelT = (5 + Math.random() * 8).toFixed(1);
-    const flightNoDigits = 100 + Math.floor(Math.random() * 800);
-    const flightNoPrefix = params.flightNo.replace(/[^A-Z]/gi, '').slice(0, 2).toUpperCase() || 'CX';
-
-    const bridgeEntry = {
-      id: `SEC-${now.getTime().toString().slice(-6)}`,
-      date: formatTechlogDate(now),
-      action: "Normal Close",
-      flt: `${flightNoPrefix}${flightNoDigits}`,
-      route: `${currentLocation} ➔ ${newDep}`,
-      blocksOff: hhmm(blocksOffMin),
-      takeOff: hhmm(takeOffMin),
-      landing: hhmm(landingMin),
-      blocksOn: hhmm(blocksOnMin),
-      def: [] as unknown[],
-      checks: ["Transit Check"],
-      serv: ["Nil Servicing Required"],
-      fuelUp: upliftT,
-      fuelArr: arrFuelT,
-      cmdr: base.tl_cmdr || "N/A",
-      landingsCount: "1", overshoots: "0", touchGo: "0",
-      edto: "No", autoland: "Not Attempted",
-    };
-
-    base.flights = [bridgeEntry, ...((base.flights as unknown[]) || [])];
-    base.tl_prev_flt = bridgeEntry.flt;
-    base.tl_prev_dep = currentLocation;
+    base.flights = [...chain, ...((base.flights as unknown[]) || [])];
+    base.tl_prev_flt = newest.flt;
+    base.tl_prev_dep = newestDeparture;
     base.tl_prev_arr = newDep;
-    base.tl_prev_fob = arrFuelT;
+    base.tl_prev_fob = newest.fuelArr;
   }
 
   return base;
