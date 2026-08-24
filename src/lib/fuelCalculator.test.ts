@@ -114,6 +114,29 @@ describe('calculateFuelEngine', () => {
   });
 });
 
+describe('lndgCorrKg / rampCorrKg', () => {
+  it('rampCorrKg reads directly off SimBrief impacts.zfw_plus_1000.burn_difference when present (fuel already onboard, no compounding)', () => {
+    const withImpacts = { ...baseFlight, raw_simbrief: { impacts: { zfw_plus_1000: { burn_difference: '35' } } } };
+    const calc = calculateFuelEngine(withImpacts);
+    expect(calc.rampCorrKg).toBeCloseTo(35);
+  });
+
+  it('falls back to the flight-hours-based 3%/hr heuristic when SimBrief impacts data is missing', () => {
+    const calc = calculateFuelEngine(baseFlight); // no raw_simbrief.impacts
+    const estFlightHours = baseFlight.fuel_trip_ofp / 7.5;
+    expect(calc.rampCorrKg).toBeCloseTo(estFlightHours * 0.03 * 1000);
+  });
+
+  it('lndgCorrKg is always slightly greater than rampCorrKg (carrying extra fuel to carry the extra fuel — the compounding effect)', () => {
+    const withImpacts = { ...baseFlight, raw_simbrief: { impacts: { zfw_plus_1000: { burn_difference: '35' } } } };
+    const calc = calculateFuelEngine(withImpacts);
+    expect(calc.lndgCorrKg).toBeGreaterThan(calc.rampCorrKg);
+    // Closed-form: lndgCorr = 1000 * (c / (1 - c)) where c = rampCorr / 1000
+    const c = calc.rampCorrKg / 1000;
+    expect(calc.lndgCorrKg).toBeCloseTo(1000 * (c / (1 - c)));
+  });
+});
+
 describe('getStandbyFuelT', () => {
   it('subtracts the standby buffer from the frozen OFP plan_fuel_total', () => {
     expect(getStandbyFuelT({ plan_fuel_total: 47.425 })).toBeCloseTo(47.425 - STANDBY_FUEL_BUFFER_T);

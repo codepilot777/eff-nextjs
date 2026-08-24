@@ -73,6 +73,16 @@ export function calculateFuelEngine(flightData: any) {
     return deltaFixedWeight * (c / (1 - c));
   };
 
+  // 🌟 LNDG CORR / RAMP CORR：兩個唔同基準嘅 weight correction factor
+  // - RAMP CORR：油量已經上鎖（fuel already onboard），淨係想知固定油量之下、ZFW 每加
+  //   1000kg 會令實際 burn 加幾多、跌落嚟落地油少咗幾多——SimBrief 嘅 impacts.zfw_plus_1000
+  //   burn_difference 就係呢個直接、冇複利嘅原始數
+  // - LNDG CORR：想保住落地油唔變（即係要帶多啲油嚟補償），但帶嘅嗰啲額外油本身又係重量，
+  //   又會令 burn 再加，變成「加油 -> 變重 -> 耗油增加 -> 又要加油」嘅無限循環，要用返
+  //   上面嗰條複利公式（c/(1-c)）先計得出真正要幾多，所以 LNDG CORR 恆定會比 RAMP CORR 大少少
+  const rampCorrKg = corrP * 1000;
+  const lndgCorrKg = getLoopPenalty(1000);
+
   // 狀況 A：Default 最低法定油量 (只有 ZFW 同 Altn 改變，無 Extra Fuel)
   const deltaFixedBase = deltaZfw + (currAltnOfp - baseAltnOfp);
   const minReqdTrip = ofpTrip + getLoopPenalty(deltaFixedBase);
@@ -187,6 +197,6 @@ export function calculateFuelEngine(flightData: any) {
     isManual, ofpZfw, ofpTaxi, ofpTrip, ofpCont, ofpRes, baseAltnOfp, ofpReqdBase, ofpTotal,
     actualZfw, hasTraineeZfwInput, deltaZfw, autoTaxi, autoCont, autoTrip, autoTotal, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
     mf, currTaxi, currTrip, currCont, currTank, currExtra, currReqdBase, currTotal, currTow, currLw, showRevVal,
-    efobAtDest, processedAlternates
+    efobAtDest, processedAlternates, lndgCorrKg, rampCorrKg
   };
 }
