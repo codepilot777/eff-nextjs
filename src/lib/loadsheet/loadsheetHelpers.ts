@@ -206,6 +206,13 @@ export const generateLSText = (
     .map(cls => `${cls}${classCounts[cls].toString().padStart(3, '0')}`)
     .join("  "); // 雙空格分隔，民航標準排版
 
+  // 🌟 NOTOC 危險品清單以前淨係喺 SI 段見到「NOTOC: YES - SEE ATTACHED」，
+  // loadsheet 本身冇顯示邊格 hold 實際裝緊邊件 DG——真實排版會喺 Cargo HOLD
+  // loading 嗰行落面即刻跟一行 ".<IMP CODE>/<POSITION>" 逐件連埋（例如
+  // ".RFL/24P.ICE/31P"），冇 DG 就冇呢行（同以前一樣淨係得返個空行分隔）
+  const notocItems = flightData?.notoc?.items || [];
+  const dgLine = notocItems.map((item: any) => `.${item.imp_code}/${item.position}`).join('');
+
   const marginZFW = (limits.dispMzfw * 1000) - w.ZFW;
   const marginTOW = (limits.dispMtow * 1000) - w.TOW;
   const marginLAW = (limits.effectiveMlaw * 1000) - w.LAW;
@@ -236,7 +243,7 @@ LILAW   ${cg.LILAW.toFixed(2)}  MACLAW  ${cg.MACLAW.toFixed(2)}
 STAB TO ${cg.stabTrim}
 ${dynamicPaxLine}
 T${(w.totalCargoWeight).toString().padEnd(5)} .1/${snapshot.cargo.h1.toString().padEnd(4)} .2/${snapshot.cargo.h2.toString().padEnd(4)} .3/${snapshot.cargo.h3.toString().padEnd(4)} .4/${snapshot.cargo.h4.toString().padEnd(4)} .5/${snapshot.cargo.bulk.toString().padEnd(4)}
-
+${dgLine}
 ${calc?.arrIata || 'KIX'}  ${dynamicPaxBreakdown}
 TTL PAX ${w.paxCount.toString().padEnd(5)}  UNDERLOAD   ${minMargin}
 
