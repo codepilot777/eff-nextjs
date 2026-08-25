@@ -160,6 +160,8 @@ export const loginBodySchema = z.object({
 // 會寫，但 /api/flight/update 以前對呢啲欄位完全冇 auth check——任何人都可以直接
 // POST 偽造天氣/NOTAM，同之前修好嘅 pdcApprove/atisDeliver/acarsDispatchAppend
 // 係同一類「扮教官」漏洞，呢次補返
+// 🌟 notoc：NOTOCTab.tsx（教官專屬）可以直接編輯/發布 NOTOC 危險品清單，同一類
+// 「扮教官」漏洞，一齊保護埋
 // 🌟 activated_version 冇再喺呢個 list——佢而家連喺 data 度出現都會俾 zod 擋
 // 晒（睇 flightDataSchema 個 refine），一定要行已核實嘅 ofpActivate directive
 export const PROTECTED_FLIGHT_PATCH_FIELDS = [
@@ -171,6 +173,7 @@ export const PROTECTED_FLIGHT_PATCH_FIELDS = [
   'notam_dep',
   'notam_arr',
   'alternates',
+  'notoc',
 ] as const;
 
 export function hasProtectedFlightFields(patch: Record<string, unknown>): boolean {

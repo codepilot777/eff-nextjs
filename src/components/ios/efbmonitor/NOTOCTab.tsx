@@ -1,0 +1,160 @@
+"use client";
+import { useState } from "react";
+import { useFlightData } from "@/hooks/useFlightData";
+import type { NotocEntry } from "@/lib/dg/dgRegistry";
+
+const BLANK_ITEM: NotocEntry = {
+  station_of_unloading: "",
+  awb_number: "",
+  un_number: "",
+  proper_shipping_name: "",
+  class_division: "",
+  sub_hazard: "",
+  net_quantity: "",
+  radioactive_category: "",
+  packing_group: "",
+  emergency_phone: "",
+  imp_code: "",
+  erg: "",
+  cao: "",
+  loaded_uld: "",
+  position: "",
+};
+
+// 🌟 表格欄位一一對應教官手動輸入嘅真實 NOTOC 格式：
+// STATION of Unloading / Air Waybill Number / UN or ID No. / Proper Shipping Name /
+// Class or Division / Sub Hazard / Net Quantity / Radio-active Mat. Categ. / PG /
+// Emergency Phone Number / IMP Code / ERG / CAO / Loaded ULD/IOD / POS
+const FIELDS: Array<{ key: keyof NotocEntry; label: string; placeholder: string }> = [
+  { key: "station_of_unloading", label: "Station of Unloading", placeholder: "HKG" },
+  { key: "awb_number", label: "Air Waybill Number", placeholder: "160-12345678" },
+  { key: "un_number", label: "UN or ID No.", placeholder: "UN1993" },
+  { key: "proper_shipping_name", label: "Proper Shipping Name", placeholder: "Flammable liquid, n.o.s. (contains Xylene)" },
+  { key: "class_division", label: "Class/Div", placeholder: "3" },
+  { key: "sub_hazard", label: "Sub Hazard", placeholder: "—" },
+  { key: "net_quantity", label: "Net Quantity", placeholder: "10 KG" },
+  { key: "radioactive_category", label: "Radio-active Mat. Categ.", placeholder: "N/A" },
+  { key: "packing_group", label: "PG", placeholder: "II" },
+  { key: "emergency_phone", label: "Emergency Phone Number", placeholder: "+XX XXXX XXXX (fictional 24hr contact)" },
+  { key: "imp_code", label: "IMP Code", placeholder: "FLS" },
+  { key: "erg", label: "ERG", placeholder: "3H" },
+  { key: "cao", label: "CAO", placeholder: "N" },
+  { key: "loaded_uld", label: "Loaded ULD/IOD", placeholder: "AKE12345CX" },
+  { key: "position", label: "POS", placeholder: "1L" },
+];
+
+export default function NOTOCTab() {
+  const { flightData, updateFlightData } = useFlightData();
+
+  const [items, setItems] = useState<NotocEntry[]>(() => flightData?.notoc?.items || []);
+  const [draft, setDraft] = useState<NotocEntry>({ ...BLANK_ITEM });
+  const [isSaving, setIsSaving] = useState(false);
+
+  if (!flightData) return null;
+
+  const updateDraft = (key: keyof NotocEntry, value: string) => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleAddItem = () => {
+    if (!draft.un_number.trim() || !draft.proper_shipping_name.trim()) {
+      alert("UN or ID No. and Proper Shipping Name are required.");
+      return;
+    }
+    setItems((prev) => [...prev, draft]);
+    setDraft({ ...BLANK_ITEM });
+  };
+
+  const handleRemoveItem = (idx: number) => {
+    setItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSave = () => {
+    setIsSaving(true);
+    updateFlightData({
+      notoc: {
+        hasDg: items.length > 0,
+        items,
+        generated_at: new Date().toISOString(),
+      },
+    });
+    setIsSaving(false);
+    alert(items.length > 0 ? "NOTOC saved and published to EFB!" : "NOTOC cleared (NIL) and published to EFB!");
+  };
+
+  return (
+    <div className="animate-fade-in flex flex-col gap-4">
+      <div className="bg-lido-800 border border-[#333333] rounded-xl p-6">
+        <h5 className="text-white font-bold mb-4">☣️ Add Dangerous Goods Item</h5>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {FIELDS.map((f) => (
+            <div key={f.key} className="flex flex-col gap-1">
+              <label className="text-[#8fa0a6] text-[0.65rem] font-bold uppercase tracking-widest">{f.label}</label>
+              <input
+                type="text"
+                value={draft[f.key]}
+                onChange={(e) => updateDraft(f.key, e.target.value)}
+                placeholder={f.placeholder}
+                className="bg-lido-950 border border-[#404040] rounded-md p-2.5 text-white text-sm outline-none focus:border-[#00bfa5] transition-colors"
+              />
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={handleAddItem}
+          className="w-full mt-4 bg-[#2979FF]/20 border-2 border-[#2979FF] text-[#2979FF] py-3 rounded-lg font-black tracking-widest uppercase hover:bg-[#2979FF]/30 transition-colors"
+        >
+          ➕ Add Item to NOTOC
+        </button>
+      </div>
+
+      <div className="bg-lido-800 border border-[#333333] rounded-xl p-6">
+        <h5 className="text-white font-bold mb-4">📋 Current NOTOC ({items.length} item{items.length === 1 ? "" : "s"})</h5>
+        {items.length === 0 ? (
+          <div className="text-[#8fa0a6] text-sm italic font-mono">NIL — no dangerous goods items added.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left font-mono text-[0.7rem] whitespace-nowrap">
+              <thead>
+                <tr className="text-[#8fa0a6] text-[0.6rem] uppercase tracking-widest border-b border-[#333]">
+                  <th className="pb-2 pr-3">UN No.</th>
+                  <th className="pb-2 pr-3">Proper Shipping Name</th>
+                  <th className="pb-2 pr-3">Class</th>
+                  <th className="pb-2 pr-3">PG</th>
+                  <th className="pb-2 pr-3">Net Qty</th>
+                  <th className="pb-2 pr-3">ULD</th>
+                  <th className="pb-2 pr-3">POS</th>
+                  <th className="pb-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, idx) => (
+                  <tr key={idx} className="border-b border-[#222]">
+                    <td className="py-2 pr-3 text-[#FF9100] font-bold">{item.un_number}</td>
+                    <td className="py-2 pr-3 text-white whitespace-normal min-w-[10rem]">{item.proper_shipping_name}</td>
+                    <td className="py-2 pr-3">{item.class_division}</td>
+                    <td className="py-2 pr-3">{item.packing_group}</td>
+                    <td className="py-2 pr-3">{item.net_quantity}</td>
+                    <td className="py-2 pr-3 text-[#00bfa5]">{item.loaded_uld}</td>
+                    <td className="py-2 pr-3 text-[#00bfa5] font-bold">{item.position}</td>
+                    <td className="py-2">
+                      <button onClick={() => handleRemoveItem(idx)} className="text-[#FF1744] hover:text-white font-bold px-2">✕</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={isSaving}
+        className="w-full bg-[#C6FF00] text-black py-4 rounded-lg font-black tracking-widest hover:bg-[#00c853] mt-2 shadow-lg disabled:opacity-50"
+      >
+        {isSaving ? "⏳ SAVING..." : "💾 SAVE & PUBLISH NOTOC TO EFB"}
+      </button>
+    </div>
+  );
+}

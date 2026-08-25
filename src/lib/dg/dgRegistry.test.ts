@@ -4,7 +4,7 @@ import { DG_ITEM_POOL, generateRandomNotoc } from './dgRegistry';
 describe('generateRandomNotoc', () => {
   it('always produces items whose fields come from the known DG pool', () => {
     for (let i = 0; i < 200; i++) {
-      const notoc = generateRandomNotoc();
+      const notoc = generateRandomNotoc({ arr_icao: 'RJBB' });
       for (const item of notoc.items) {
         const match = DG_ITEM_POOL.find((p) => p.un_number === item.un_number);
         expect(match).toBeDefined();
@@ -48,5 +48,37 @@ describe('generateRandomNotoc', () => {
   it('stamps a valid ISO timestamp', () => {
     const notoc = generateRandomNotoc();
     expect(() => new Date(notoc.generated_at).toISOString()).not.toThrow();
+  });
+
+  it('fills station_of_unloading from the flight\'s arrival airport', () => {
+    for (let i = 0; i < 50; i++) {
+      const notoc = generateRandomNotoc({ arr_icao: 'RJBB' });
+      for (const item of notoc.items) {
+        expect(item.station_of_unloading).toBe('RJBB');
+      }
+    }
+  });
+
+  it('every generated item has all 15 real NOTOC columns populated (no blanks)', () => {
+    for (let i = 0; i < 200; i++) {
+      const notoc = generateRandomNotoc({ arr_icao: 'RJBB' });
+      for (const item of notoc.items) {
+        expect(item.station_of_unloading).toBeTruthy();
+        expect(item.awb_number).toBeTruthy();
+        expect(item.un_number).toBeTruthy();
+        expect(item.proper_shipping_name).toBeTruthy();
+        expect(item.class_division).toBeTruthy();
+        expect(item.sub_hazard).toBeTruthy();
+        expect(item.net_quantity).toBeTruthy();
+        expect(item.radioactive_category).toBeTruthy();
+        expect(item.packing_group).toBeTruthy();
+        expect(item.emergency_phone).toBeTruthy();
+        expect(item.imp_code).toBeTruthy();
+        expect(item.erg).toBeTruthy();
+        expect(item.cao).toBeTruthy();
+        expect(item.loaded_uld).toBeTruthy();
+        expect(item.position).toBeTruthy();
+      }
+    }
   });
 });

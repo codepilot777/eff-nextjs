@@ -28,28 +28,44 @@ export function ModalNOTOC({ flightData }: any) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left font-mono text-[0.8rem]">
+            <table className="w-full text-left font-mono text-[0.72rem] whitespace-nowrap">
               <thead>
-                <tr className="text-[#8fa0a6] text-[0.65rem] uppercase tracking-widest border-b border-[#333]">
-                  <th className="pb-2 pr-4">UN No</th>
+                <tr className="text-[#8fa0a6] text-[0.6rem] uppercase tracking-widest border-b border-[#333]">
+                  <th className="pb-2 pr-4">Station of Unloading</th>
+                  <th className="pb-2 pr-4">Air Waybill No.</th>
+                  <th className="pb-2 pr-4">UN/ID No.</th>
                   <th className="pb-2 pr-4">Proper Shipping Name</th>
-                  <th className="pb-2 pr-4">Class</th>
+                  <th className="pb-2 pr-4">Class/Div</th>
+                  <th className="pb-2 pr-4">Sub Hazard</th>
+                  <th className="pb-2 pr-4">Net Qty</th>
+                  <th className="pb-2 pr-4">Radioactive Categ.</th>
                   <th className="pb-2 pr-4">PG</th>
-                  <th className="pb-2 pr-4">Qty</th>
-                  <th className="pb-2 pr-4">Pos</th>
-                  <th className="pb-2">Handling Note</th>
+                  <th className="pb-2 pr-4">Emergency Phone</th>
+                  <th className="pb-2 pr-4">IMP Code</th>
+                  <th className="pb-2 pr-4">ERG</th>
+                  <th className="pb-2 pr-4">CAO</th>
+                  <th className="pb-2 pr-4">Loaded ULD/IOD</th>
+                  <th className="pb-2">POS</th>
                 </tr>
               </thead>
               <tbody>
                 {notoc.items.map((item: any, idx: number) => (
                   <tr key={idx} className="border-b border-[#222] align-top">
+                    <td className="py-2 pr-4 text-white">{item.station_of_unloading}</td>
+                    <td className="py-2 pr-4 text-white">{item.awb_number}</td>
                     <td className="py-2 pr-4 text-[#FF9100] font-bold">{item.un_number}</td>
-                    <td className="py-2 pr-4 text-white">{item.proper_shipping_name}</td>
+                    <td className="py-2 pr-4 text-white whitespace-normal min-w-[12rem]">{item.proper_shipping_name}</td>
                     <td className="py-2 pr-4">{item.class_division}</td>
+                    <td className="py-2 pr-4">{item.sub_hazard}</td>
+                    <td className="py-2 pr-4">{item.net_quantity}</td>
+                    <td className="py-2 pr-4">{item.radioactive_category}</td>
                     <td className="py-2 pr-4">{item.packing_group}</td>
-                    <td className="py-2 pr-4">{item.quantity}</td>
-                    <td className="py-2 pr-4 text-[#00bfa5] font-bold">{item.position}</td>
-                    <td className="py-2 text-[#8fa0a6]">{item.handling_note}</td>
+                    <td className="py-2 pr-4 text-[#8fa0a6]">{item.emergency_phone}</td>
+                    <td className="py-2 pr-4">{item.imp_code}</td>
+                    <td className="py-2 pr-4">{item.erg}</td>
+                    <td className="py-2 pr-4">{item.cao}</td>
+                    <td className="py-2 pr-4 text-[#00bfa5] font-bold">{item.loaded_uld}</td>
+                    <td className="py-2 text-[#00bfa5] font-bold">{item.position}</td>
                   </tr>
                 ))}
               </tbody>

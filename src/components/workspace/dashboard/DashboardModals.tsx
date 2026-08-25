@@ -90,7 +90,7 @@ export default function DashboardModals({ activeModal, setActiveModal }: { activ
 
   return (
     <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-6 md:p-8 backdrop-blur-sm animate-fade-in">
-      <div className={`bg-[#1c1c1c] border border-[#333333] rounded-2xl w-full ${activeModal === 'Airports' ? 'max-w-7xl' : 'max-w-6xl'} shadow-[0_10px_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden max-h-[90vh]`}>
+      <div className={`bg-[#1c1c1c] border border-[#333333] rounded-2xl w-full ${activeModal === 'Airports' || activeModal === 'NOTOC' ? 'max-w-7xl' : 'max-w-6xl'} shadow-[0_10px_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden max-h-[90vh]`}>
         <div className="flex justify-between items-center px-6 py-4 bg-[#1c1c1c] border-b border-[#333333] shrink-0">
           <h2 className="text-lg font-bold text-white tracking-wide">{modalTitle}</h2>
           <button onClick={() => setActiveModal(null)} className="text-[#8fa0a6] hover:text-white hover:bg-[#333333] rounded-full w-8 h-8 flex items-center justify-center font-black transition-colors">

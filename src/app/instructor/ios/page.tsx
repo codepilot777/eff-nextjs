@@ -13,6 +13,7 @@ import ConfigTab from "@/components/ios/efbmonitor/ConfigTab";
 import PayloadTab from "@/components/ios/efbmonitor/PayloadTab";
 import WxTab from "@/components/ios/efbmonitor/WxTab";
 import NotamTab from "@/components/ios/efbmonitor/NotamTab";
+import NOTOCTab from "@/components/ios/efbmonitor/NOTOCTab";
 
 // 🔧 TechLog 組件
 import TechLogModal from "@/components/techlog/TechLogModal"; 
@@ -43,6 +44,7 @@ function IOSPanelContent() {
     { id: "Payload", icon: "⚖️", label: "2. Payload" },
     { id: "WX", icon: "🌦️", label: "3. WX" },
     { id: "NOTAMs", icon: "📢", label: "4. NOTAMs" },
+    { id: "NOTOC", icon: "☣️", label: "5. NOTOC" },
   ];
 
   return (
@@ -145,6 +147,7 @@ function IOSPanelContent() {
                 {efbTab === "Payload" && <PayloadTab isConnected={isConnected} sendToFSUIPC={sendToFSUIPC} />}
                 {efbTab === "WX" && <WxTab />}
                 {efbTab === "NOTAMs" && <NotamTab />}
+                {efbTab === "NOTOC" && <NOTOCTab />}
               </div>
             </div>
           </div>
