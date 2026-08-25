@@ -50,6 +50,10 @@ export default function NOTOCTab() {
   const [draft, setDraft] = useState<NotocEntry>({ ...BLANK_ITEM });
   const [isSaving, setIsSaving] = useState(false);
 
+  // 🌟 教官成份 NOTOC 通常係喺 Excel/Sheets 度整定，逐格拷貝落嚟太慢——呢個 textarea
+  // 收成段 tab-分隔嘅內容（一行一件 item，欄位順序同 FIELDS 一致），一次過拆晒落 items
+  const [pasteText, setPasteText] = useState("");
+
   if (!flightData) return null;
 
   const updateDraft = (key: keyof NotocEntry, value: string) => {
@@ -63,6 +67,48 @@ export default function NOTOCTab() {
     }
     setItems((prev) => [...prev, draft]);
     setDraft({ ...BLANK_ITEM });
+  };
+
+  // 🌟 由 Excel/Sheets 拷貝落嚟嘅內容一定係 tab 分隔——一行一件 item，15 個欄位順序
+  // 同 FIELDS 一致（可以連埋標題行一齊 paste，會自動識別跳過）
+  const handleParsePaste = () => {
+    const lines = pasteText.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+    if (lines.length === 0) return;
+
+    const parsed: NotocEntry[] = [];
+    const skippedLines: number[] = [];
+
+    lines.forEach((line, idx) => {
+      const cols = line.split('\t').map((c) => c.trim());
+      // 標題行（"STATION of Unloading" 嗰行）唔係真正 data，跳過
+      if (idx === 0 && /station.*unload/i.test(cols[0] || '')) return;
+      if (cols.length < FIELDS.length) {
+        skippedLines.push(idx + 1);
+        return;
+      }
+      const entry: NotocEntry = { ...BLANK_ITEM };
+      FIELDS.forEach((f, i) => {
+        entry[f.key] = cols[i] ?? "";
+      });
+      if (!entry.un_number.trim() || !entry.proper_shipping_name.trim()) {
+        skippedLines.push(idx + 1);
+        return;
+      }
+      parsed.push(entry);
+    });
+
+    if (parsed.length > 0) {
+      setItems((prev) => [...prev, ...parsed]);
+    }
+    setPasteText("");
+
+    if (skippedLines.length > 0) {
+      alert(`Parsed ${parsed.length} item(s). Skipped line(s) ${skippedLines.join(', ')} — wrong column count or missing UN No./Proper Shipping Name.`);
+    } else if (parsed.length > 0) {
+      alert(`Parsed and added ${parsed.length} item(s) from pasted data.`);
+    } else {
+      alert("No valid rows found to parse. Make sure columns are tab-separated in the STATION of Unloading → POS order.");
+    }
   };
 
   const handleRemoveItem = (idx: number) => {
@@ -84,6 +130,27 @@ export default function NOTOCTab() {
 
   return (
     <div className="animate-fade-in flex flex-col gap-4">
+      <div className="bg-lido-800 border-2 border-[#00bfa5]/50 rounded-xl p-6">
+        <h5 className="text-[#00bfa5] font-black tracking-widest mb-2 uppercase">📋 Paste from Spreadsheet</h5>
+        <p className="text-[#8fa0a6] text-xs mb-3">
+          Copy rows straight from Excel/Sheets (header row optional) — 15 tab-separated columns in
+          STATION of Unloading → POS order — and paste below. Each line becomes one item.
+        </p>
+        <textarea
+          value={pasteText}
+          onChange={(e) => setPasteText(e.target.value)}
+          placeholder={"HKG\t160-12345678\tUN1993\tFlammable liquid, n.o.s. (contains Xylene)\t3\t—\t10 KG\tN/A\tII\t+XX XXXX XXXX (fictional 24hr contact)\tFLS\t3H\tN\tAKE12345CX\t1L"}
+          className="w-full bg-lido-950 border border-[#404040] rounded-md p-3 text-white text-xs font-mono h-28 outline-none focus:border-[#00bfa5] transition-colors resize-none"
+        />
+        <button
+          onClick={handleParsePaste}
+          disabled={!pasteText.trim()}
+          className="w-full mt-3 bg-[#00bfa5] text-black py-3 rounded-lg font-black tracking-widest uppercase hover:bg-[#00E676] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          ⚡ Parse & Add All Rows
+        </button>
+      </div>
+
       <div className="bg-lido-800 border border-[#333333] rounded-xl p-6">
         <h5 className="text-white font-bold mb-4">☣️ Add Dangerous Goods Item</h5>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
