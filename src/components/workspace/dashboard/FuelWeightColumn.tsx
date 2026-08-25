@@ -153,18 +153,25 @@ export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: a
             呢個係學員入 AcceptFuel 嘅唯一入口，一定要恆常顯示，淨係樣式跟 final_fuel_accepted 變
             🌟 修復：以前 final_fuel_accepted=true 之後個 onClick 直接 undefined 死，學員一旦
             accept 咗就永遠冇得再撳返入去 review/re-request final fuel figures。而家掣恆常可撳，
-            淨係樣式（顏色/pulse）繼續反映已 accept 定未 */}
-        <div
-          onClick={() => setActiveModal('AcceptFuel')}
-          className={`mx-4 mt-3 rounded-lg px-3 py-2 flex justify-between items-center text-black shadow-md transition-all shrink-0 cursor-pointer ${flightData?.final_fuel_accepted ? 'bg-[#C6FF00]' : 'bg-[#FFD600] animate-pulse'}`}
-        >
-          <div className="font-bold text-[0.8rem] leading-none flex items-center">
-            {flightData?.final_fuel_accepted ? 'Final fuel' : 'Pending fuel'} <span className="text-[1rem] font-black ml-1.5 leading-none">{calc.currTotal.toFixed(1)}<span className="text-[0.6rem] font-bold ml-[1px]">T</span></span>
+            淨係樣式（顏色/pulse）繼續反映已 accept 定未
+            🌟 修復：以前呢個掣未輸入過 Revised ZFW 都照樣顯示，個 XX T 數其實淨係
+            calc.currTotal 喺 auto 模式冇 ZFW input 之下嘅 fallback（=OFP total），
+            睇落好似已經有個真正計好嘅 pending fuel 數,但其實乜嘢都未 revise 過。
+            而家要求 trainee 一定要真正打咗 Revised ZFW（calc.hasTraineeZfwInput）
+            先會出呢個掣——同 real EFB 一樣，要有真實 ZFW 先有嘢好 accept */}
+        {calc.hasTraineeZfwInput && (
+          <div
+            onClick={() => setActiveModal('AcceptFuel')}
+            className={`mx-4 mt-3 rounded-lg px-3 py-2 flex justify-between items-center text-black shadow-md transition-all shrink-0 cursor-pointer ${flightData?.final_fuel_accepted ? 'bg-[#C6FF00]' : 'bg-[#FFD600] animate-pulse'}`}
+          >
+            <div className="font-bold text-[0.8rem] leading-none flex items-center">
+              {flightData?.final_fuel_accepted ? 'Final fuel' : 'Pending fuel'} <span className="text-[1rem] font-black ml-1.5 leading-none">{calc.currTotal.toFixed(1)}<span className="text-[0.6rem] font-bold ml-[1px]">T</span></span>
+            </div>
+            <div className="font-bold text-[0.65rem] flex items-center gap-1 leading-none">
+              ALTN {calc.selectedAltn} (A) <span className="text-lg leading-none pb-0.5">›</span>
+            </div>
           </div>
-          <div className="font-bold text-[0.65rem] flex items-center gap-1 leading-none">
-            ALTN {calc.selectedAltn} (A) <span className="text-lg leading-none pb-0.5">›</span>
-          </div>
-        </div>
+        )}
 
         {/* List Section */}
         <div className="flex-1 px-4 pb-3 mt-3 flex flex-col min-h-0">
@@ -224,10 +231,12 @@ export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: a
                 {/* 🌟 修復：以前 defaultValue 用 calc.actualZfw，但 actualZfw 本身已經
                     fallback 落 ofpZfw（未輸入過就恆等於 OFP），令個 box 未撳過都已經
                     「扮咗」有個真實輸入值。而家淨係讀 trainee 自己真正打落嘅
-                    trainee_input_zfw，未輸入過就真係 blank，用 placeholder 提示 OFP 數 */}
+                    trainee_input_zfw，未輸入過就真係 blank
+                    🌟 修復：placeholder 以前提示緊 OFP ZFW 數，睇落好似個 box 已經有個
+                    「預設答案」，令 trainee 誤以為唔使自己去 load control 攞真正 ZFW
+                    數。而家 placeholder 淨係得返個空 box，逼 trainee 自己打真數落去 */}
                 <input
                   type="number" step="0.1" defaultValue={flightData?.trainee_input_zfw || ''}
-                  placeholder={calc.ofpZfw?.toFixed(1)}
                   onBlur={(e) => handlers.handleZfwInput(e.target.value)}
                   key={`zfw-${flightData?.trainee_input_zfw}-${calc.isManual}`}
                   className={`w-14 text-right text-[0.8rem] font-bold rounded px-1 py-0.5 outline-none leading-none transition-all placeholder:text-[#00E676]/40 ${
