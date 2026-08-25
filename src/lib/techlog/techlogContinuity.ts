@@ -165,16 +165,34 @@ function randomStationExcluding(exclude: string): string {
   return pickRandom(pool.length > 0 ? pool : REGIONAL_STATION_POOL);
 }
 
+const HUB = "HKG";
+
 // 🌟 生成一條互相銜接嘅歷史 sector 鏈（新至舊排，index 0 最新）：最新一條嘅 arrival
 // 啱啱好等於 endStation（同新起嗰個 flight plan 接得上），最舊一條嘅 departure 啱啱好
-// 等於 startStation（同原有 techlog 記錄嘅「上一個已知位置」接得上），中間逐程互相銜接
+// 等於 startStation（同原有 techlog 記錄嘅「上一個已知位置」接得上），中間逐程互相銜接。
+// 🌟 修復：以前 departure 淨係用 randomStationExcluding(arrival) 揀，淨係保證唔同
+// 上一程重複，冇強制一定要沾到 HKG——會生成成串成日喺 outstation 之間飛嘅 sector
+// （例如 SIN ➔ KIX），但呢架機係 HKG-based fleet，逐程都應該係「由 HKG 出去」或者
+// 「返返嚟 HKG」，唔會有兩個 outstation 直接互飛。而家改成逐程都強制一邊係 HKG：
+// 上一程去到 HKG，呢程就要由 HKG 出走去第個 outstation；上一程喺 outstation，
+// 呢程就要飛返 HKG
 function buildChainedHistorySectors(count: number, startStation: string, endStation: string, mostRecentDate: Date, fallbackCmdr: string): Array<Record<string, unknown>> {
   const sectors: Array<Record<string, unknown>> = [];
   let arrival = endStation;
   let date = new Date(mostRecentDate);
 
   for (let i = 0; i < count; i++) {
-    const departure = (i === count - 1) ? startStation : randomStationExcluding(arrival);
+    let departure: string;
+    if (i === count - 1) {
+      // 最舊一條要同原有 techlog 記錄嘅「上一個已知位置」接得上，但都唔可以打破
+      // 「逐程一定沾到 HKG」——如果 startStation 同上一程嘅 arrival 都唔係 HKG
+      // （罕見邊緣情況），寧願強制呢程由 HKG 出走，都好過生成一程兩個 outstation 互飛
+      departure = (startStation === HUB || arrival === HUB) ? startStation : HUB;
+    } else if (arrival === HUB) {
+      departure = randomStationExcluding(HUB);
+    } else {
+      departure = HUB;
+    }
 
     const blocksOffMin = 60 + Math.floor(Math.random() * 600);
     const takeOffMin = blocksOffMin + 15;

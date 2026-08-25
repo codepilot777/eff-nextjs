@@ -90,6 +90,31 @@ describe('syncTechlogForNewFlight', () => {
     expect(result.tl_release).toBe(true);
   });
 
+  it('every generated bridging sector touches HKG (HKG-based fleet, no outstation-to-outstation legs)', () => {
+    // regression: departure used to be picked with randomStationExcluding(arrival), which only
+    // avoided repeating the previous station -- it could freely chain outstation-to-outstation
+    // legs (e.g. SIN -> KIX) that a HKG-based fleet would never actually fly
+    const scenarios: Array<{ existing: Record<string, unknown> | null; depIata: string; arrIata: string }> = [
+      { existing: null, depIata: 'HKG', arrIata: 'NRT' },
+      { existing: { ...DEFAULT_TECHLOG, tl_prev_arr: 'HKG' }, depIata: 'NRT', arrIata: 'HKG' },
+      { existing: { ...DEFAULT_TECHLOG, tl_prev_arr: 'BKK' }, depIata: 'KIX', arrIata: 'HKG' },
+      { existing: { ...DEFAULT_TECHLOG, tl_prev_arr: 'SIN' }, depIata: 'TPE', arrIata: 'HKG' },
+    ];
+
+    for (const scenario of scenarios) {
+      // run several times -- the chain uses randomStationExcluding, so a single run wouldn't
+      // catch a fix that only works for one lucky roll
+      for (let run = 0; run < 20; run++) {
+        const result = syncTechlogForNewFlight(scenario.existing, { flightNo: 'CX999', depIata: scenario.depIata, arrIata: scenario.arrIata });
+        const chain = (result.flights as Array<Record<string, unknown>>).slice(0, 10);
+        for (const sector of chain) {
+          const [dep, arr] = String(sector.route).split(' ➔ ');
+          expect(dep === 'HKG' || arr === 'HKG').toBe(true);
+        }
+      }
+    }
+  });
+
   it('resets the trainee workflow state to "ready to Prepare Flight" on every sync, regardless of leftover state', () => {
     // 模擬上一個 session 遺留低嘅「已經 prepared/accepted 緊」狀態
     const existing = { ...DEFAULT_TECHLOG, tl_prepared: true, tl_accept: true, tl_flight_started: true, tl_flight_status: 'IN_FLIGHT' };
