@@ -130,7 +130,7 @@ export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: a
   };
 
   return (
-    <div className="flex-[4] flex flex-col h-full overflow-hidden min-h-0 text-white font-sans w-full max-w-[420px]">
+    <div className="flex-[4] flex flex-col h-full overflow-hidden min-h-0 text-white font-sans w-full md:max-w-[420px]">
       <div className="bg-[#1E1E1E] rounded-xl flex flex-col h-full shadow-lg min-h-0 overflow-hidden">
         
         {/* Header & Toggle Switch */}

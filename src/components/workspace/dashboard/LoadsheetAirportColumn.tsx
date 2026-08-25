@@ -138,7 +138,7 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
   const emptyAltnRows = Math.max(0, MIN_ALTN_ROWS - displayAlternates.length);
 
   return (
-    <div className="flex-[4] flex flex-col gap-2 h-full overflow-hidden min-h-0 text-white font-sans w-full max-w-[320px]">
+    <div className="flex-[4] flex flex-col gap-2 h-full overflow-hidden min-h-0 text-white font-sans w-full md:max-w-[320px]">
       
       {/* 1. Loadsheet 卡片 */}
       <div onClick={() => setActiveModal('Loadsheet')} className="bg-[#1E1E1E] rounded-xl p-3 shrink-0 flex flex-col cursor-pointer hover:bg-[#252525] transition-colors relative">

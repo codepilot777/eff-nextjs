@@ -154,7 +154,7 @@ export default function RefuelAircraftColumn({ setActiveModal, setCurrentTab }: 
   }
 
   return (
-    <div className="flex-[3] flex flex-col gap-2 h-full overflow-hidden min-h-0 text-white font-sans w-full max-w-[280px]">
+    <div className="flex-[3] flex flex-col gap-2 h-full overflow-hidden min-h-0 text-white font-sans w-full md:max-w-[280px]">
       
       {/* 🌟 1. Refueling 區塊 */}
       <div className="flex flex-col flex-[0.5] justify-between min-h-0">
