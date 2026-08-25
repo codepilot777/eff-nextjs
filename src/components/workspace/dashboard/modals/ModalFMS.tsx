@@ -140,7 +140,10 @@ export function ModalFMS({ flightData }: any) {
   const handleClearHighlight = () => setHighlightCount(0);
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 h-full overflow-hidden min-h-0 w-full font-sans">
+    // 🌟 Mobile：外層以前恆定 h-full overflow-hidden，兩個 panel 上下疊之後高度
+    // 加埋一定爆晒個 modal，會靜靜雞裁走睇唔晒嘅嗰截。而家 mobile 淨係自然疊高，
+    // 交返俾 DashboardModals.tsx 個 modal body 本身嘅 overflow-y-auto 去 scroll
+    <div className="flex flex-col md:flex-row gap-6 md:h-full md:overflow-hidden min-h-0 w-full font-sans">
       
       {/* ========================================== */}
       {/* 左邊：FMS OPERATION SUMMARY (🌟 比例改為 3) */}
@@ -263,9 +266,9 @@ export function ModalFMS({ flightData }: any) {
       {/* 右邊：ICAO ATS FLIGHT PLAN (🌟 比例改為 7) */}
       {/* ========================================== */}
       <div className="flex-[7] bg-[#1E1E1E] border border-[#333333] rounded-2xl p-6 flex flex-col min-h-0 shadow-lg">
-        <div className="flex justify-between items-center mb-5 border-b border-[#333] pb-3 shrink-0 gap-3">
+        <div className="flex flex-wrap justify-between items-center mb-5 border-b border-[#333] pb-3 shrink-0 gap-3">
           <h2 className="text-lg font-bold text-white tracking-wide shrink-0">ICAO ATS FLIGHT PLAN</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleHighlightTap}
               disabled={!canHighlightRoute}

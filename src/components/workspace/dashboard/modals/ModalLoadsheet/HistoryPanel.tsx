@@ -64,7 +64,9 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
   };
 
   return (
-    <div className="flex-1 overflow-x-auto overflow-y-hidden pb-2 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
+    // 🌟 Mobile：呢個 row 同入面啲 history card 都靠 h-full 計高度，冇咗 desktop
+    // 嗰個 md:h-full 嘅祖先邊界就會冧曬——mobile 自己畀返一個實數高度
+    <div className="h-[65vh] md:h-auto md:flex-1 overflow-x-auto overflow-y-hidden pb-2 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
       <div className="flex gap-5 w-max h-full min-h-0">
         
         {(!flightData?.final_ls_sent && !flightData?.prelim_ls_sent && !flightData?.ezfw_sent && !flightData?.azf_sent) && (
@@ -95,7 +97,7 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
           }
 
           return (
-            <div key={`final-${doc.version}`} className={`bg-[#1E1E1E] border ${isRejected ? 'border-[#FF1744]/50' : 'border-[#333333]'} rounded-2xl p-5 w-[460px] flex-shrink-0 flex flex-col h-full min-h-0 relative overflow-hidden transition-colors shadow-lg`}>
+            <div key={`final-${doc.version}`} className={`bg-[#1E1E1E] border ${isRejected ? 'border-[#FF1744]/50' : 'border-[#333333]'} rounded-2xl p-5 w-[85vw] max-w-[460px] md:w-[460px] flex-shrink-0 flex flex-col h-full min-h-0 relative overflow-hidden transition-colors shadow-lg`}>
               {isRejected && <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"><div className="text-[#FF1744]/20 font-black text-6xl transform -rotate-45 border-8 border-[#FF1744]/20 p-4 rounded-2xl">REJECTED</div></div>}
               
               <h4 className="text-[#2979FF] border-b border-[#333] pb-3 mt-0 font-sans text-[1.05rem] font-bold tracking-widest shrink-0 uppercase">FINAL {doc.version.toString().padStart(2, '0')}</h4>
@@ -139,7 +141,7 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
           const text = generateLSText("PRELIM", doc.version, doc.snapshot, engine, payloadObj, flightData, calc, limits);
 
           return (
-            <div key={`prelim-${doc.version}`} className={`bg-[#1E1E1E] border ${isRejected ? 'border-[#FF1744]/50' : 'border-[#333333]'} rounded-2xl p-5 w-[460px] flex-shrink-0 flex flex-col h-full min-h-0 relative overflow-hidden transition-colors shadow-lg`}>
+            <div key={`prelim-${doc.version}`} className={`bg-[#1E1E1E] border ${isRejected ? 'border-[#FF1744]/50' : 'border-[#333333]'} rounded-2xl p-5 w-[85vw] max-w-[460px] md:w-[460px] flex-shrink-0 flex flex-col h-full min-h-0 relative overflow-hidden transition-colors shadow-lg`}>
               {isRejected && <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"><div className="text-[#FF1744]/20 font-black text-6xl transform -rotate-45 border-8 border-[#FF1744]/20 p-4 rounded-2xl">REJECTED</div></div>}
 
               <h4 className="text-[#FF9100] border-b border-[#333] pb-3 mt-0 font-sans text-[1.05rem] font-bold tracking-widest shrink-0 uppercase">PRELIM {doc.version.toString().padStart(2, '0')}</h4>
@@ -164,7 +166,7 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
 
         {/* AZF DATASHEET */}
         {flightData?.azf_sent && (
-          <div className="bg-[#1E1E1E] border border-[#333333] rounded-2xl p-5 w-[460px] flex-shrink-0 flex flex-col h-full min-h-0 shadow-lg">
+          <div className="bg-[#1E1E1E] border border-[#333333] rounded-2xl p-5 w-[85vw] max-w-[460px] md:w-[460px] flex-shrink-0 flex flex-col h-full min-h-0 shadow-lg">
             <h4 className="text-[#00E676] border-b border-[#333] pb-3 mt-0 font-sans text-[1.05rem] font-bold tracking-widest shrink-0 uppercase">AZF DATASHEET</h4>
             <div className="flex-1 overflow-y-auto mt-3 min-h-0 bg-[#0a0a0a] p-4 rounded-xl border border-[#333] shadow-inner">
               <pre className="text-[#e2e8f0] font-mono text-[0.8rem] font-bold leading-relaxed whitespace-pre-wrap m-0">{getAzfText(flightData, calc)}</pre>
@@ -174,7 +176,7 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
 
         {/* EZFW DATASHEET */}
         {flightData?.ezfw_sent && (
-          <div className="bg-[#1E1E1E] border border-[#333333] rounded-2xl p-5 w-[460px] flex-shrink-0 flex flex-col h-full min-h-0 shadow-lg">
+          <div className="bg-[#1E1E1E] border border-[#333333] rounded-2xl p-5 w-[85vw] max-w-[460px] md:w-[460px] flex-shrink-0 flex flex-col h-full min-h-0 shadow-lg">
             <h4 className="text-white border-b border-[#333] pb-3 mt-0 font-sans text-[1.05rem] font-bold tracking-widest shrink-0 uppercase">EZFW DATASHEET</h4>
             <div className="flex-1 overflow-y-auto mt-3 min-h-0 bg-[#0a0a0a] p-4 rounded-xl border border-[#333] shadow-inner">
               <pre className="text-[#e2e8f0] font-mono text-[0.8rem] font-bold leading-relaxed whitespace-pre-wrap m-0">{getEzfwText(flightData, calc)}</pre>
