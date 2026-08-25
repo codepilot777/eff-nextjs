@@ -7,18 +7,26 @@ export default function WxTab() {
 
   const [aiPrompt, setAiPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  
+
   // 🌟 升級 1：將單一 Result 拆分做 METAR, TAF 同 Error State
   const [generatedMetar, setGeneratedMetar] = useState("");
   const [generatedTaf, setGeneratedTaf] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  
+
   // 🌟 升級 2：加入 Copy 狀態管理
   const [copyStatus, setCopyStatus] = useState<"METAR" | "TAF" | null>(null);
+
+  // 🌟 Enroute Stations 可以成十幾個機場，同 trainee 側 Weather.tsx 一樣預設收埋，
+  // 教官想編輯先展開
+  const [enrouteExpanded, setEnrouteExpanded] = useState(false);
 
   if (!flightData) return null;
 
   const rawAlternates = flightData?.raw_simbrief?.alternate ? (Array.isArray(flightData.raw_simbrief.alternate) ? flightData.raw_simbrief.alternate : [flightData.raw_simbrief.alternate]) : (flightData?.alternates || []);
+  const toffAltn = flightData?.raw_simbrief?.takeoff_altn;
+  const rawEnrouteAltn = flightData?.raw_simbrief?.enroute_altn;
+  const enrouteAltns = Array.isArray(rawEnrouteAltn) ? rawEnrouteAltn : (rawEnrouteAltn?.icao_code ? [rawEnrouteAltn] : []);
+  const enrouteStations = Array.isArray(flightData?.raw_simbrief?.enroute_station) ? flightData.raw_simbrief.enroute_station : [];
   const dateObj = flightData?.std_unix ? new Date(flightData.std_unix * 1000) : new Date();
   const dayStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit' });
 
@@ -92,13 +100,41 @@ export default function WxTab() {
         taf: (document.getElementById(`wx_taltn_${i}`) as HTMLTextAreaElement)?.value || "NIL"
       };
     });
-    
+
+    // 🌟 修復：一定要用 {...existing, metar, taf} 咁樣先寫，唔可以起個全新
+    // object——NotamTab.tsx 都會寫緊同一個 enroute_altns/enroute_stations 陣列
+    // 嘅 notam 欄位，如果呢度淨係起個 {icao, metar, taf} 就save，會靜靜雞抹走
+    // NotamTab.tsx 之前寫低嘅 notam override（同 alternates 已有嘅寫法一致）
+    const newEnrouteAltns = enrouteAltns.map((ea: any, i: number) => {
+      const existing = (flightData.enroute_altns || [])[i] || { icao: ea.icao_code || ea.icao };
+      return {
+        ...existing,
+        metar: (document.getElementById(`wx_menraltn_${i}`) as HTMLTextAreaElement)?.value || "NIL",
+        taf: (document.getElementById(`wx_tenraltn_${i}`) as HTMLTextAreaElement)?.value || "NIL"
+      };
+    });
+
+    const newEnrouteStations = enrouteStations.map((s: any, i: number) => {
+      const existing = (flightData.enroute_stations || [])[i] || { icao: s.icao_code || s.icao };
+      return {
+        ...existing,
+        metar: (document.getElementById(`wx_menr_${i}`) as HTMLTextAreaElement)?.value || "NIL",
+        taf: (document.getElementById(`wx_tenr_${i}`) as HTMLTextAreaElement)?.value || "NIL"
+      };
+    });
+
     updateFlightData({
       metar_dep: (document.getElementById('wx_mdep') as HTMLTextAreaElement).value || "NIL",
       taf_dep: (document.getElementById('wx_tdep') as HTMLTextAreaElement).value || "NIL",
       metar_arr: (document.getElementById('wx_marr') as HTMLTextAreaElement).value || "NIL",
       taf_arr: (document.getElementById('wx_tarr') as HTMLTextAreaElement).value || "NIL",
-      alternates: newAlternates
+      alternates: newAlternates,
+      ...(toffAltn?.icao_code ? {
+        metar_toff_altn: (document.getElementById('wx_mtoffaltn') as HTMLTextAreaElement)?.value || "NIL",
+        taf_toff_altn: (document.getElementById('wx_ttoffaltn') as HTMLTextAreaElement)?.value || "NIL",
+      } : {}),
+      enroute_altns: newEnrouteAltns,
+      enroute_stations: newEnrouteStations,
     });
     alert("Weather saved and published to EFB!");
   };
@@ -205,6 +241,50 @@ export default function WxTab() {
           <textarea id={`wx_taltn_${i}`} defaultValue={getWx((flightData.alternates || [])[i]?.taf, a.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
         </div>
       ))}
+
+      {/* ✈️ Takeoff Alternate WX — 同目的地備降場係唔同概念 */}
+      {toffAltn?.icao_code && (
+        <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
+          <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Takeoff Alternate: {toffAltn.icao_code}</h6>
+          <textarea id="wx_mtoffaltn" defaultValue={getWx(flightData.metar_toff_altn, toffAltn.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
+          <textarea id="wx_ttoffaltn" defaultValue={getWx(flightData.taf_toff_altn, toffAltn.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
+        </div>
+      )}
+
+      {/* 🌐 Enroute Alternate WX — ETOPS/EDTO 先會有 */}
+      {enrouteAltns.map((ea: any, i: number) => (
+        <div key={`enraltn-${i}`} className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
+          <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Enroute Alternate: {ea.icao_code || ea.icao}</h6>
+          <textarea id={`wx_menraltn_${i}`} defaultValue={getWx((flightData.enroute_altns || [])[i]?.metar, ea.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
+          <textarea id={`wx_tenraltn_${i}`} defaultValue={getWx((flightData.enroute_altns || [])[i]?.taf, ea.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
+        </div>
+      ))}
+
+      {/* 🌍 Enroute Stations WX — 可以成十幾個機場，同 trainee 側一樣預設收埋 */}
+      {enrouteStations.length > 0 && (
+        <div className="bg-[#2a2a2a] rounded-lg border border-[#333333] shadow-md overflow-hidden">
+          <button
+            onClick={() => setEnrouteExpanded((v) => !v)}
+            className="w-full px-4 py-3 flex justify-between items-center hover:bg-[#333333] transition-colors outline-none"
+          >
+            <span className="text-[#00bfa5] text-xs font-black uppercase tracking-widest">
+              Enroute Stations ({enrouteStations.length})
+            </span>
+            <span className={`text-[#8fa0a6] text-xl font-light transform transition-transform duration-200 ${enrouteExpanded ? 'rotate-180' : ''}`}>›</span>
+          </button>
+          {enrouteExpanded && (
+            <div className="p-4 pt-0 max-h-[60vh] overflow-y-auto flex flex-col gap-4">
+              {enrouteStations.map((s: any, i: number) => (
+                <div key={`enr-${i}`} className="bg-[#1a1a1a] p-4 rounded-lg border border-[#404040]">
+                  <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">{s.icao_code || s.icao}</h6>
+                  <textarea id={`wx_menr_${i}`} defaultValue={getWx((flightData.enroute_stations || [])[i]?.metar, s.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
+                  <textarea id={`wx_tenr_${i}`} defaultValue={getWx((flightData.enroute_stations || [])[i]?.taf, s.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 💾 Save Button */}
       <button onClick={handleSave} className="w-full bg-[#C6FF00] text-black py-4 rounded-lg font-black tracking-widest hover:bg-[#00c853] mt-2 shadow-lg transition-colors">

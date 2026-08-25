@@ -164,6 +164,9 @@ export const loginBodySchema = z.object({
 // 「扮教官」漏洞，一齊保護埋
 // 🌟 activated_version 冇再喺呢個 list——佢而家連喺 data 度出現都會俾 zod 擋
 // 晒（睇 flightDataSchema 個 refine），一定要行已核實嘅 ofpActivate directive
+// 🌟 metar_toff_altn/taf_toff_altn/notam_toff_altn/enroute_altns/enroute_stations：
+// WxTab.tsx/NotamTab.tsx 新增嘅 Takeoff Alternate / Enroute Alternate / Enroute
+// Stations 編輯功能寫入嘅欄位，同 metar_dep/notam_dep 等一樣要受保護
 export const PROTECTED_FLIGHT_PATCH_FIELDS = [
   'is_published',
   'metar_dep',
@@ -174,6 +177,11 @@ export const PROTECTED_FLIGHT_PATCH_FIELDS = [
   'notam_arr',
   'alternates',
   'notoc',
+  'metar_toff_altn',
+  'taf_toff_altn',
+  'notam_toff_altn',
+  'enroute_altns',
+  'enroute_stations',
 ] as const;
 
 export function hasProtectedFlightFields(patch: Record<string, unknown>): boolean {

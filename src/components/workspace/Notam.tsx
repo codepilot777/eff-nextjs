@@ -163,7 +163,9 @@ export default function Notam() {
       id: `toff-altn`,
       type: "TOFF_ALTN",
       icao: toffAltn.icao_code,
-      notams: parseNotams(undefined, toffAltn.notam)
+      // 🌟 NotamTab.tsx 教官編輯/AI 生成後寫入 flightData.notam_toff_altn，
+      // 同 DEP/ARR 一樣要優先讀 override
+      notams: parseNotams(flightData?.notam_toff_altn, toffAltn.notam)
     });
     seenIcaos.add(toffAltn.icao_code);
   }
@@ -171,6 +173,7 @@ export default function Notam() {
   // 🌟 5. 航路備降場 (Enroute Alternate)——ETOPS/EDTO 航班先會有
   const rawEnrouteAltn = rawSb.enroute_altn;
   const enrouteAltnArray = Array.isArray(rawEnrouteAltn) ? rawEnrouteAltn : (rawEnrouteAltn?.icao_code ? [rawEnrouteAltn] : []);
+  const enrouteAltnOverrides = flightData?.enroute_altns || [];
   enrouteAltnArray.forEach((ea: any, idx: number) => {
     const icao = ea.icao_code || ea.icao;
     if (icao && !seenIcaos.has(icao)) {
@@ -178,7 +181,7 @@ export default function Notam() {
         id: `enr-altn-${idx}`,
         type: "ENR_ALTN",
         icao: icao,
-        notams: parseNotams(undefined, ea.notam)
+        notams: parseNotams(enrouteAltnOverrides[idx]?.notam, ea.notam)
       });
       seenIcaos.add(icao);
     }
@@ -187,6 +190,7 @@ export default function Notam() {
   // 🌟 6. 航路沿途機場 NOTAM (Enroute Stations)——SimBrief raw data 入面成十幾個
   // 機場，淨係呢類先摺埋（collapsed）＋滾動清單顯示，避免一開頁就成版都係 Accordion
   const rawEnrouteStations = Array.isArray(rawSb.enroute_station) ? rawSb.enroute_station : [];
+  const enrouteStationOverrides = flightData?.enroute_stations || [];
   const enrouteStationList = rawEnrouteStations
     .filter((s: any) => (s.icao_code || s.icao) && !seenIcaos.has(s.icao_code || s.icao))
     .map((s: any, idx: number) => {
@@ -196,7 +200,7 @@ export default function Notam() {
         id: `enr-station-${idx}`,
         type: "ENR",
         icao,
-        notams: parseNotams(undefined, s.notam)
+        notams: parseNotams(enrouteStationOverrides[idx]?.notam, s.notam)
       };
     });
 
