@@ -34,7 +34,7 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
 
   // 重新設計的 Status Pill (專業 SVG 狀態)
   const StatusPill = ({ label, isOk }: { label: string, isOk: boolean }) => (
-    <div className={`flex flex-col items-center gap-1.5 px-6 py-1.5 rounded-lg border border-transparent transition-all ${isOk ? 'bg-[#00E676]/10 border-[#00E676]/20' : ''}`}>
+    <div className={`flex flex-col items-center gap-1.5 px-2 md:px-6 py-1.5 rounded-lg border border-transparent transition-all ${isOk ? 'bg-[#00E676]/10 border-[#00E676]/20' : ''}`}>
       {isOk ? (
         <svg fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4 text-[#00E676]">
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
@@ -76,11 +76,14 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
       {/* 主資訊區 */}
       <div className="p-4 flex flex-col gap-4">
         
-        <div className="flex justify-between items-start">
+        {/* 🌟 Mobile：reg/sector-flow/info-icon 呢 3 截以前並排逼喺一行，
+            sector flow 果截本身已經好闊（舊 sector + FOB + 箭嘴 + 新 sector），
+            窄屏幕會逼到 status pills 果行俾切走右邊——而家 mobile 先變返上下疊 */}
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-0">
           {/* 左：飛機註冊號碼與當前身份 */}
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-4xl font-mono font-black text-white leading-none tracking-tight">{reg}</h1>
+              <h1 className="text-3xl md:text-4xl font-mono font-black text-white leading-none tracking-tight">{reg}</h1>
               {roleMode === "ENGINEER" && (
                 <div className="bg-[#2979FF] text-white text-[0.55rem] font-black px-1.5 py-0.5 rounded uppercase tracking-widest">ENG</div>
               )}
@@ -91,8 +94,8 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
             </div>
           </div>
           
-          {/* 中：Sector 流程圖 */}
-          <div className="flex-[3] flex justify-center items-center gap-4">
+          {/* 中：Sector 流程圖 — mobile 冇位就橫向 scroll，唔會靜靜雞裁走睇唔晒嘅嗰截 */}
+          <div className="w-full sm:flex-[3] flex justify-start sm:justify-center items-center gap-2 md:gap-4 overflow-x-auto scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
             {!isStarted ? (
               <>
                 {/* 舊 Sector (動態讀取) */}
@@ -164,7 +167,7 @@ export default function TechLogTopBar({ tlData, flightData, roleMode, setRoleMod
             <span className="text-[0.7rem] font-bold tracking-widest text-[#00E676] uppercase relative z-10">FLIGHT LOG LOCKED • AIRPLANE MODE ENABLED</span>
           </div>
         ) : (
-          <div className="flex justify-around items-center pt-3 border-t border-[#333]">
+          <div className="flex justify-around items-center pt-3 border-t border-[#333] flex-wrap gap-y-2">
             <StatusPill label="Fluids" isOk={isFluids} />
             <div className="w-px h-6 bg-[#333]"></div>
             <StatusPill label="Checks" isOk={isChecks} />

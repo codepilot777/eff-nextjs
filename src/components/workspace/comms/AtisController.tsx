@@ -26,7 +26,7 @@ export default function AtisController() {
   };
 
   return (
-    <div className="flex gap-5">
+    <div className="flex flex-col md:flex-row gap-5">
       {/* 左：ATIS Request */}
       <div className="flex-[1] bg-[#1E1E1E] border border-[#333333] rounded-2xl p-5 shadow-lg flex flex-col">
         <h3 className="text-[#2979FF] text-sm font-black mb-5 uppercase tracking-widest">Request ATIS</h3>

@@ -19,7 +19,7 @@ export default function TechLogLeftPanel({ tlData, roleMode, setActiveTask, setS
   const addEntries  = (defects || []).filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("A"));
 
   return (
-    <div className="flex-[4] flex flex-col gap-4 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent font-sans">
+    <div className="md:flex-[4] flex flex-col gap-4 md:overflow-y-auto pr-0 md:pr-2 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent font-sans">
       
       {/* 🌟 1. Servicing Summary */}
       <div className="bg-[#1E1E1E] border border-[#333] rounded-2xl p-5 shadow-lg shrink-0">

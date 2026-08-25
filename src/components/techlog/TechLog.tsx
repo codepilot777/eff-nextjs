@@ -127,7 +127,9 @@ export default function TechLog({ forcedRole }: { forcedRole?: string }) {
         setShowInFlightMenu={setShowInFlightMenu} isTrainee={isTrainee} 
       />
 
-      <div className="flex-1 overflow-hidden flex gap-4 pb-2">
+      {/* 🌟 Mobile：Left/Right panel 以前並排 + overflow-hidden 裁到 right panel
+          嘅內容睇唔晒，而家 mobile 上下疊，用返自然文檔流 scroll */}
+      <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row gap-4 pb-2">
         {activeNav === "dashboard" && (
           <TechLogDashboard 
             tlData={tlData} flightData={flightData} roleMode={roleMode} 
