@@ -1,7 +1,13 @@
 "use client";
 
+import { useState } from "react";
+
 export function ModalFMS({ flightData }: any) {
-  
+
+  // 🌟 Highlight Route：每 tap 一下就累積 highlight 多一個 route token（由 SID 開始，
+  // 一路去到 STAR 為止），畀 trainee 睇住條 route 逐步「畫」出嚟，好似真正 FMC 咁樣
+  const [highlightCount, setHighlightCount] = useState(0);
+
   if (!flightData) return null;
 
   // =====================================================================
@@ -89,6 +95,49 @@ export function ModalFMS({ flightData }: any) {
   const edgMraStr = flightData?.edg_mra || "159";
   const edgMraParsed = parseInt(edgMraStr);
   const isEdgMraOver100 = !isNaN(edgMraParsed) && edgMraParsed > 100; // 🌟 判斷大於 100
+
+  // =====================================================================
+  // 🌟 Highlight Route：將 ATS flight plan 文字拆做 token，搵出由 SID 到 STAR
+  // 之間嘅 route 部分，畀 trainee 逐個 tap highlight
+  // =====================================================================
+  const fplText: string = flightData?.raw_simbrief?.atc?.flightplan_text || `(FPL-${flightData?.flight_no?.replace(" ", "") || 'CPA564'}-IS
+-B773/H-SDE3GHIJ2J3J5M1RWXY/LB1
+-${depIcao}${flightData?.std_z?.substring(0,4) || '0000'}
+-N0480F${cruiseAlt.replace('FL', '')} ${routeStr} ${flightData?.sid_route || ''} DCT OCEAN DCT MKG DCT ${flightData?.star_route || ''}
+-${arrIcao}0315 ${depIcao}
+-REG/${reg.replace("-", "")} CAPT/${flightData?.commander_override?.replace(" ", "") || 'HILHORST'})`;
+
+  // 🌟 split 埋 separator（保留返 whitespace/newline group），先可以原汁原味咁 render 返
+  const fplParts = fplText.split(/(\s+)/);
+
+  // 🌟 由 SID identifier 個 token 開始搵，去到（喺佢之後）第一個 STAR identifier
+  // token 為止——中間逐個非空白 token 就係可以 highlight 嘅 route segment
+  const sidIdent = sid && sid !== 'NIL' ? sid.toUpperCase() : null;
+  const starIdent = star && star !== 'NIL' ? star.toUpperCase() : null;
+
+  let sidPartIdx = -1;
+  if (sidIdent) sidPartIdx = fplParts.findIndex((p) => p.trim().toUpperCase() === sidIdent);
+
+  let starPartIdx = -1;
+  if (starIdent) {
+    for (let i = Math.max(sidPartIdx, 0); i < fplParts.length; i++) {
+      if (fplParts[i].trim().toUpperCase() === starIdent) { starPartIdx = i; break; }
+    }
+  }
+
+  const routeTokenPartIndices: number[] = [];
+  if (sidPartIdx >= 0 && starPartIdx >= sidPartIdx) {
+    for (let i = sidPartIdx; i <= starPartIdx; i++) {
+      if (fplParts[i].trim().length > 0) routeTokenPartIndices.push(i);
+    }
+  }
+  const totalRouteTokens = routeTokenPartIndices.length;
+  const canHighlightRoute = totalRouteTokens > 0;
+
+  const handleHighlightTap = () => {
+    setHighlightCount((c) => (c >= totalRouteTokens ? 0 : c + 1));
+  };
+  const handleClearHighlight = () => setHighlightCount(0);
 
   return (
     <div className="flex flex-col md:flex-row gap-6 h-full overflow-hidden min-h-0 w-full font-sans">
@@ -214,16 +263,55 @@ export function ModalFMS({ flightData }: any) {
       {/* 右邊：ICAO ATS FLIGHT PLAN (🌟 比例改為 7) */}
       {/* ========================================== */}
       <div className="flex-[7] bg-[#1E1E1E] border border-[#333333] rounded-2xl p-6 flex flex-col min-h-0 shadow-lg">
-        <h2 className="text-lg font-bold text-white mb-5 border-b border-[#333] pb-3 shrink-0 tracking-wide">ICAO ATS FLIGHT PLAN</h2>
-        
+        <div className="flex justify-between items-center mb-5 border-b border-[#333] pb-3 shrink-0 gap-3">
+          <h2 className="text-lg font-bold text-white tracking-wide shrink-0">ICAO ATS FLIGHT PLAN</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleHighlightTap}
+              disabled={!canHighlightRoute}
+              title={canHighlightRoute ? undefined : "SID/STAR identifier not found in route text"}
+              className={`shrink-0 px-3 py-1.5 rounded-lg font-black text-[0.65rem] uppercase tracking-widest transition-colors ${
+                !canHighlightRoute
+                  ? 'bg-[#0a0a0a] border border-[#333] text-[#555] cursor-not-allowed'
+                  : highlightCount >= totalRouteTokens
+                    ? 'bg-[#C6FF00] text-black hover:bg-[#b0e600]'
+                    : 'bg-[#2979FF] text-white hover:bg-blue-600'
+              }`}
+            >
+              {!canHighlightRoute
+                ? 'Highlight Route'
+                : highlightCount === 0
+                  ? '▶ Highlight Route'
+                  : highlightCount >= totalRouteTokens
+                    ? '✓ SID → STAR Complete'
+                    : `Highlighting… ${highlightCount}/${totalRouteTokens}`}
+            </button>
+            {/* 🌟 一按清晒所有 highlight，唔使逐個 tap 返轉頭（同主掣個 cycle-back-to-0
+                行為分開，隨時都可以即刻清） */}
+            {highlightCount > 0 && (
+              <button
+                onClick={handleClearHighlight}
+                title="Clear all highlighted route tokens"
+                className="shrink-0 px-3 py-1.5 rounded-lg font-black text-[0.65rem] uppercase tracking-widest bg-[#0a0a0a] border border-[#FF1744]/50 text-[#FF1744] hover:bg-[#FF1744] hover:text-white transition-colors"
+              >
+                ✕ Clear Highlight
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* ATS 電報模擬區 */}
         <div className="bg-[#0a0a0a] p-5 rounded-xl border border-[#333] font-mono text-[0.85rem] text-[#e2e8f0] whitespace-pre-wrap leading-relaxed flex-1 overflow-y-auto shadow-inner">
-          {flightData?.raw_simbrief?.atc?.flightplan_text || `(FPL-${flightData?.flight_no?.replace(" ", "") || 'CPA564'}-IS
--B773/H-SDE3GHIJ2J3J5M1RWXY/LB1
--${depIcao}${flightData?.std_z?.substring(0,4) || '0000'}
--N0480F${cruiseAlt.replace('FL', '')} ${routeStr} ${flightData?.sid_route || ''} DCT OCEAN DCT MKG DCT ${flightData?.star_route || ''}
--${arrIcao}0315 ${depIcao}
--REG/${reg.replace("-", "")} CAPT/${flightData?.commander_override?.replace(" ", "") || 'HILHORST'})`}
+          {fplParts.map((part, idx) => {
+            if (part.trim().length === 0) return <span key={idx}>{part}</span>;
+            const rank = routeTokenPartIndices.indexOf(idx);
+            const isHighlighted = rank !== -1 && rank < highlightCount;
+            return (
+              <span key={idx} className={isHighlighted ? 'bg-[#C6FF00] text-black rounded px-0.5 transition-colors' : ''}>
+                {part}
+              </span>
+            );
+          })}
         </div>
       </div>
 
