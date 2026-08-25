@@ -169,9 +169,9 @@ export default function InstructorHub() {
   };
 
   return (
-    <div className="min-h-screen bg-lido-950 text-slate-300 font-sans p-8 overflow-y-auto">
-      
-      <div className="flex justify-between items-center mb-8 border-b-2 border-[#333333] pb-4">
+    <div className="min-h-screen bg-lido-950 text-slate-300 font-sans p-4 md:p-8 overflow-y-auto">
+
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 sm:gap-0 mb-8 border-b-2 border-[#333333] pb-4">
         <div>
           <h1 className="text-3xl font-black text-status-teal">📡 IOS INSTRUCTOR STATION</h1>
           <h2 className="text-text-muted font-bold mt-1 flex items-center gap-3">

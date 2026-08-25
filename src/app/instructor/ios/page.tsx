@@ -48,15 +48,17 @@ function IOSPanelContent() {
   ];
 
   return (
-    <div className="h-screen bg-[#0a0a0a] text-[#e2e8f0] font-sans p-6 flex flex-col overflow-hidden">
-      
+    // 🌟 Mobile：呢個頁面以前完全冇任何 responsive breakpoint（連 flight-select.tsx
+    // 已有嘅 md:p-8 都冇），h-screen overflow-hidden 逼死成頁淨係得返 desktop 嘅高度
+    <div className="h-screen bg-[#0a0a0a] text-[#e2e8f0] font-sans p-3 md:p-6 flex flex-col overflow-y-auto md:overflow-hidden">
+
       {/* ========================================== */}
       {/* 頂部狀態列 (Top Bar) */}
       {/* ========================================== */}
-      <div className="flex-none flex justify-between items-center bg-[#1a1a1a] p-4 rounded-xl border-b-[3px] border-[#00bfa5] shadow-md mb-4">
+      <div className="flex-none flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-0 bg-[#1a1a1a] p-4 rounded-xl border-b-[3px] border-[#00bfa5] shadow-md mb-4">
         <div>
-          <h2 className="text-2xl font-black text-[#00bfa5] m-0">📡 Instructor Control Panel (IOS)</h2>
-          <div className="flex items-center text-[#8fa0a6] text-sm mt-1">
+          <h2 className="text-xl md:text-2xl font-black text-[#00bfa5] m-0">📡 Instructor Control Panel (IOS)</h2>
+          <div className="flex flex-wrap items-center gap-y-1 text-[#8fa0a6] text-sm mt-1">
             <span>Session: <strong className="text-white">{flightData.flight_no} ({flightData.aircraft_reg})</strong></span>
             <span className="mx-2">|</span>
             <span>Version: <strong className="text-white">V{flightData.ofp_version || 1}</strong></span>
@@ -77,7 +79,7 @@ function IOSPanelContent() {
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 shrink-0">
           <button onClick={() => router.push('/instructor')} className="bg-[#2a2a2a] text-white border border-[#404040] px-6 py-3 rounded-lg font-bold hover:bg-[#404040] transition-colors">
             🚪 EXIT SESSION
           </button>
@@ -87,26 +89,26 @@ function IOSPanelContent() {
       {/* ========================================== */}
       {/* 三大主模組導航列 (Main Module Switcher) */}
       {/* ========================================== */}
-      <div className="flex gap-4 mb-4 shrink-0">
-        <button 
-          onClick={() => setActiveModule("EFB")} 
-          className={`flex-1 py-3 rounded-xl font-black tracking-widest text-sm transition-all ${
+      <div className="flex gap-2 md:gap-4 mb-4 shrink-0">
+        <button
+          onClick={() => setActiveModule("EFB")}
+          className={`flex-1 py-3 rounded-xl font-black tracking-widest text-[0.65rem] md:text-sm transition-all ${
             activeModule === "EFB" ? "bg-[#00bfa5] text-black shadow-[0_0_15px_rgba(0,191,165,0.4)]" : "bg-[#1a1a1a] text-gray-400 hover:bg-[#2a2a2a] border border-[#333]"
           }`}
         >
           📱 EFB MONITOR
         </button>
-        <button 
-          onClick={() => setActiveModule("TECHLOG")} 
-          className={`flex-1 py-3 rounded-xl font-black tracking-widest text-sm transition-all ${
+        <button
+          onClick={() => setActiveModule("TECHLOG")}
+          className={`flex-1 py-3 rounded-xl font-black tracking-widest text-[0.65rem] md:text-sm transition-all ${
             activeModule === "TECHLOG" ? "bg-[#2979FF] text-white shadow-[0_0_15px_rgba(41,121,255,0.4)]" : "bg-[#1a1a1a] text-gray-400 hover:bg-[#2a2a2a] border border-[#333]"
           }`}
         >
           🔧 E-TECHLOG
         </button>
-        <button 
-          onClick={() => setActiveModule("SIM")} 
-          className={`flex-1 py-3 rounded-xl font-black tracking-widest text-sm transition-all ${
+        <button
+          onClick={() => setActiveModule("SIM")}
+          className={`flex-1 py-3 rounded-xl font-black tracking-widest text-[0.65rem] md:text-sm transition-all ${
             activeModule === "SIM" ? "bg-[#C6FF00] text-black shadow-[0_0_15px_rgba(198,255,0,0.2)]" : "bg-[#1a1a1a] text-gray-400 hover:bg-[#2a2a2a] border border-[#333]"
           }`}
         >
@@ -117,17 +119,19 @@ function IOSPanelContent() {
       {/* ========================================== */}
       {/* 模組內容動態渲染區 (Dynamic Content Area) */}
       {/* ========================================== */}
-      <div className="flex-1 overflow-hidden">
-        
+      <div className="flex-1 md:overflow-hidden">
+
         {/* 📱 模組 1: EFB Monitor */}
         {activeModule === "EFB" && (
-          <div className="flex gap-6 h-full">
+          // 🌟 Mobile：InboxPanel（1.4）+ Workflow 主面板（2.6）以前恆定並排，
+          // 而家 mobile 上下疊，desktop 完全冇變
+          <div className="flex flex-col md:flex-row gap-4 md:gap-6 h-full">
             <InboxPanel />
             {/* 🌟 修復：呢個 flex row 冇任何一邊有 min-w-0，flex child 預設
                 min-width:auto，唔會縮得過自己內容嘅 intrinsic 寬度，令成行喺
                 iPad 寬度爆晒出嚟（因為兩邊都畀 overflow-hidden 包住，冇 scrollbar
                 補鑊，直接靜靜雞裁走）。加返 min-w-0 先真正容許縮到啱 available 空間 */}
-            <div className="flex-[2.6] min-w-0 bg-[#2a2a2a] border border-[#333333] rounded-xl p-6 flex flex-col h-full overflow-hidden">
+            <div className="md:flex-[2.6] min-w-0 bg-[#2a2a2a] border border-[#333333] rounded-xl p-6 flex flex-col md:h-full md:overflow-hidden">
               <h4 className="text-[#00bfa5] font-bold text-lg mb-6">⏱️ WORKFLOW TIMELINE</h4>
               <div className="flex border-b border-[#333333] mb-6 overflow-x-auto shrink-0">
                 {efbWorkflowTabs.map(t => (
