@@ -98,3 +98,43 @@ describe('generateLSText UNDERLOAD figure', () => {
     expect(text).toMatch(/LAW ACT \d+\s+MAX \d+\s+L/);
   });
 });
+
+describe('generateLSText DG remarks line', () => {
+  const ahm = AIRCRAFT_REGISTRY['B-HNQ'];
+  const taxiKg = 200;
+  const tripKg = 20000;
+  const limits = { dispMzfw: 250, dispMtow: 300, effectiveMlaw: 230 };
+
+  it('adds a ".<IMP CODE>/<POSITION>" line right after the Cargo HOLD loading line when NOTOC has DG items', () => {
+    const flightDataWithDg = {
+      ...flightData,
+      notoc: {
+        hasDg: true,
+        items: [
+          { imp_code: 'RFL', position: '24P' },
+          { imp_code: 'ICE', position: '31P' },
+        ],
+      },
+    };
+    const payload = buildEnginePayload(snapshot, flightDataWithDg, taxiKg, tripKg);
+    const engine = new LoadsheetEngine(ahm, payload!);
+    const text = generateLSText('FINAL', 1, snapshot, engine, payload, flightDataWithDg, {}, limits);
+
+    const lines = text.split('\n');
+    const cargoLineIdx = lines.findIndex((l) => l.startsWith('T0    '));
+    expect(cargoLineIdx).toBeGreaterThan(-1);
+    // regression: DG remarks must sit on the very next line, not buried in SI only
+    expect(lines[cargoLineIdx + 1]).toBe('.RFL/24P.ICE/31P');
+  });
+
+  it('leaves the line after Cargo HOLD loading blank when there is no DG (unchanged from before)', () => {
+    const payload = buildEnginePayload(snapshot, flightData, taxiKg, tripKg);
+    const engine = new LoadsheetEngine(ahm, payload!);
+    const text = generateLSText('FINAL', 1, snapshot, engine, payload, flightData, {}, limits);
+
+    const lines = text.split('\n');
+    const cargoLineIdx = lines.findIndex((l) => l.startsWith('T0    '));
+    expect(cargoLineIdx).toBeGreaterThan(-1);
+    expect(lines[cargoLineIdx + 1]).toBe('');
+  });
+});
