@@ -11,8 +11,11 @@ export default function AtisController() {
 
   if (!flightData) return null;
 
-  const deliveredAtis = (flightData?.atis_requests || []).filter((r: any) => r.status === "DELIVERED");
   const pendingAtis = (flightData?.atis_requests || []).filter((r: any) => r.status !== "DELIVERED");
+  // 🌟 Inbox 而家顯示晒 pending + delivered（唔再淨係得 delivered），並且新到舊排（以前
+  // 淨係 filter 冇 reverse，最舊嘅喺頂、最新嘅要 scroll 落底先見到，對「比較過往幾份
+  // ATIS」嚟講好唔方便）
+  const inboxAtis = [...(flightData?.atis_requests || [])].reverse();
 
   const handleSendAtisReq = async () => {
     try {
@@ -59,21 +62,30 @@ export default function AtisController() {
       <div className="flex-[1.2] bg-[#1E1E1E] border border-[#333333] rounded-2xl p-5 shadow-lg flex flex-col">
         <h3 className="text-[#8fa0a6] text-sm font-black mb-5 uppercase tracking-widest">ATIS Inbox</h3>
         
-        {deliveredAtis.length === 0 ? (
+        {inboxAtis.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-[#555] italic text-sm">No ATIS received</div>
         ) : (
           <div className="flex flex-col gap-4 overflow-y-auto max-h-[300px] pr-2">
-            {deliveredAtis.map((req: any, i: number) => (
-              <div key={i} className="bg-[#0a0a0a] border border-[#333] rounded-xl p-4 shadow-sm">
-                <div className="text-white font-bold mb-2 flex justify-between text-xs border-b border-[#333] pb-2">
-                  <span className="text-[#2979FF]">{req.icao} {req.type}</span>
-                  <span className="text-[#8fa0a6]">{req.time}</span>
+            {inboxAtis.map((req: any, i: number) => {
+              const isDelivered = req.status === "DELIVERED";
+              return (
+                <div key={i} className={`bg-[#0a0a0a] border rounded-xl p-4 shadow-sm ${isDelivered ? 'border-[#333]' : 'border-[#2979FF]/40'}`}>
+                  <div className="text-white font-bold mb-2 flex justify-between text-xs border-b border-[#333] pb-2">
+                    <span className="text-[#2979FF]">{req.icao} {req.type}</span>
+                    <span className="text-[#8fa0a6]">{req.time}</span>
+                  </div>
+                  {isDelivered ? (
+                    <div className="font-mono text-xs text-[#e2e8f0] whitespace-pre-wrap leading-relaxed">
+                      {req.response || "NO DATA RECEIVED"}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-xs text-[#2979FF] font-bold">
+                      <span className="animate-spin">⏳</span> Awaiting ATIS response...
+                    </div>
+                  )}
                 </div>
-                <div className="font-mono text-xs text-[#e2e8f0] whitespace-pre-wrap leading-relaxed">
-                  {req.response || "NO DATA RECEIVED"}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
