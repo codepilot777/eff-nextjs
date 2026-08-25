@@ -137,6 +137,7 @@ export function ModalFMS({ flightData }: any) {
   const handleHighlightTap = () => {
     setHighlightCount((c) => (c >= totalRouteTokens ? 0 : c + 1));
   };
+  const handleClearHighlight = () => setHighlightCount(0);
 
   return (
     <div className="flex flex-col md:flex-row gap-6 h-full overflow-hidden min-h-0 w-full font-sans">
@@ -264,26 +265,39 @@ export function ModalFMS({ flightData }: any) {
       <div className="flex-[7] bg-[#1E1E1E] border border-[#333333] rounded-2xl p-6 flex flex-col min-h-0 shadow-lg">
         <div className="flex justify-between items-center mb-5 border-b border-[#333] pb-3 shrink-0 gap-3">
           <h2 className="text-lg font-bold text-white tracking-wide shrink-0">ICAO ATS FLIGHT PLAN</h2>
-          <button
-            onClick={handleHighlightTap}
-            disabled={!canHighlightRoute}
-            title={canHighlightRoute ? undefined : "SID/STAR identifier not found in route text"}
-            className={`shrink-0 px-3 py-1.5 rounded-lg font-black text-[0.65rem] uppercase tracking-widest transition-colors ${
-              !canHighlightRoute
-                ? 'bg-[#0a0a0a] border border-[#333] text-[#555] cursor-not-allowed'
-                : highlightCount >= totalRouteTokens
-                  ? 'bg-[#C6FF00] text-black hover:bg-[#b0e600]'
-                  : 'bg-[#2979FF] text-white hover:bg-blue-600'
-            }`}
-          >
-            {!canHighlightRoute
-              ? 'Highlight Route'
-              : highlightCount === 0
-                ? '▶ Highlight Route'
-                : highlightCount >= totalRouteTokens
-                  ? '✓ SID → STAR (Tap to Reset)'
-                  : `Highlighting… ${highlightCount}/${totalRouteTokens}`}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleHighlightTap}
+              disabled={!canHighlightRoute}
+              title={canHighlightRoute ? undefined : "SID/STAR identifier not found in route text"}
+              className={`shrink-0 px-3 py-1.5 rounded-lg font-black text-[0.65rem] uppercase tracking-widest transition-colors ${
+                !canHighlightRoute
+                  ? 'bg-[#0a0a0a] border border-[#333] text-[#555] cursor-not-allowed'
+                  : highlightCount >= totalRouteTokens
+                    ? 'bg-[#C6FF00] text-black hover:bg-[#b0e600]'
+                    : 'bg-[#2979FF] text-white hover:bg-blue-600'
+              }`}
+            >
+              {!canHighlightRoute
+                ? 'Highlight Route'
+                : highlightCount === 0
+                  ? '▶ Highlight Route'
+                  : highlightCount >= totalRouteTokens
+                    ? '✓ SID → STAR Complete'
+                    : `Highlighting… ${highlightCount}/${totalRouteTokens}`}
+            </button>
+            {/* 🌟 一按清晒所有 highlight，唔使逐個 tap 返轉頭（同主掣個 cycle-back-to-0
+                行為分開，隨時都可以即刻清） */}
+            {highlightCount > 0 && (
+              <button
+                onClick={handleClearHighlight}
+                title="Clear all highlighted route tokens"
+                className="shrink-0 px-3 py-1.5 rounded-lg font-black text-[0.65rem] uppercase tracking-widest bg-[#0a0a0a] border border-[#FF1744]/50 text-[#FF1744] hover:bg-[#FF1744] hover:text-white transition-colors"
+              >
+                ✕ Clear Highlight
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ATS 電報模擬區 */}
