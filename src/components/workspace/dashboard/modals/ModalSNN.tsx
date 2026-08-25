@@ -1,6 +1,12 @@
 "use client";
 
+// 🌟 修復：以前呢度讀緊 flightData?.snn——一個從未有任何地方寫入過嘅欄位，
+// 令 SNN modal 恆定顯示 "No dispatch notes for this flight."。真正嘅 Special
+// Navigation Notes 內容同 flight-select/page.tsx 一樣，一直都係 SimBrief OFP
+// 嘅 raw_simbrief.general.dx_rmk（dispatcher remarks），而家改用返同一個 source
 export function ModalSNN({ flightData }: any) {
+  const snn = flightData?.raw_simbrief?.general?.dx_rmk;
+
   return (
     <div className="w-full h-full font-sans">
       <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-5 md:p-6 shadow-lg relative overflow-hidden flex flex-col">
@@ -20,7 +26,7 @@ export function ModalSNN({ flightData }: any) {
 
         {/* 🌟 SNN 內容區：使用字體稍微大一點的 font-mono 方便閱讀 */}
         <div className="font-mono text-[0.9rem] leading-relaxed whitespace-pre-wrap text-[#e2e8f0]">
-          {flightData?.snn || <span className="text-[#8fa0a6] italic">No dispatch notes for this flight.</span>}
+          {snn || <span className="text-[#8fa0a6] italic">No dispatch notes for this flight.</span>}
         </div>
         
       </div>
