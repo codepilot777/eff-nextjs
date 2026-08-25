@@ -60,15 +60,17 @@ export class LoadsheetEngine {
     let paxCount = 0;
     let totalPaxWeight = 0;
     const paxWeightsBreakdown: Record<string, number> = {};
+    const paxCountBreakdown: Record<string, number> = {};
 
     Object.keys(this.ahm.stations.pax).forEach((zoneKey) => {
       const shortKey = zoneKey.replace("zone", "");
       const count = Number(this.payload.pax[zoneKey] ?? this.payload.pax[shortKey] ?? 0);
       paxCount += count;
+      paxCountBreakdown[zoneKey] = count;
 
       const zoneClass = (this.ahm.stations.pax as any)[zoneKey].primaryClass as "J" | "W" | "Y";
       const classWeight = PAX_CLASS_WEIGHTS[zoneClass] ?? PAX_CLASS_WEIGHTS.Y;
-      
+
       const zoneWeight = count * classWeight;
       totalPaxWeight += zoneWeight;
       paxWeightsBreakdown[zoneKey] = zoneWeight;
@@ -85,10 +87,10 @@ export class LoadsheetEngine {
     const TOW = ZFW + (this.payload.fuel.takeoff || 0);
     const LAW = TOW - (this.payload.fuel.trip || 0);
 
-    return { 
-      DOW, ZFW, TOW, LAW, 
+    return {
+      DOW, ZFW, TOW, LAW,
       paxCount, totalPaxWeight, totalCargoWeight,
-      paxWeightsBreakdown 
+      paxWeightsBreakdown, paxCountBreakdown
     };
   }
 
@@ -118,11 +120,16 @@ export class LoadsheetEngine {
     // 🌟 恢復專業：ZFW 指數起點 = 飛機基本指數 BI + 廚房乘務指數 + 飲用水指數 (即是 DOI)
     let indexZFW = this.ahm.basicData.BI + crewPantry.index + water.index;
 
-    // 客艙 Index 加權
+    // 🌟 修復：客艙 Index 加權以前用緊 getPayloadIndex（即係 cargo 嗰種「per 100kg」
+    // 折算），但真實 Cathay B777 Index Table 入面，客艙座位嘅 indexFactor 係「每位乘客」
+    // 直接嘅指數（同機艙位置有關，同嗰位客實際幾重完全無關），淨係 cargo/galley 嘅
+    // Deadload 先係「per 100kg or part thereof」。個 indexFactor 數值本身（-5/-2/1/4 等）
+    // 已經係跟真實 Cathay B777-300 Weight & Balance Folder 抄嘅每位乘客指數，
+    // 直接用 count × factor 先啱，唔應該再除 100 嗰種折法
     Object.keys(this.ahm.stations.pax).forEach((zoneKey) => {
-      const zoneWeight = w.paxWeightsBreakdown[zoneKey] || 0;
+      const zoneCount = w.paxCountBreakdown[zoneKey] || 0;
       const factor = (this.ahm.stations.pax as any)[zoneKey].indexFactor;
-      indexZFW += this.getPayloadIndex(zoneWeight, factor);
+      indexZFW += zoneCount * factor;
     });
 
     // 貨艙 Index 加權
