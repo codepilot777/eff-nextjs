@@ -139,8 +139,10 @@ export default function Weather() {
       id: `toff-altn-${toffAltn.icao_code}`,
       type: "TOFF_ALTN",
       icao: toffAltn.icao_code,
-      metar: getWx(undefined, toffAltn.metar),
-      taf: getWx(undefined, toffAltn.taf)
+      // 🌟 WxTab.tsx 教官編輯/AI 生成後寫入 flightData.metar_toff_altn/taf_toff_altn，
+      // 同 DEP/ARR 一樣要優先讀 override，唔可以淨係讀死 raw data
+      metar: getWx(flightData?.metar_toff_altn, toffAltn.metar),
+      taf: getWx(flightData?.taf_toff_altn, toffAltn.taf)
     });
     seenIcaos.add(toffAltn.icao_code);
   }
@@ -149,6 +151,7 @@ export default function Weather() {
   // 一樣未用過。可能係單一 object 或者 array，同 alternate 一樣要兼容兩種形狀
   const rawEnrouteAltn = rawSb.enroute_altn;
   const enrouteAltnArray = Array.isArray(rawEnrouteAltn) ? rawEnrouteAltn : (rawEnrouteAltn?.icao_code ? [rawEnrouteAltn] : []);
+  const enrouteAltnOverrides = flightData?.enroute_altns || [];
   enrouteAltnArray.forEach((ea: any, idx: number) => {
     const icao = ea.icao_code || ea.icao;
     if (icao && !seenIcaos.has(icao)) {
@@ -156,8 +159,8 @@ export default function Weather() {
         id: `enr-altn-${icao}-${idx}`,
         type: "ENR_ALTN",
         icao: icao,
-        metar: getWx(undefined, ea.metar),
-        taf: getWx(undefined, ea.taf)
+        metar: getWx(enrouteAltnOverrides[idx]?.metar, ea.metar),
+        taf: getWx(enrouteAltnOverrides[idx]?.taf, ea.taf)
       });
       seenIcaos.add(icao);
     }
@@ -166,6 +169,7 @@ export default function Weather() {
   // 🌟 6. 航路沿途氣象站 (Enroute Stations)——SimBrief raw data 入面成十幾個機場，
   // 淨係呢類先摺埋（collapsed）＋滾動清單顯示，避免一開頁就成版都係機場卡片
   const rawEnrouteStations = Array.isArray(rawSb.enroute_station) ? rawSb.enroute_station : [];
+  const enrouteStationOverrides = flightData?.enroute_stations || [];
   const enrouteStationList = rawEnrouteStations
     .filter((s: any) => (s.icao_code || s.icao) && !seenIcaos.has(s.icao_code || s.icao))
     .map((s: any, idx: number) => {
@@ -175,8 +179,8 @@ export default function Weather() {
         id: `enr-station-${icao}-${idx}`,
         type: "ENR",
         icao,
-        metar: getWx(undefined, s.metar),
-        taf: getWx(undefined, s.taf)
+        metar: getWx(enrouteStationOverrides[idx]?.metar, s.metar),
+        taf: getWx(enrouteStationOverrides[idx]?.taf, s.taf)
       };
     });
 
