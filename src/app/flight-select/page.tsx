@@ -9,7 +9,9 @@ import { getOfpHistory, diffOfpSnapshots } from "@/lib/flight/ofpHistory";
 // 🌟 內部組件 1: 左側航班清單
 // ==========================================
 const FlightListColumn = ({ flights, selectedFlight, onSelect }: { flights: any[], selectedFlight: any, onSelect: (f: any) => void }) => (
-  <div className="w-[280px] shrink-0 bg-[#1E1E1E] border border-[#333333] rounded-2xl p-5 flex flex-col shadow-lg min-h-0">
+  // 🌟 Mobile：呢個 column 以前恆定 280px 寬、同右邊嘅內容並排。而家 mobile 變全闊
+  // 上下疊，用 max-h 保持一個合理嘅高度（唔會逼到成頁齊晒航班清單先睇到後面嘅嘢）
+  <div className="w-full md:w-[280px] shrink-0 bg-[#1E1E1E] border border-[#333333] rounded-2xl p-5 flex flex-col shadow-lg min-h-0 max-h-[35vh] md:max-h-none">
     <h4 className="text-[#8fa0a6] font-bold text-[0.65rem] uppercase mb-4 tracking-widest border-b border-[#333] pb-3 shrink-0">
       Available Flights
     </h4>
@@ -173,7 +175,7 @@ function FlightSelectContent() {
   const isTogglePending = ofpActivateMutation.isPending || ofpDeactivateMutation.isPending;
 
   return (
-    <div className="h-screen bg-[#0a0a0a] text-[#e2e8f0] font-sans p-6 md:p-8 flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#0a0a0a] text-[#e2e8f0] font-sans p-4 md:p-8 flex flex-col overflow-y-auto md:overflow-hidden">
 
       {/* 🌟 Header 容器改為 Flex Layout，方便擺放右上角 Return 按鈕 */}
       <div className="mb-6 flex justify-between items-start shrink-0">
@@ -206,13 +208,13 @@ function FlightSelectContent() {
           Retrieving active flights from database...
         </div>
       ) : (
-        <div className="flex flex-1 gap-6 min-h-0">
+        <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-6 min-h-0">
 
           {/* 左欄：航班清單 */}
           <FlightListColumn flights={flights} selectedFlight={selectedFlight} onSelect={handleSelectFlight} />
 
           {/* 統一右側大容器 */}
-          <div className="flex-1 bg-[#1E1E1E] border border-[#333333] rounded-2xl flex overflow-hidden shadow-lg min-h-0">
+          <div className="flex-1 bg-[#1E1E1E] border border-[#333333] rounded-2xl flex flex-col md:flex-row overflow-visible md:overflow-hidden shadow-lg min-h-0">
             {!selectedFlight ? (
               <div className="w-full h-full flex flex-col items-center justify-center text-[#555] bg-[#0a0a0a]/50">
                 <svg fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-16 h-16 mb-4 opacity-50">
@@ -222,8 +224,8 @@ function FlightSelectContent() {
               </div>
             ) : (
               <>
-                {/* 內左欄：OFP 版本選擇 */}
-                <div className="w-[200px] shrink-0 border-r border-[#333333] p-5 flex flex-col bg-[#0a0a0a]">
+                {/* 內左欄：OFP 版本選擇 — mobile 全闊、bounded 高度，同 FlightListColumn 一樣 */}
+                <div className="w-full md:w-[200px] shrink-0 border-b md:border-b-0 md:border-r border-[#333333] p-5 flex flex-col bg-[#0a0a0a] max-h-[30vh] md:max-h-none">
                   <h4 className="text-[#8fa0a6] font-bold text-[0.65rem] uppercase mb-4 tracking-widest border-b border-[#333] pb-3 shrink-0">
                     OFP Versions
                   </h4>
@@ -263,7 +265,7 @@ function FlightSelectContent() {
                 </div>
 
                 {/* 內右欄：SNN、Compare 與 底部控制列 */}
-                <div className="flex-1 p-6 md:p-8 flex flex-col relative bg-[#1E1E1E] min-w-0">
+                <div className="flex-1 p-4 md:p-8 flex flex-col relative bg-[#1E1E1E] min-w-0">
                   <div className="flex flex-col h-full animate-fade-in min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
 
                     {/* 航班摘要 */}

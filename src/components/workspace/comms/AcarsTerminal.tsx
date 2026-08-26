@@ -28,7 +28,11 @@ export default function AcarsTerminal() {
   };
 
   return (
-    <div className="flex-[#1.1] flex flex-col bg-[#1E1E1E] border border-[#333333] rounded-2xl overflow-hidden p-5 shrink-0 shadow-xl">
+    // 🌟 Mobile：冇咗 desktop 嗰個由 Comms.tsx 傳落嚟嘅 h-full 邊界，聊天區自己嘅
+    // flex-1/overflow-y-auto 就冇嘢可以 bound 住，會攤到跟晒訊息數量咁高。
+    // 而家自己畀返一個合理嘅 mobile 高度，desktop 就用返 h-full。
+    // 順手修正 flex-[#1.1] 呢個打錯字（# 唔係合法 Tailwind 語法，一直冇生效過）
+    <div className="h-[420px] md:h-full md:flex-[1.1] flex flex-col bg-[#1E1E1E] border border-[#333333] rounded-2xl overflow-hidden p-5 shrink-0 shadow-xl">
       <div className="flex justify-between items-center mb-4 border-b border-[#333] pb-3 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-[#0a0a0a] border border-[#444] flex items-center justify-center text-white">

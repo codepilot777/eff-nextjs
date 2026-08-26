@@ -26,10 +26,12 @@ export default function TechLogHistory({ tlData }: any) {
   const selectedDetail = realHistory.find((r: any) => r.id === selectedHist);
 
   return (
-    <div className="w-full h-full flex gap-4 overflow-hidden font-sans">
-      
+    // 🌟 Mobile：列表/詳情兩個 panel 以前並排 + overflow-hidden，右邊詳情內容
+    // 會俾裁走，而家 mobile 上下疊
+    <div className="w-full h-full flex flex-col md:flex-row gap-4 md:overflow-hidden font-sans overflow-y-auto">
+
       {/* 👈 左側：歷史列表 */}
-      <div className="flex-[3] bg-[#1E1E1E] border border-[#333] rounded-2xl p-5 shadow-lg overflow-y-auto flex flex-col gap-3 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
+      <div className="md:flex-[3] bg-[#1E1E1E] border border-[#333] rounded-2xl p-5 shadow-lg md:overflow-y-auto flex flex-col gap-3 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent shrink-0 max-h-[40vh] md:max-h-none">
         <h4 className="text-[#8fa0a6] text-[0.65rem] font-bold uppercase tracking-widest mb-2 border-b border-[#333] pb-3 shrink-0 flex items-center gap-2">
           <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 011.875 1.875v11.25a1.875 1.875 0 01-1.875 1.875H5.625a1.875 1.875 0 01-1.875-1.875V6.375c0-1.036.84-1.875 1.875-1.875z" /></svg>
           Sector Logs
@@ -73,7 +75,7 @@ export default function TechLogHistory({ tlData }: any) {
       </div>
 
       {/* 👉 右側：歷史詳情 */}
-      <div className="flex-[7] bg-[#1E1E1E] border border-[#333] rounded-2xl p-7 shadow-lg overflow-y-auto scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
+      <div className="md:flex-[7] bg-[#1E1E1E] border border-[#333] rounded-2xl p-4 md:p-7 shadow-lg md:overflow-y-auto scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
         {selectedDetail && (
           <div className="animate-fade-in flex flex-col h-full">
             
@@ -99,12 +101,12 @@ export default function TechLogHistory({ tlData }: any) {
             </div>
 
             {/* ⏱️ Operations Times (專屬黑底長條卡片) */}
-            <div className="bg-[#0a0a0a] border border-[#333] rounded-xl p-4 flex justify-between items-center mb-6 shrink-0 shadow-inner">
+            <div className="bg-[#0a0a0a] border border-[#333] rounded-xl p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-6 shrink-0 shadow-inner">
               <div className="flex items-center gap-2 text-[#8fa0a6] text-[0.65rem] font-bold uppercase tracking-widest">
                 <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 Sector Times
               </div>
-              <div className="flex gap-8 text-right">
+              <div className="flex flex-wrap gap-x-6 gap-y-2 sm:gap-8 text-right">
                 {selectedDetail.blocksOff && (
                   <div className="flex flex-col"><span className="text-[0.6rem] uppercase tracking-widest text-[#555] font-bold">Blocks Off</span><span className="text-[#00E676] font-mono text-sm font-bold">{selectedDetail.blocksOff} z</span></div>
                 )}
@@ -121,7 +123,7 @@ export default function TechLogHistory({ tlData }: any) {
             </div>
 
             {/* 🌟 第 1 行：Defects + Maintenance */}
-            <div className="grid grid-cols-2 gap-5 mb-5 shrink-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5 shrink-0">
               <div className="bg-[#0a0a0a] p-5 rounded-xl border border-[#333] shadow-inner">
                 <h4 className="text-[#FF9100] font-bold mb-4 uppercase text-[0.65rem] tracking-widest border-b border-[#333] pb-3 flex items-center gap-2">
                   <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
@@ -158,7 +160,7 @@ export default function TechLogHistory({ tlData }: any) {
             </div>
 
             {/* 🌟 第 2 行：Fuel + Flight Information */}
-            <div className="grid grid-cols-[1fr_1.5fr] gap-5 shrink-0">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-5 shrink-0">
               
               <div className="bg-[#0a0a0a] p-5 rounded-xl border border-[#333] shadow-inner">
                 <h4 className="text-white font-bold mb-4 uppercase text-[0.65rem] tracking-widest border-b border-[#333] pb-3 flex items-center gap-2">

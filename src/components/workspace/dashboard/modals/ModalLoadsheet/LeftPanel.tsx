@@ -35,7 +35,7 @@ export function LeftPanel({ flightData, calc }: any) {
   }
 
   return (
-    <div className="w-[300px] shrink-0 flex flex-col h-full bg-[#1E1E1E] rounded-2xl border border-[#333333] p-5 shadow-lg mr-6 overflow-y-auto scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
+    <div className="w-full md:w-[300px] shrink-0 flex flex-col md:h-full bg-[#1E1E1E] rounded-2xl border border-[#333333] p-5 shadow-lg mb-4 md:mb-0 md:mr-6 md:overflow-y-auto scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
       
       {/* Stage Indicator */}
       <div className="mb-6">

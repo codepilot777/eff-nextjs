@@ -35,7 +35,9 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
   const desiredFuelVal = flightData?.desired_fuel_value || '';
 
   return (
-    <div className="bg-[#1E1E1E] rounded-xl border border-[#333333] p-4 shadow-lg mb-3 shrink-0 flex flex-row relative overflow-hidden">
+    // 🌟 Mobile：左半（reg/pax 資訊）+ 右半（固定 460px 嘅 Weight Limit 控制區）
+    // 以前恆定並排，而家 mobile 上下疊
+    <div className="bg-[#1E1E1E] rounded-xl border border-[#333333] p-4 shadow-lg mb-3 shrink-0 flex flex-col md:flex-row relative overflow-hidden">
       
       {/* 飛機 SVG Watermark */}
       <svg className="absolute -bottom-12 -right-10 w-[300px] h-[300px] text-[#ffffff] opacity-[0.03] transform -rotate-[25deg] pointer-events-none" fill="currentColor" viewBox="0 0 512 512">
@@ -43,7 +45,7 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
       </svg>
 
       {/* 左半：飛機與座位資訊 */}
-      <div className="flex-1 relative z-10 flex flex-col justify-center pr-4">
+      <div className="flex-1 relative z-10 flex flex-col justify-center pr-0 md:pr-4">
         <div className="flex items-end gap-5 mb-2">
           <span className="text-[2.5rem] font-black text-white tracking-wider leading-none drop-shadow-md">{info.reg_clean}</span>
           <div className="flex flex-col mb-1">
@@ -76,7 +78,7 @@ export function RightHeader({ flightData, updateFlightData, calc, limits }: any)
       </div>
 
       {/* 右半：Setup & Limits 操控區 (維持不變) */}
-      <div className="w-[460px] shrink-0 relative z-10 border-l border-[#333] pl-4 flex flex-col justify-center">
+      <div className="w-full md:w-[460px] shrink-0 relative z-10 border-t md:border-t-0 md:border-l border-[#333] pt-4 md:pt-0 mt-4 md:mt-0 pl-0 md:pl-4 flex flex-col justify-center">
         <div className="flex justify-between items-center mb-1.5">
           <span className="text-[0.9rem] font-bold text-white uppercase tracking-widest">Weight Limit</span>
           <div onClick={() => updateFlightData({is_custom_weight: !limits.isCustomWt, final_fuel_accepted: false})} className="flex items-center gap-1.5 cursor-pointer bg-[#0a0a0a] border border-[#333] rounded-full px-1.5 py-0.5 hover:bg-[#252525] transition-colors">

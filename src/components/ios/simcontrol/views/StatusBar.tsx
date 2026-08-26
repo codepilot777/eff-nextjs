@@ -17,7 +17,7 @@ export default function StatusBar({ isConnected, sendToFSUIPC, currentModuleDesc
 
   return (
     <>
-      <div className="flex justify-between items-center bg-[#1E1E1E] border border-[#333] rounded-xl p-4 shrink-0 shadow-lg relative z-10">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-0 bg-[#1E1E1E] border border-[#333] rounded-xl p-4 shrink-0 shadow-lg relative z-10">
         
         {/* 左側狀態 */}
         <div className="flex flex-col gap-1 relative pl-8">
@@ -42,7 +42,7 @@ export default function StatusBar({ isConnected, sendToFSUIPC, currentModuleDesc
         </div>
         
         {/* 右側按鈕區 */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={() => setIsInitModalOpen(true)}
             className="px-6 py-2.5 rounded-xl font-black text-xs tracking-widest uppercase transition-all active:scale-95 bg-[#252525] border border-[#00bfa5] text-[#00bfa5] hover:bg-[#00bfa5] hover:text-black shadow-[0_0_10px_rgba(0,191,165,0.2)]"

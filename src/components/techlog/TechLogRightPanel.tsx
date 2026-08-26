@@ -126,7 +126,7 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
   const marginZfw = getMargin(zfwVal, ahm.limits.MZFW);
 
   return (
-    <div className="flex-[6] bg-[#1E1E1E] border border-[#333] rounded-2xl p-7 shadow-lg overflow-y-auto relative font-sans scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
+    <div className="md:flex-[6] bg-[#1E1E1E] border border-[#333] rounded-2xl p-4 md:p-7 shadow-lg md:overflow-y-auto relative font-sans scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
       
       {/* ✈️ 右上角 In-Flight Dropdown 艙內選單 */}
       {isStarted && roleMode === "FLIGHT CREW" && (

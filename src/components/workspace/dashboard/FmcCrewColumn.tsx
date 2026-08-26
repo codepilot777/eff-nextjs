@@ -113,7 +113,7 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
   const otherCrewCount = (crewRoster?.flight_deck?.length || 0) - (firstOfficer ? 1 : 0) + (crewRoster?.cabin_crew?.length || 0);
 
   return (
-    <div className="flex flex-col gap-2 h-full overflow-hidden font-sans text-white w-full max-w-[280px]">
+    <div className="flex flex-col gap-2 h-full overflow-hidden font-sans text-white w-full md:max-w-[280px]">
       
       {/* 🌟 1. FMC & ATS 卡片 */}
       <div 

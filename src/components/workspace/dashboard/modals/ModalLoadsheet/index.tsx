@@ -18,13 +18,16 @@ export function ModalLoadsheet(props: any) {
   const limits = getEffectiveWeightLimits(ahm, flightData);
 
   return (
-    <div className="flex flex-row h-full w-full overflow-hidden relative font-sans">
-      
+    // 🌟 Mobile：LeftPanel（固定 300px）+ 右邊 RightHeader/HistoryPanel（本身仲有
+    // 460px 嘅固定寬度子面板）以前恆定並排，窄屏幕加埋隨時爆過 700-800px，
+    // 而家 mobile 先變上下疊，desktop 完全冇變
+    <div className="flex flex-col md:flex-row h-full w-full overflow-y-auto md:overflow-hidden relative font-sans">
+
       {/* 左邊：狀態與 Revised Weights 面板 */}
       <LeftPanel {...props} />
 
       {/* 右邊：上下結構 (Header & History) */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col md:h-full md:overflow-hidden min-w-0">
         <RightHeader {...props} limits={limits} />
         <HistoryPanel {...props} limits={limits} />
       </div>

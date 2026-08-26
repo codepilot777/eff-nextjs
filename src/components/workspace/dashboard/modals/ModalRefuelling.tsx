@@ -30,7 +30,7 @@ export function ModalRefuelling({ flightData, updateFlightData, setActiveModal }
         <div className="bg-[#1E1E1E] border border-[#333333] rounded-2xl p-6 shadow-lg flex flex-col">
           
           {/* 上半部：油站與產品資訊 */}
-          <div className="grid grid-cols-2 gap-y-6 gap-x-8 mb-6 pb-6 border-b border-[#333] shrink-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 mb-6 pb-6 border-b border-[#333] shrink-0">
             <div className="flex flex-col gap-1">
               <span className="text-[#8fa0a6] text-[0.65rem] font-bold uppercase tracking-widest leading-none">Supplier Code</span>
               <span className="font-mono text-[1.1rem] text-white leading-none mt-1">AFSC (HKIA)</span>

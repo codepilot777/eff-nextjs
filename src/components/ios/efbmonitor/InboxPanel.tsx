@@ -46,7 +46,7 @@ export default function InboxPanel() {
     // 🌟 min-w-0：同 instructor/ios/page.tsx 嗰邊嘅 flex-[2.6] 兄弟 div 一齊修復——
     // 冇 min-w-0 呢個 flex child 唔會縮得過自己內容嘅 intrinsic 寬度，令成行喺 iPad
     // 寬度爆出嚟俾 overflow-hidden 靜靜雞裁走
-    <div className="flex-[1.4] min-w-0 flex flex-col gap-4 overflow-y-auto pr-2 pb-10">
+    <div className="md:flex-[1.4] min-w-0 flex flex-col gap-4 md:overflow-y-auto pr-0 md:pr-2 pb-4 md:pb-10">
       <h4 className="text-status-teal font-bold text-lg mb-2">📥 INBOX & TELEMETRY</h4>
       
       <div className="bg-lido-800 border border-[#333333] rounded-xl p-4 shadow-sm">
