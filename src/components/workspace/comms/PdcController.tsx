@@ -4,11 +4,16 @@ import { useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
 
 export default function PdcController() {
-  const { flightData, updateFlightData, sendFlightDirective } = useFlightData();
+  const { flightData, updateFlightData, sendFlightDirective, isUpdating } = useFlightData();
 
   const [fac, setFac] = useState("");
   const [atisCd, setAtisCd] = useState("");
   const [gate, setGate] = useState(flightData?.bay_no || "");
+  // 🌟 sendFlightDirective 冇 optimistic update（同 updateFlightData 唔同），
+  // 由撳掣到 server 回覆、refetch 完成、hasPendingPdc 先變 true 呢段空檔，
+  // 個掣以前完全冇任何變化，睇落好似撳咗等於冇撳過咁，容易畀人以為個掣壞咗/
+  // 撳多幾下——加返呢個 local flag 即刻俾返 feedback
+  const [isSending, setIsSending] = useState(false);
 
   if (!flightData) return null;
 
@@ -19,10 +24,13 @@ export default function PdcController() {
 
   const handleSendPdcReq = async () => {
     if (fac.length !== 4 || atisCd.length !== 1) return alert("Facility must be 4 chars, ATIS must be 1 char.");
+    setIsSending(true);
     try {
       await sendFlightDirective({ pdcRequestAppend: { atis: atisCd, facility: fac, gate } });
     } catch {
       alert("Failed to send PDC request");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -76,8 +84,12 @@ export default function PdcController() {
                 <input type="text" value={gate} onChange={(e) => setGate(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#333] text-white px-3 py-2 rounded-lg font-bold outline-none focus:border-[#C6FF00] text-sm transition-colors" />
               </div>
             </div>
-            <button onClick={handleSendPdcReq} className="w-full py-3 mt-2 bg-[#FF9100] text-black font-black rounded-lg hover:bg-[#ffA000] shadow-md transition-colors text-xs uppercase tracking-widest">
-              Send PDC Req
+            <button
+              onClick={handleSendPdcReq}
+              disabled={isSending}
+              className="w-full py-3 mt-2 bg-[#FF9100] text-black font-black rounded-lg hover:bg-[#ffA000] shadow-md transition-colors text-xs uppercase tracking-widest disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2"
+            >
+              {isSending ? (<><span className="animate-spin">⏳</span> Sending...</>) : "Send PDC Req"}
             </button>
           </div>
         )}
@@ -107,11 +119,12 @@ export default function PdcController() {
             </div>
 
             {!isPdcAccepted && (
-              <button 
+              <button
                 onClick={() => updateFlightData({ pilots_accepted_pdc: true })}
-                className="w-full py-3 mt-3 bg-[#C6FF00] text-black font-black rounded-lg text-xs uppercase tracking-widest shadow-md hover:bg-[#b0e600] transition-colors"
+                disabled={isUpdating}
+                className="w-full py-3 mt-3 bg-[#C6FF00] text-black font-black rounded-lg text-xs uppercase tracking-widest shadow-md hover:bg-[#b0e600] transition-colors disabled:opacity-60 disabled:cursor-wait"
               >
-                Accept Clearance
+                {isUpdating ? "Accepting..." : "Accept Clearance"}
               </button>
             )}
           </div>

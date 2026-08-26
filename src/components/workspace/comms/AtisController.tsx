@@ -8,6 +8,9 @@ export default function AtisController() {
 
   const [atisApt, setAtisApt] = useState(flightData?.dep_icao || "");
   const [atisType, setAtisType] = useState("DEPARTURE");
+  // 🌟 同 PdcController 一樣：sendFlightDirective 冇 optimistic update，
+  // 撳掣到 refetch 完成之前個掣完全冇反應，容易畀人以為撳咗等於冇撳過
+  const [isSending, setIsSending] = useState(false);
 
   if (!flightData) return null;
 
@@ -23,6 +26,7 @@ export default function AtisController() {
     // 第二個機場，會送錯去啱啱改緊嗰個）
     const icao = atisApt.toUpperCase();
     const type = atisType;
+    setIsSending(true);
     try {
       await sendFlightDirective({ atisRequestAppend: { icao, type } });
       // 🌟 模擬真實 D-ATIS 電台延遲：request 之後 15 秒先至送到 cockpit（唔係即刻
@@ -36,6 +40,8 @@ export default function AtisController() {
       }, 15000);
     } catch {
       alert("Failed to send ATIS request");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -66,8 +72,12 @@ export default function AtisController() {
               </select>
             </div>
           </div>
-          <button onClick={handleSendAtisReq} className="w-full py-3 mt-2 bg-[#2979FF] text-white font-black rounded-lg hover:bg-blue-600 shadow-md transition-colors text-xs uppercase tracking-widest">
-            Send ATIS Req
+          <button
+            onClick={handleSendAtisReq}
+            disabled={isSending}
+            className="w-full py-3 mt-2 bg-[#2979FF] text-white font-black rounded-lg hover:bg-blue-600 shadow-md transition-colors text-xs uppercase tracking-widest disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2"
+          >
+            {isSending ? (<><span className="animate-spin">⏳</span> Sending...</>) : "Send ATIS Req"}
           </button>
         </div>
       </div>
