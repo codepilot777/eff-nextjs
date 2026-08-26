@@ -191,7 +191,7 @@ export function formatChangeFromPrelim(
   const macTowChgPct = finalMacTow - prelimMacTow;
   const towChgStr = `${towChgKg >= 0 ? '+' : ''}${towChgKg}KG`;
   const macTowChgStr = `${macTowChgPct >= 0 ? '+' : ''}${macTowChgPct.toFixed(2)}%`;
-  return `\nCHANGE FROM PRELIM V${prelimVersion.toString().padStart(2, '0')}\nTOW CHG ${towChgStr}\nMACTOW  ${macTowChgStr}\n`;
+  return `\nCHANGE FROM PRELIM ${prelimVersion.toString().padStart(2, '0')}\nTOW CHG ${towChgStr}\nMACTOW CHG ${macTowChgStr}\n`;
 }
 
 export interface LsCompareStage {
