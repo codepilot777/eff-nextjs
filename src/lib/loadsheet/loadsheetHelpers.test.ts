@@ -142,14 +142,14 @@ describe('generateLSText DG remarks line', () => {
 describe('formatChangeFromPrelim', () => {
   it('formats a positive TOW/MACTOW change with a leading +', () => {
     const text = formatChangeFromPrelim(200500, 25.30, 200180, 25.15, 1);
-    expect(text).toContain('CHANGE FROM PRELIM (V01)');
+    expect(text).toContain('CHANGE FROM PRELIM V01');
     expect(text).toContain('TOW CHG +320KG');
     expect(text).toContain('MACTOW  +0.15%');
   });
 
   it('formats a negative TOW/MACTOW change without a double sign', () => {
     const text = formatChangeFromPrelim(199800, 24.90, 200180, 25.15, 2);
-    expect(text).toContain('CHANGE FROM PRELIM (V02)');
+    expect(text).toContain('CHANGE FROM PRELIM V02');
     expect(text).toContain('TOW CHG -380KG');
     expect(text).toContain('MACTOW  -0.25%');
   });
@@ -176,7 +176,7 @@ describe('generateLSText CHANGE FROM PRELIM block', () => {
     const compareStage = { version: 1, tow: w.TOW - 300, macTow: cg.MACTOW - 0.1 };
 
     const text = generateLSText('FINAL', 2, snapshot, engine, payload, flightData, {}, limits, compareStage);
-    expect(text).toContain('CHANGE FROM PRELIM (V01)');
+    expect(text).toContain('CHANGE FROM PRELIM V01');
     expect(text).toContain('TOW CHG +300KG');
   });
 
