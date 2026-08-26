@@ -86,15 +86,22 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
           const { taxiKg, tripKg } = getEntryFuelKg(doc, isLatest);
           const payloadObj = buildEnginePayload(doc.snapshot, flightData, taxiKg, tripKg);
           const engine = new LoadsheetEngine(ahm, payloadObj!);
-          const text = generateLSText("FINAL", doc.version, doc.snapshot, engine, payloadObj, flightData, calc, limits);
 
           const latestPrelim = flightData?.prelim_history?.[flightData.prelim_history.length - 1];
           let pText = "";
+          // 🌟 CHANGE FROM PRELIM 區塊要用嘅 TOW/MACTOW 對比基準——同下面攞嚟
+          // render highlight diff 嗰個 pEngine 共用，唔使計多次
+          let compareStage: { version: number; tow: number; macTow: number } | null = null;
           if (latestPrelim && isLatest) {
             const pPayload = buildEnginePayload(latestPrelim.snapshot, flightData, revisedTaxiKg, revisedTripKg);
             const pEngine = new LoadsheetEngine(ahm, pPayload!);
             pText = generateLSText("PRELIM", latestPrelim.version, latestPrelim.snapshot, pEngine, pPayload, flightData, calc, limits);
+            const pW = pEngine.calculateWeights();
+            const pCg = pEngine.calculateCG();
+            compareStage = { version: latestPrelim.version, tow: pW.TOW, macTow: pCg.MACTOW };
           }
+
+          const text = generateLSText("FINAL", doc.version, doc.snapshot, engine, payloadObj, flightData, calc, limits, isLatest ? compareStage : null);
 
           return (
             <div key={`final-${doc.version}`} className={`bg-[#1E1E1E] border ${isRejected ? 'border-[#FF1744]/50' : 'border-[#333333]'} rounded-2xl p-5 w-[85vw] max-w-[460px] md:w-[460px] flex-shrink-0 flex flex-col h-full min-h-0 relative overflow-hidden transition-colors shadow-lg`}>
@@ -107,7 +114,12 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
                   flightData?.final_ls_rejected ? (
                     <button disabled className="w-full py-2.5 bg-[#FF1744]/10 border border-[#FF1744]/50 text-[#FF1744] rounded-lg font-bold text-[0.7rem] uppercase tracking-widest cursor-not-allowed">FINAL (V{doc.version}) REJECTED</button>
                   ) : flightData?.pilots_signed_final ? (
-                    <div className="w-full py-2.5 bg-[#C6FF00] text-black rounded-lg font-bold text-[0.7rem] uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm">✓ Acknowledged by {flightData?.captain || 'COMMANDER'}</div>
+                    <div className="w-full py-2.5 bg-[#C6FF00] text-black rounded-lg font-bold text-[0.7rem] uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm">
+                      ✓ Acknowledged by {flightData?.captain || 'COMMANDER'}
+                      {/* 🌟 舊 flight（呢個功能改版之前已經 acknowledge 咗）冇呢個欄位，
+                          就唔顯示 timestamp，唔會印一個唔存在嘅假時間出嚟 */}
+                      {flightData?.final_ls_signed_time && ` ${flightData.final_ls_signed_time}`}
+                    </div>
                   ) : (
                     // 🌟 用本地 state 記錄緊邊張卡片被點擊，彈窗字樣先至永遠鎖定正確 version
 <button 
@@ -189,35 +201,32 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
       {/* 🌟 終極大絕：直接喺卡片清單底層攔截彈窗！徹底封殺跨時空讀到 02 嘅 Bug */}
       {/* ============================================================================ */}
       {localConfirmVer !== null && (
-        <div className="absolute inset-[-1.5rem] z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md animate-fade-in rounded-2xl">
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-[340px] p-6 shadow-2xl flex flex-col relative text-sans text-left">
-            <button 
-              onClick={() => setLocalConfirmVer(null)} 
-              className="absolute top-4 right-4 text-[#8fa0a6] hover:text-white font-black text-xl transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#333]"
-            >
-              ✕
-            </button>
-            
-            <p className="text-sm font-bold text-white mb-6 mt-4 text-center leading-relaxed font-sans">
-              Confirm the data of loadsheet<br/>
+        <div className="absolute inset-[-1.5rem] z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md animate-fade-in rounded-2xl px-6">
+          {/* 🌟 細、單行嘅 modal：字喺左邊，Reject/Accept 兩個掣一齊喺右邊——
+              唔再係成個畫面中央嘅大 modal + 掣上下疊 */}
+          <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-full max-w-[480px] px-5 py-4 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 text-sans">
+            <p className="text-[0.8rem] font-black text-white uppercase tracking-widest text-center sm:text-left shrink-0">
               {/* 🎯 絕對真理：彈窗字樣直接鎖死當前點擊嘅 localConfirmVer，神仙都改佢唔到！ */}
-              <span className="text-[#2979FF] text-xl font-black block mt-2">
-                FINAL {localConfirmVer.toString().padStart(2, '0')}
-              </span>
+              Acknowledge Final Loadsheet {localConfirmVer.toString().padStart(2, '0')}
             </p>
-            
-            <div className="flex flex-col gap-3 font-sans">
-              <button 
-                onClick={() => { setLocalConfirmVer(null); updateFlightData({ pilots_signed_final: true }); }} 
-                className="w-full bg-[#C6FF00] text-black font-black uppercase tracking-widest text-[0.7rem] px-4 py-3.5 rounded-lg shadow-md hover:bg-[#b0e600] transition-colors"
-              >
-                Accept
-              </button>
-              <button 
-                onClick={() => { setLocalConfirmVer(null); setActiveModal('RejectFinal'); }} 
-                className="w-full text-[#FF1744] bg-[#FF1744]/10 border border-[#FF1744]/50 font-black uppercase tracking-widest text-[0.7rem] px-4 py-3.5 rounded-lg hover:bg-[#FF1744] hover:text-white transition-colors"
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => { setLocalConfirmVer(null); setActiveModal('RejectFinal'); }}
+                className="text-[#FF1744] bg-[#FF1744]/10 border border-[#FF1744]/50 font-black uppercase tracking-widest text-[0.65rem] px-4 py-2.5 rounded-lg hover:bg-[#FF1744] hover:text-white transition-colors"
               >
                 Reject
+              </button>
+              <button
+                onClick={() => {
+                  setLocalConfirmVer(null);
+                  const now = new Date();
+                  const final_ls_signed_time = `${now.getUTCHours().toString().padStart(2, '0')}${now.getUTCMinutes().toString().padStart(2, '0')}Z`;
+                  updateFlightData({ pilots_signed_final: true, final_ls_signed_time });
+                }}
+                className="bg-[#C6FF00] text-black font-black uppercase tracking-widest text-[0.65rem] px-4 py-2.5 rounded-lg shadow-md hover:bg-[#b0e600] transition-colors"
+              >
+                Accept
               </button>
             </div>
           </div>

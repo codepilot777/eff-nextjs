@@ -176,11 +176,36 @@ export const getActiveStageWeights = (flightData: any, calc: any) => {
   return { stage: null, version: null, rejected: false, zfw: 0, pax: 0 };
 };
 
+// 🌟 FINAL loadsheet 印落嚟嘅時候，喺 TTL PAX 之下加多一段「同上一個 PRELIM 版本
+// 比較」——TOW 同 MACTOW 呢兩個 commander 簽收 FINAL 之前最想第一時間睇到嘅
+// delta（尤其 MACTOW 郁咗好多可能代表 trim 都要跟住調），唔使自己逐格對比兩張
+// loadsheet 先計到差幾多
+export function formatChangeFromPrelim(
+  finalTowKg: number,
+  finalMacTow: number,
+  prelimTowKg: number,
+  prelimMacTow: number,
+  prelimVersion: number
+): string {
+  const towChgKg = Math.round(finalTowKg - prelimTowKg);
+  const macTowChgPct = finalMacTow - prelimMacTow;
+  const towChgStr = `${towChgKg >= 0 ? '+' : ''}${towChgKg}KG`;
+  const macTowChgStr = `${macTowChgPct >= 0 ? '+' : ''}${macTowChgPct.toFixed(2)}%`;
+  return `\nCHANGE FROM PRELIM ${prelimVersion.toString().padStart(2, '0')}\nTOW CHG ${towChgStr}\nMACTOW CHG ${macTowChgStr}\n`;
+}
+
+export interface LsCompareStage {
+  version: number;
+  tow: number;
+  macTow: number;
+}
+
 // ==========================================
 // 3. 生成 FINAL / PRELIM Loadsheet 文本 (🌟 實現盲盒式自適應排版)
 // ==========================================
 export const generateLSText = (
-  type: string, version: number, snapshot: any, engine: any, payload: any, flightData: any, calc: any, limits: { dispMzfw: number, dispMtow: number, effectiveMlaw: number }
+  type: string, version: number, snapshot: any, engine: any, payload: any, flightData: any, calc: any, limits: { dispMzfw: number, dispMtow: number, effectiveMlaw: number },
+  compareStage?: LsCompareStage | null
 ) => {
   if (!engine || !snapshot || !payload) return "";
   const ahm = getDynamicAhm(flightData);
@@ -221,6 +246,11 @@ export const generateLSText = (
   const lTow = marginTOW === minMargin ? "L" : " ";
   const lLaw = marginLAW === minMargin ? "L" : " ";
 
+  // 🌟 淨係 FINAL 先同 PRELIM 比較——PRELIM 本身冇更早嘅文件可以對比
+  const changeFromPrelimText = (type === 'FINAL' && compareStage)
+    ? formatChangeFromPrelim(w.TOW, cg.MACTOW, compareStage.tow, compareStage.macTow, compareStage.version)
+    : '';
+
   return `LDS/${info.reg_clean}/${info.flight_num_clean}
 LOADSHEET                   ${type}  ${version.toString().padStart(2, '0')}
 ${info.flight_num_clean}/${info.date_str_ls}
@@ -246,7 +276,7 @@ T${(w.totalCargoWeight).toString().padEnd(5)} .1/${snapshot.cargo.h1.toString().
 ${dgLine}
 ${calc?.arrIata || 'KIX'}  ${dynamicPaxBreakdown}
 TTL PAX ${w.paxCount.toString().padEnd(5)}  UNDERLOAD   ${minMargin}
-
+${changeFromPrelimText}
 CMDR NAME
 SIGN
 
@@ -312,7 +342,12 @@ export const getEzfwText = (flightData: any, calc: any) => {
     .map(cls => `${cls}${classCounts[cls]}`)
     .join("");
   
-  return `EZFW ${info.flight_num_clean}/${info.date_str_ezfw} ${info.reg_clean} ${ahm.config}\n${info.crew_fd}/${info.crew_cc} ${calc?.depIata || 'HKG'}${calc?.arrIata || 'KIX'}\n\nPASSENGER           ${w.totalPaxWeight.toString().padEnd(6)} KG\nCARGO               ${w.totalCargoWeight.toString().padEnd(6)} KG\nTTL TRAFFIC LOAD    ${(w.totalPaxWeight + w.totalCargoWeight).toString().padEnd(6)} KG\n\n${dynamicEzfwPaxStr}\nDOW                 ${w.DOW.toString().padEnd(6)} KG\nEST ZFW             ${estZfwKg.toString().padEnd(6)} KG\n\nLCO: ${info.dispatcher}\nSI\nLATEST EZFW`;
+  // 🌟 ezfw_time：起機嗰刻自動生成嘅第一個 EZFW 會帶埋 STD-120 分鐘嘅
+  // timestamp（睇 autoEzfw.ts computeEzfwTimeZ）；教官之後手動 re-send 嘅
+  // EZFW（PayloadTab.tsx）冇寫呢個欄位，就冇呢行
+  const timeLine = flightData?.ezfw_time ? ` ${flightData.ezfw_time}` : '';
+
+  return `EZFW ${info.flight_num_clean}/${info.date_str_ezfw}${timeLine} ${info.reg_clean} ${ahm.config}\n${info.crew_fd}/${info.crew_cc} ${calc?.depIata || 'HKG'}${calc?.arrIata || 'KIX'}\n\nPASSENGER           ${w.totalPaxWeight.toString().padEnd(6)} KG\nCARGO               ${w.totalCargoWeight.toString().padEnd(6)} KG\nTTL TRAFFIC LOAD    ${(w.totalPaxWeight + w.totalCargoWeight).toString().padEnd(6)} KG\n\n${dynamicEzfwPaxStr}\nDOW                 ${w.DOW.toString().padEnd(6)} KG\nEST ZFW             ${estZfwKg.toString().padEnd(6)} KG\n\nLCO: ${info.dispatcher}\nSI\nLATEST EZFW`;
 };
 
 // ==========================================
