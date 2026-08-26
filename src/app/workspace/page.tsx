@@ -10,6 +10,7 @@ import Weather from "@/components/workspace/Weather";
 import Notam from "@/components/workspace/Notam";
 import Comms from "@/components/workspace/comms/Comms";
 import TechLog from "@/components/techlog/TechLog";
+import RefuelToast from "@/components/workspace/RefuelToast";
 
 function WorkspaceContent() {
   const searchParams = useSearchParams();
@@ -95,6 +96,10 @@ function WorkspaceContent() {
           <div className="text-xl font-bold text-white animate-pulse">Loading Flight...</div>
         </div>
       )}
+
+      {/* 🌟 掛喺呢度（同 currentTab 完全獨立）等 trainee 唔理揀緊邊個 tab
+          都一樣會收到 refuelling complete 嘅 toast 提示 */}
+      {flightData && <RefuelToast />}
 
       {/* 🌟 頂部 Header — mobile 淨係保留機號/version/dep-arr 呢啲核心資訊，
           日期/flight-block time/notepad 呢啲次要嘢收埋（md 先顯示），
