@@ -8,6 +8,11 @@ export function ModalFMS({ flightData }: any) {
   // 一路去到 STAR 為止），畀 trainee 睇住條 route 逐步「畫」出嚟，好似真正 FMC 咁樣
   const [highlightCount, setHighlightCount] = useState(0);
 
+  // 🌟 Share Route：一鍵 copy/share 成條 route，等 trainee 可以send 俾第一部
+  // 機組公司 iPad（例如打去 FO 個 iPad 準備 briefing）——'shared' 代表用咗
+  // native share sheet（AirDrop/Messages/...），'copied' 代表 fallback 落 clipboard
+  const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'copied' | 'error'>('idle');
+
   if (!flightData) return null;
 
   // =====================================================================
@@ -139,6 +144,41 @@ export function ModalFMS({ flightData }: any) {
   };
   const handleClearHighlight = () => setHighlightCount(0);
 
+  // 🌟 分享嘅內容：有搵到 SID→STAR 就分享嗰段真正嘅 route token（同 Highlight
+  // Route 用緊嗰個範圍一致），搵唔到就 fallback 落 FMS Route 個扁平欄位
+  const sharedRouteText = canHighlightRoute
+    ? routeTokenPartIndices.map((i) => fplParts[i]).join(' ')
+    : routeStr;
+
+  const handleShareRoute = async () => {
+    const shareTitle = `${flightData?.flight_no || 'Flight'} Route`;
+    // 🌟 Web Share API 喺 iPad Safari 度會彈出 native share sheet（AirDrop/
+    // Messages/Mail...），先真正做到「傳去另一部 iPad」；冇支援（例如 desktop
+    // browser）就 fallback 落 clipboard copy，等 trainee 自己揀方式傳出去
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({ title: shareTitle, text: sharedRouteText });
+        setShareStatus('shared');
+      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(sharedRouteText);
+        setShareStatus('copied');
+      } else {
+        setShareStatus('error');
+      }
+    } catch (e: any) {
+      // 🌟 用戶自己撳走個 share sheet 唔算失敗（AbortError），乜都唔使做
+      if (e?.name === 'AbortError') return;
+      try {
+        await navigator.clipboard.writeText(sharedRouteText);
+        setShareStatus('copied');
+      } catch {
+        setShareStatus('error');
+      }
+    } finally {
+      setTimeout(() => setShareStatus('idle'), 2500);
+    }
+  };
+
   return (
     // 🌟 Mobile：外層以前恆定 h-full overflow-hidden，兩個 panel 上下疊之後高度
     // 加埋一定爆晒個 modal，會靜靜雞裁走睇唔晒嘅嗰截。而家 mobile 淨係自然疊高，
@@ -269,6 +309,20 @@ export function ModalFMS({ flightData }: any) {
         <div className="flex flex-wrap justify-between items-center mb-5 border-b border-[#333] pb-3 shrink-0 gap-3">
           <h2 className="text-lg font-bold text-white tracking-wide shrink-0">ICAO ATS FLIGHT PLAN</h2>
           <div className="flex items-center gap-2 flex-wrap">
+            {/* 🌟 Share Route：一鍵 copy/share 成條 route 俾第一部 iPad */}
+            <button
+              onClick={handleShareRoute}
+              title="Share the route to another iPad (AirDrop/Messages) or copy it"
+              className={`shrink-0 px-3 py-1.5 rounded-lg font-black text-[0.65rem] uppercase tracking-widest transition-colors ${
+                shareStatus === 'error'
+                  ? 'bg-[#FF1744]/20 border border-[#FF1744] text-[#FF1744]'
+                  : shareStatus === 'shared' || shareStatus === 'copied'
+                    ? 'bg-[#C6FF00] text-black'
+                    : 'bg-[#0a0a0a] border border-[#00bfa5] text-[#00bfa5] hover:bg-[#00bfa5] hover:text-black'
+              }`}
+            >
+              {shareStatus === 'shared' ? '✓ Shared' : shareStatus === 'copied' ? '✓ Copied' : shareStatus === 'error' ? '✕ Failed' : '📤 Share Route'}
+            </button>
             <button
               onClick={handleHighlightTap}
               disabled={!canHighlightRoute}
