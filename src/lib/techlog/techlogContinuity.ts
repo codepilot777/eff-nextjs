@@ -264,6 +264,12 @@ export function syncTechlogForNewFlight(
   base.tl_release = true;
 
   base.tl_prepared = false;
+  // 🌟 修復：以前呢度冇 reset tl_fuel_record_completed，令上一程留低嘅
+  // 「已經填過 fuel record」狀態帶入新一程——trainee 一撳完 Prepare Flight，
+  // 左邊 nav bar 見到嘅 pending action 就跳咗過 Fuel Record 直接去
+  // Commander's Acceptance（TechLogLeftPanel.tsx 個 !isFuelDone 分支睇到嘅
+  // 係舊嗰程遺留低嘅 true）
+  base.tl_fuel_record_completed = false;
   base.tl_accept = false;
   base.tl_flight_started = false;
   base.tl_flight_status = "SCHEDULED";
