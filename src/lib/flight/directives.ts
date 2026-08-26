@@ -11,6 +11,10 @@ export interface FlightPatch {
   pdcApprove?: { time: string; clearance_payload: string };
   atisRequestAppend?: { icao: string; type: string };
   atisDeliver?: { time: string; response: string };
+  // 🌟 Trainee 觸發、但內容完全由 server 睇住教官預先上傳嘅 atis_library 決定——
+  // trainee 冇能力自己作內容，淨係可以「叫個已經寫定嘅內容早啲/遲啲出嚟」，
+  // 所以唔使好似 atisDeliver 咁要教官登入（睇 requiresInstructorAuthForFlight）
+  atisAutoDeliver?: { icao: string; type: string };
   acarsCockpitAppend?: { content: string };
   acarsDispatchAppend?: { content: string };
   // 🌟 教官：dispatch 新 OFP 版本落歷史（唔會即刻改 trainee 眼前嘅 live 內容）
@@ -74,6 +78,29 @@ export function applyFlightDirectives(current: FlightRow, patch: FlightPatch): F
     merged.atis_requests = atisRequests.map((r) =>
       r.time === time ? { ...r, status: 'DELIVERED', response } : r
     );
+  }
+
+  if (patch.atisAutoDeliver) {
+    // 🌟 模擬真實 ATIS：教官預先上傳嘅 atis_library（keyed by icao+type）先係
+    // 真正嘅內容來源，trainee 個 request 淨係觸發「而家 present 緊嗰個版本」
+    // 出嚟，並唔可以自己指定內容——同 atisDeliver（教官手動覆蓋，內容由教官
+    // 自己打）分開兩條獨立路徑、互不排斥：邊條先送到，個 status 一變走，
+    // 另一條就會搵唔到 PENDING RESPONSE 嘅 entry，自然 no-op
+    const { icao, type } = patch.atisAutoDeliver;
+    const atisRequests = (current.atis_requests as RowArray | undefined) || [];
+    const library = (current.atis_library as RowArray | undefined) || [];
+    const libEntry = library.find((e) => e.icao === icao && e.type === type);
+    const responseText = (libEntry?.content as string | undefined)
+      || `${icao} ${type} ATIS — NO DATA AVAILABLE (not pre-loaded by instructor)`;
+
+    let delivered = false;
+    merged.atis_requests = atisRequests.map((r) => {
+      if (!delivered && r.icao === icao && r.type === type && r.status === 'PENDING RESPONSE') {
+        delivered = true;
+        return { ...r, status: 'DELIVERED', response: responseText };
+      }
+      return r;
+    });
   }
 
   if (patch.acarsCockpitAppend) {

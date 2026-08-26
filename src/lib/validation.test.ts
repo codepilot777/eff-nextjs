@@ -77,11 +77,20 @@ describe('flightUpdateBodySchema', () => {
     }).success).toBe(true);
     expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', acarsCockpitAppend: { content: 'wilco' } }).success).toBe(true);
     expect(flightUpdateBodySchema.safeParse({ id: 'CPA 564', acarsDispatchAppend: { content: 'roger' } }).success).toBe(true);
+    expect(flightUpdateBodySchema.safeParse({
+      id: 'CPA 564', atisAutoDeliver: { icao: 'VHHH', type: 'DEPARTURE' },
+    }).success).toBe(true);
   });
 
   it('rejects an invalid atisRequestAppend type', () => {
     expect(flightUpdateBodySchema.safeParse({
       id: 'CPA 564', atisRequestAppend: { icao: 'VHHH', type: 'BOGUS' },
+    }).success).toBe(false);
+  });
+
+  it('rejects an invalid atisAutoDeliver type', () => {
+    expect(flightUpdateBodySchema.safeParse({
+      id: 'CPA 564', atisAutoDeliver: { icao: 'VHHH', type: 'BOGUS' },
     }).success).toBe(false);
   });
 });
@@ -109,6 +118,13 @@ describe('requiresInstructorAuthForFlight', () => {
     expect(requiresInstructorAuthForFlight({ ofpDeactivate: true })).toBe(false);
     expect(requiresInstructorAuthForFlight({ data: { trainee_input_zfw: 180 } })).toBe(false);
     expect(requiresInstructorAuthForFlight({})).toBe(false);
+    // 🌟 atisAutoDeliver 都唔應該要教官登入——trainee 觸發，但內容完全由 server
+    // 讀住 atis_library（受保護欄位）決定，trainee 冇能力自己指定送咩落 cockpit
+    expect(requiresInstructorAuthForFlight({ atisAutoDeliver: { icao: 'VHHH', type: 'DEPARTURE' } })).toBe(false);
+  });
+
+  it('gates writes to atis_library (the pre-loaded ATIS content atisAutoDeliver reads from)', () => {
+    expect(requiresInstructorAuthForFlight({ data: { atis_library: [{ icao: 'VHHH', type: 'DEPARTURE', content: 'FAKE' }] } })).toBe(true);
   });
 });
 

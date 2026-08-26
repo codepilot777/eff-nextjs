@@ -72,6 +72,14 @@ export const ofpActivateSchema = z.object({
 // 做返 0（冇任何版本生效），唔會改動任何 live 欄位——同舊時個 toggle 一樣咁單純
 export const ofpDeactivateSchema = z.literal(true);
 
+// 🌟 Trainee 專屬：request ATIS 之後 15 秒，前端自己觸發呢個 directive，叫 server
+// 由教官預先上傳嘅 atis_library 度攞返「而家嗰個版本」出嚟——trainee 冇辦法自己
+// 指定內容（server 完全唔理會 client 送嚟嘅任何文字），所以唔使教官登入
+export const atisAutoDeliverSchema = z.object({
+  icao: nonEmptyString('atisAutoDeliver.icao').max(10),
+  type: z.enum(['DEPARTURE', 'ARRIVAL']),
+});
+
 export const flightUpdateBodySchema = z.object({
   id: flightIdSchema,
   data: flightDataSchema.optional().default({}),
@@ -84,6 +92,7 @@ export const flightUpdateBodySchema = z.object({
   ofpDispatchAppend: ofpDispatchAppendSchema.optional(),
   ofpActivate: ofpActivateSchema.optional(),
   ofpDeactivate: ofpDeactivateSchema.optional(),
+  atisAutoDeliver: atisAutoDeliverSchema.optional(),
 });
 
 export const flightDeleteBodySchema = z.object({
@@ -167,6 +176,10 @@ export const loginBodySchema = z.object({
 // 🌟 metar_toff_altn/taf_toff_altn/notam_toff_altn/enroute_altns/enroute_stations：
 // WxTab.tsx/NotamTab.tsx 新增嘅 Takeoff Alternate / Enroute Alternate / Enroute
 // Stations 編輯功能寫入嘅欄位，同 metar_dep/notam_dep 等一樣要受保護
+// 🌟 atis_library：教官預先上傳嘅 ATIS 內容庫（keyed by icao+type），
+// atisAutoDeliver directive 會直接讀呢個欄位嚟決定送咩落 cockpit——如果 trainee
+// 都可以寫呢個欄位，就等於可以自己作 ATIS 內容扮 ATC，同其餘「扮 ATC/DISPATCH」
+// 類欄位一樣要保護
 export const PROTECTED_FLIGHT_PATCH_FIELDS = [
   'is_published',
   'metar_dep',
@@ -182,6 +195,7 @@ export const PROTECTED_FLIGHT_PATCH_FIELDS = [
   'notam_toff_altn',
   'enroute_altns',
   'enroute_stations',
+  'atis_library',
 ] as const;
 
 export function hasProtectedFlightFields(patch: Record<string, unknown>): boolean {
