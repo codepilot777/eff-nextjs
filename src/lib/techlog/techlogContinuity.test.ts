@@ -124,4 +124,11 @@ describe('syncTechlogForNewFlight', () => {
     expect(result.tl_flight_started).toBe(false);
     expect(result.tl_flight_status).toBe('SCHEDULED');
   });
+
+  it('regression: resets tl_fuel_record_completed too, so a new flight does not inherit a previous flight\'s completed Fuel Record and skip straight from Prepare Flight to Commander\'s Acceptance', () => {
+    // 模擬上一程已經填咗 Fuel Record（tl_fuel_record_completed: true）先起新一程
+    const existing = { ...DEFAULT_TECHLOG, tl_fuel_record_completed: true };
+    const result = syncTechlogForNewFlight(existing, { flightNo: 'CX902', depIata: 'HKG', arrIata: 'SIN' });
+    expect(result.tl_fuel_record_completed).toBe(false);
+  });
 });
