@@ -6,6 +6,8 @@ import { buildOfpSnapshot, type OfpSnapshot } from '@/lib/flight/ofpHistory';
 import { generateRandomNotoc, type Notoc } from '@/lib/dg/dgRegistry';
 import { generateCrewRoster, type CrewRoster } from '@/lib/crew/crewRoster';
 import { syncTechlogForNewFlight } from '@/lib/techlog/techlogContinuity';
+import { getDynamicAhm } from '@/lib/loadsheet/loadsheetHelpers';
+import { buildAutoEzfwSnapshot, computeEzfwTimeZ } from '@/lib/loadsheet/autoEzfw';
 
 export async function POST(request: Request) {
   try {
@@ -62,7 +64,20 @@ export async function POST(request: Request) {
     }));
 
     const finalFlightNo = flightNo || `${gen.icao_airline} ${gen.flight_number}`;
-    
+
+    // 🌟 現實入面一定係先有 dispatch 派出嚟嘅第一個 EZFW，先至 based on 佢整出成份
+    // OFP——唔會有「有 flight plan 但完全冇任何 EZFW」嘅狀態。SimBrief 淨係俾總
+    // pax/cargo（唔分 class/hold），所以按呢架機 AHM 各 zone/hold 嘅載客量/載重量
+    // 比例分攤，唔係亂噏數；ramp fuel 直接用 OFP 嘅 fuel.plan_ramp。
+    const ezfwAhm = getDynamicAhm({ aircraft_reg: aircraft.reg || "B-HNQ" });
+    const ezfwZoneKeys = Object.keys(ezfwAhm.stations.pax);
+    const autoEzfwSnapshot = buildAutoEzfwSnapshot(
+      ezfwAhm,
+      parseInt(weights.pax_count_actual || weights.pax_count || 0),
+      parseInt(weights.cargo || 0),
+      parseInt(fuel.plan_ramp || 0)
+    );
+
     // 🌟 完美重構的 Flight Data Schema (支援 V1, V2, V3 歷史)
     const flightData = {
       flight_no: finalFlightNo,
@@ -128,16 +143,33 @@ export async function POST(request: Request) {
       // 生成一份真正嘅機組人員名單
       crew_roster: null as CrewRoster | null,
 
-      pax_f: 0, pax_j: 0, pax_w: 0, pax_y: 0,
-      cargo_bulk: 0, cargo_hold_1: 0, cargo_hold_2: 0, cargo_hold_3: 0, cargo_hold_4: 0,
-      final_fuel_request: 0, actual_uplift: 0, estimated_uplift: 0, fuel_left_main: 0, fuel_center: 0, fuel_right_main: 0,
+      // 🌟 呢四個扁平欄位（Dashboard/LoadsheetAirportColumn.tsx 讀緊嘅）跟返
+      // PayloadTab.tsx 既有嘅「頭四個 zone key」慣例，用第一個 EZFW 分攤好嘅
+      // pax 數填低，唔再一開機就係 0（0 要等教官手動入返先啱）
+      pax_f: autoEzfwSnapshot.pax[ezfwZoneKeys[0]] || 0,
+      pax_j: autoEzfwSnapshot.pax[ezfwZoneKeys[1]] || 0,
+      pax_w: autoEzfwSnapshot.pax[ezfwZoneKeys[2]] || 0,
+      pax_y: autoEzfwSnapshot.pax[ezfwZoneKeys[3]] || 0,
+      cargo_bulk: autoEzfwSnapshot.cargo.bulk,
+      cargo_hold_1: autoEzfwSnapshot.cargo.h1,
+      cargo_hold_2: autoEzfwSnapshot.cargo.h2,
+      cargo_hold_3: autoEzfwSnapshot.cargo.h3,
+      cargo_hold_4: autoEzfwSnapshot.cargo.h4,
+      final_fuel_request: 0, actual_uplift: 0, estimated_uplift: 0,
+      fuel_left_main: autoEzfwSnapshot.fuel.left,
+      fuel_center: autoEzfwSnapshot.fuel.center,
+      fuel_right_main: autoEzfwSnapshot.fuel.right,
       fuel_on_board: 0,
 
       navlog: parsedNavlog,
       alternates: parsedAlternates,
       raw_simbrief: sbData,
 
-      ezfw_sent: false,
+      // 🌟 第一個 EZFW 一開機就已經係 dispatch 派出嚟嘅版本——ezfw_time 係
+      // STD-120 分鐘（真實 EZFW 一定喺 STD 之前一段時間已經拍出嚟）
+      ezfw_sent: true,
+      ezfw_time: computeEzfwTimeZ(stdUnix),
+      ezfw_snapshot: autoEzfwSnapshot,
       azf_sent: false,
       prelim_ls_sent: false,
       final_ls_sent: false,

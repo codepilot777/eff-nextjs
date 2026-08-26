@@ -247,7 +247,15 @@ export default function PayloadTab({ isConnected, sendToFSUIPC }: any) {
       tripKg: Math.round((calc?.currTrip || 0) * 1000),
     };
     
-    if (docType === "EZFW") { updates.ezfw_sent = true; updates.ezfw_snapshot = currentSnapshot; }
+    // 🌟 教官手動 re-send EZFW 都要蓋返新嘅 timestamp——唔係咁樣個 EZFW DATASHEET
+    // 會繼續顯示起機嗰刻自動生成嗰個第一個 EZFW 嘅舊 STD-120 timestamp（睇
+    // autoEzfw.ts computeEzfwTimeZ / getEzfwText 個 timeLine）
+    if (docType === "EZFW") {
+      updates.ezfw_sent = true;
+      updates.ezfw_snapshot = currentSnapshot;
+      const now = new Date();
+      updates.ezfw_time = `${now.getUTCHours().toString().padStart(2, '0')}${now.getUTCMinutes().toString().padStart(2, '0')}Z`;
+    }
     if (docType === "AZF") { updates.azf_sent = true; updates.azf_snapshot = currentSnapshot; }
     
     // ==========================================

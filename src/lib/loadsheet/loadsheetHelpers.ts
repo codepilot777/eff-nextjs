@@ -312,7 +312,12 @@ export const getEzfwText = (flightData: any, calc: any) => {
     .map(cls => `${cls}${classCounts[cls]}`)
     .join("");
   
-  return `EZFW ${info.flight_num_clean}/${info.date_str_ezfw} ${info.reg_clean} ${ahm.config}\n${info.crew_fd}/${info.crew_cc} ${calc?.depIata || 'HKG'}${calc?.arrIata || 'KIX'}\n\nPASSENGER           ${w.totalPaxWeight.toString().padEnd(6)} KG\nCARGO               ${w.totalCargoWeight.toString().padEnd(6)} KG\nTTL TRAFFIC LOAD    ${(w.totalPaxWeight + w.totalCargoWeight).toString().padEnd(6)} KG\n\n${dynamicEzfwPaxStr}\nDOW                 ${w.DOW.toString().padEnd(6)} KG\nEST ZFW             ${estZfwKg.toString().padEnd(6)} KG\n\nLCO: ${info.dispatcher}\nSI\nLATEST EZFW`;
+  // 🌟 ezfw_time：起機嗰刻自動生成嘅第一個 EZFW 會帶埋 STD-120 分鐘嘅
+  // timestamp（睇 autoEzfw.ts computeEzfwTimeZ）；教官之後手動 re-send 嘅
+  // EZFW（PayloadTab.tsx）冇寫呢個欄位，就冇呢行
+  const timeLine = flightData?.ezfw_time ? ` ${flightData.ezfw_time}` : '';
+
+  return `EZFW ${info.flight_num_clean}/${info.date_str_ezfw}${timeLine} ${info.reg_clean} ${ahm.config}\n${info.crew_fd}/${info.crew_cc} ${calc?.depIata || 'HKG'}${calc?.arrIata || 'KIX'}\n\nPASSENGER           ${w.totalPaxWeight.toString().padEnd(6)} KG\nCARGO               ${w.totalCargoWeight.toString().padEnd(6)} KG\nTTL TRAFFIC LOAD    ${(w.totalPaxWeight + w.totalCargoWeight).toString().padEnd(6)} KG\n\n${dynamicEzfwPaxStr}\nDOW                 ${w.DOW.toString().padEnd(6)} KG\nEST ZFW             ${estZfwKg.toString().padEnd(6)} KG\n\nLCO: ${info.dispatcher}\nSI\nLATEST EZFW`;
 };
 
 // ==========================================
