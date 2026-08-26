@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { findRouteHighlightSpan } from "@/lib/route/routeHighlight";
 
 export function ModalFMS({ flightData }: any) {
 
@@ -116,26 +117,14 @@ export function ModalFMS({ flightData }: any) {
   const fplParts = fplText.split(/(\s+)/);
 
   // 🌟 由 SID identifier 個 token 開始搵，去到（喺佢之後）第一個 STAR identifier
-  // token 為止——中間逐個非空白 token 就係可以 highlight 嘅 route segment
+  // token 為止——中間逐個非空白 token 就係可以 highlight 嘅 route segment。
+  // 用 findRouteHighlightSpan（fuzzy match）搵，因為 SimBrief 有時
+  // general.sid_ident/star_ident 同 flightplan_text 入面實際印出嚟嘅字會差
+  // 一個字母（例如 "ABEY4A" vs "ABBEY4A"），exact match 搵唔到就成個功能扮死
   const sidIdent = sid && sid !== 'NIL' ? sid.toUpperCase() : null;
   const starIdent = star && star !== 'NIL' ? star.toUpperCase() : null;
 
-  let sidPartIdx = -1;
-  if (sidIdent) sidPartIdx = fplParts.findIndex((p) => p.trim().toUpperCase() === sidIdent);
-
-  let starPartIdx = -1;
-  if (starIdent) {
-    for (let i = Math.max(sidPartIdx, 0); i < fplParts.length; i++) {
-      if (fplParts[i].trim().toUpperCase() === starIdent) { starPartIdx = i; break; }
-    }
-  }
-
-  const routeTokenPartIndices: number[] = [];
-  if (sidPartIdx >= 0 && starPartIdx >= sidPartIdx) {
-    for (let i = sidPartIdx; i <= starPartIdx; i++) {
-      if (fplParts[i].trim().length > 0) routeTokenPartIndices.push(i);
-    }
-  }
+  const { routeTokenPartIndices } = findRouteHighlightSpan(fplParts, sidIdent, starIdent);
   const totalRouteTokens = routeTokenPartIndices.length;
   const canHighlightRoute = totalRouteTokens > 0;
 
