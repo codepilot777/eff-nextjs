@@ -72,6 +72,61 @@ describe('applyFlightDirectives', () => {
     ]);
   });
 
+  it('atisAutoDeliver delivers the pre-loaded library entry matching icao+type to the oldest pending request', () => {
+    const current = {
+      atis_requests: [{ time: '0100Z', icao: 'VHHH', type: 'DEPARTURE', status: 'PENDING RESPONSE' }],
+      atis_library: [
+        { icao: 'VHHH', type: 'DEPARTURE', content: 'VHHH ATIS INFO A' },
+        { icao: 'VHHH', type: 'ARRIVAL', content: 'VHHH ATIS INFO B (should not be used)' },
+      ],
+    };
+    const merged = applyFlightDirectives(current, { atisAutoDeliver: { icao: 'VHHH', type: 'DEPARTURE' } });
+    expect(merged.atis_requests).toEqual([
+      { time: '0100Z', icao: 'VHHH', type: 'DEPARTURE', status: 'DELIVERED', response: 'VHHH ATIS INFO A' },
+    ]);
+  });
+
+  it('atisAutoDeliver falls back to a "not available" message when the instructor never pre-loaded that icao+type', () => {
+    const current = {
+      atis_requests: [{ time: '0100Z', icao: 'RJBB', type: 'ARRIVAL', status: 'PENDING RESPONSE' }],
+      atis_library: [],
+    };
+    const merged = applyFlightDirectives(current, { atisAutoDeliver: { icao: 'RJBB', type: 'ARRIVAL' } });
+    expect((merged.atis_requests as any[])[0].status).toBe('DELIVERED');
+    expect((merged.atis_requests as any[])[0].response).toMatch(/NOT AVAILABLE|not pre-loaded/i);
+  });
+
+  it('atisAutoDeliver only touches the oldest matching PENDING RESPONSE request, leaving already-delivered ones and other stations untouched', () => {
+    const current = {
+      atis_requests: [
+        { time: '0059Z', icao: 'VHHH', type: 'DEPARTURE', status: 'DELIVERED', response: 'OLD MANUAL RESPONSE' },
+        { time: '0100Z', icao: 'VHHH', type: 'DEPARTURE', status: 'PENDING RESPONSE' },
+        { time: '0101Z', icao: 'RJBB', type: 'ARRIVAL', status: 'PENDING RESPONSE' },
+      ],
+      atis_library: [{ icao: 'VHHH', type: 'DEPARTURE', content: 'VHHH ATIS INFO C' }],
+    };
+    const merged = applyFlightDirectives(current, { atisAutoDeliver: { icao: 'VHHH', type: 'DEPARTURE' } });
+    expect(merged.atis_requests).toEqual([
+      { time: '0059Z', icao: 'VHHH', type: 'DEPARTURE', status: 'DELIVERED', response: 'OLD MANUAL RESPONSE' },
+      { time: '0100Z', icao: 'VHHH', type: 'DEPARTURE', status: 'DELIVERED', response: 'VHHH ATIS INFO C' },
+      { time: '0101Z', icao: 'RJBB', type: 'ARRIVAL', status: 'PENDING RESPONSE' },
+    ]);
+  });
+
+  it('atisAutoDeliver is a no-op when there is no matching PENDING RESPONSE request (e.g. already delivered by the instructor manually)', () => {
+    // regression: atisDeliver (instructor manual) and atisAutoDeliver (trainee 15s timer) are
+    // two independent paths that can race -- whichever lands first must make the other a no-op,
+    // not double-deliver or clobber the already-delivered response
+    const current = {
+      atis_requests: [{ time: '0100Z', icao: 'VHHH', type: 'DEPARTURE', status: 'DELIVERED', response: 'MANUALLY SENT BY INSTRUCTOR' }],
+      atis_library: [{ icao: 'VHHH', type: 'DEPARTURE', content: 'VHHH ATIS INFO A' }],
+    };
+    const merged = applyFlightDirectives(current, { atisAutoDeliver: { icao: 'VHHH', type: 'DEPARTURE' } });
+    expect(merged.atis_requests).toEqual([
+      { time: '0100Z', icao: 'VHHH', type: 'DEPARTURE', status: 'DELIVERED', response: 'MANUALLY SENT BY INSTRUCTOR' },
+    ]);
+  });
+
   it('acarsCockpitAppend appends a COCKPIT message with a server-computed time', () => {
     const current = { acars_messages: [{ time: '0100Z', sender: 'DISPATCH', content: 'hello' }] };
     const merged = applyFlightDirectives(current, { acarsCockpitAppend: { content: 'wilco' } });

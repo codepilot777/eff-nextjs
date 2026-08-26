@@ -7,8 +7,15 @@ import { useTechlogData } from "@/hooks/useTechlogData";
 export default function InboxPanel() {
   const [isGeneratingAtis, setIsGeneratingAtis] = useState<number | null>(null);
 
+  // 🌟 ATIS Library（教官預先上傳）嘅表格 state
+  const [libIcao, setLibIcao] = useState("");
+  const [libType, setLibType] = useState("DEPARTURE");
+  const [libContent, setLibContent] = useState("");
+  const [libEditingKey, setLibEditingKey] = useState<string | null>(null);
+  const [isGeneratingLib, setIsGeneratingLib] = useState(false);
+
   // 🌟 從天上直接抽取 Data 同 Update Function (全域共用，自帶樂觀更新！)
-  const { flightData, sendFlightDirective } = useFlightData();
+  const { flightData, updateFlightData, sendFlightDirective } = useFlightData();
 
   // 🌟 修復：tl_accept 淨係存喺獨立嘅 techlogs 表（keyed by aircraft reg），
   // 唔喺 flights 表嘅 flightData 度——之前直接讀 flightData.tl_accept 永遠
@@ -40,6 +47,59 @@ export default function InboxPanel() {
     } finally {
       setIsGeneratingAtis(null);
     }
+  };
+
+  // 🌟 教官預先上傳/覆寫嘅 ATIS 內容庫，keyed by icao+type——trainee 側
+  // AtisController.tsx request ATIS 之後 15 秒，會由 server 直接讀呢個
+  // array 攞返對應嗰個版本出嚟（睇 atisAutoDeliver directive）
+  const atisLibrary: any[] = flightData.atis_library || [];
+
+  const generateLibAtis = async () => {
+    if (!libIcao.trim()) return;
+    setIsGeneratingLib(true);
+    try {
+      const plainText = `Create a realistic ${libType} ATIS for ${libIcao.trim().toUpperCase()}. Flight ${flightData?.flight_no || 'CPA564'}.`;
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ promptType: "ATIS", plainText, stdZ: flightData?.std_z || "0000Z", staZ: flightData?.sta_z || "0000Z" })
+      });
+      const data = await res.json();
+      if (res.ok) setLibContent(data.text);
+      else alert(data.error);
+    } catch (e) {
+      alert("AI Service Error");
+    } finally {
+      setIsGeneratingLib(false);
+    }
+  };
+
+  const resetLibForm = () => {
+    setLibIcao(""); setLibContent(""); setLibEditingKey(null);
+  };
+
+  const handleSaveLibEntry = () => {
+    const icao = libIcao.trim().toUpperCase();
+    if (!icao || !libContent.trim()) {
+      alert("ICAO and content are required.");
+      return;
+    }
+    // 🌟 Upsert：keyed by icao+type，一個機場+type 淨係得一份「而家嗰個版本」
+    const withoutExisting = atisLibrary.filter((e: any) => !(e.icao === icao && e.type === libType));
+    updateFlightData({ atis_library: [...withoutExisting, { icao, type: libType, content: libContent.trim() }] });
+    resetLibForm();
+  };
+
+  const handleEditLibEntry = (entry: any) => {
+    setLibIcao(entry.icao);
+    setLibType(entry.type);
+    setLibContent(entry.content);
+    setLibEditingKey(`${entry.icao}-${entry.type}`);
+  };
+
+  const handleDeleteLibEntry = (entry: any) => {
+    updateFlightData({ atis_library: atisLibrary.filter((e: any) => !(e.icao === entry.icao && e.type === entry.type)) });
+    if (libEditingKey === `${entry.icao}-${entry.type}`) resetLibForm();
   };
 
   return (
@@ -86,6 +146,63 @@ export default function InboxPanel() {
           {flightData.pilots_accepted_pdc ? <span className="text-[#00E676] font-bold">ACCEPTED</span> :
            (flightData.pdc_requests || []).some((r: any) => r.status === "APPROVED") ? <span className="text-[#FF9100] font-bold">PENDING</span> :
            <span className="text-[#8fa0a6] font-bold">N/A</span>}
+        </div>
+      </div>
+
+      {/* 🌟 ATIS Library：教官預先上傳想要嘅機場 ATIS 內容，trainee side 撳
+          「Send ATIS Req」15 秒後會自動送呢度預先寫定嘅版本落 cockpit，唔使
+          教官逐個 request 手動打/AI 生成再撳送——同下面 PENDING ATIS REQUEST
+          嗰張卡（手動 override）獨立並存，邊個先送到都得 */}
+      <div className="bg-lido-800 border border-[#333333] rounded-xl p-4 shadow-sm">
+        <div className="text-text-muted text-xs font-bold mb-3 uppercase">📻 ATIS Library (Pre-loaded)</div>
+
+        {atisLibrary.length === 0 ? (
+          <div className="text-text-muted text-xs italic mb-3">No pre-loaded ATIS yet — a request will get a &quot;not available&quot; fallback after 15s until you add one below.</div>
+        ) : (
+          <div className="flex flex-col gap-2 mb-3">
+            {atisLibrary.map((entry: any) => (
+              <div key={`${entry.icao}-${entry.type}`} className="bg-lido-950 border border-[#333333] rounded-lg p-2 flex justify-between items-start gap-2">
+                <div className="min-w-0">
+                  <div className="text-status-teal font-bold text-xs">{entry.icao} {entry.type}</div>
+                  <div className="text-text-muted text-[0.65rem] truncate">{entry.content}</div>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <button onClick={() => handleEditLibEntry(entry)} className="text-[0.6rem] px-2 py-1 rounded bg-[#333] text-white hover:bg-[#444] transition-colors">EDIT</button>
+                  <button onClick={() => handleDeleteLibEntry(entry)} className="text-[0.6rem] px-2 py-1 rounded bg-[#FF1744]/20 text-[#FF1744] hover:bg-[#FF1744] hover:text-white transition-colors">DEL</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-2 mb-2">
+          <input
+            type="text" maxLength={4} value={libIcao} onChange={(e) => setLibIcao(e.target.value.toUpperCase())}
+            placeholder="ICAO" className="w-20 bg-lido-950 border border-[#404040] rounded-lg px-2 py-1.5 text-xs text-white uppercase outline-none focus:border-[#00bfa5]"
+          />
+          <select value={libType} onChange={(e) => setLibType(e.target.value)} className="flex-1 bg-lido-950 border border-[#404040] rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-[#00bfa5] cursor-pointer">
+            <option value="DEPARTURE">DEPARTURE</option>
+            <option value="ARRIVAL">ARRIVAL</option>
+          </select>
+          <button
+            onClick={generateLibAtis} disabled={isGeneratingLib || !libIcao.trim()}
+            className="text-[0.65rem] px-2 rounded bg-[#00bfa5]/20 text-status-teal hover:bg-[#00bfa5] hover:text-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          >
+            {isGeneratingLib ? "⏳" : "✨ AI"}
+          </button>
+        </div>
+        <textarea
+          value={libContent} onChange={(e) => setLibContent(e.target.value)}
+          placeholder="ATIS content..."
+          className="w-full bg-lido-950 border border-[#404040] rounded-lg p-2 text-xs text-status-teal font-mono h-20 outline-none focus:border-[#00bfa5] resize-none mb-2"
+        />
+        <div className="flex gap-2">
+          <button onClick={handleSaveLibEntry} className="flex-1 bg-[#00bfa5]/20 border border-[#00bfa5] text-status-teal py-1.5 rounded-lg text-xs font-bold hover:bg-[#00bfa5] hover:text-black transition-colors">
+            {libEditingKey ? "💾 UPDATE ENTRY" : "➕ ADD TO LIBRARY"}
+          </button>
+          {libEditingKey && (
+            <button onClick={resetLibForm} className="px-3 bg-[#333] text-white rounded-lg text-xs font-bold hover:bg-[#444] transition-colors">CANCEL</button>
+          )}
         </div>
       </div>
 

@@ -18,8 +18,22 @@ export default function AtisController() {
   const inboxAtis = [...(flightData?.atis_requests || [])].reverse();
 
   const handleSendAtisReq = async () => {
+    // 🌟 捕捉返呢一刻嘅 icao/type——15 秒後先 fire 嘅 auto-deliver 一定要送去
+    // 呢個 request 本身（唔可以之後讀 state，如果用戶手快手快改咗表格再打
+    // 第二個機場，會送錯去啱啱改緊嗰個）
+    const icao = atisApt.toUpperCase();
+    const type = atisType;
     try {
-      await sendFlightDirective({ atisRequestAppend: { icao: atisApt.toUpperCase(), type: atisType } });
+      await sendFlightDirective({ atisRequestAppend: { icao, type } });
+      // 🌟 模擬真實 D-ATIS 電台延遲：request 之後 15 秒先至送到 cockpit（唔係即刻
+      // 已讀已回），內容由教官預先上傳嘅 atis_library 決定（睇 InboxPanel.tsx 嘅
+      // ATIS Library 編輯區）。呢個 timer 淨係喺呢個 component 保持 mounted 嘅時候
+      // 先會 fire——如果 trainee 撳咗掣之後即刻切去第個 top-level tab（唔係淨係
+      // Comms 入面切 PDC/ACARS），15 秒後冇人觸發都會令個 request 停留喺
+      // PENDING，同以前教官要手動 send 嘅 fallback 行為一致，唔算退步
+      setTimeout(() => {
+        sendFlightDirective({ atisAutoDeliver: { icao, type } }).catch(() => {});
+      }, 15000);
     } catch {
       alert("Failed to send ATIS request");
     }
