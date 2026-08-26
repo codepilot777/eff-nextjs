@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildEnginePayload, generateLSText, getEffectiveWeightLimits } from './loadsheetHelpers';
+import { buildEnginePayload, generateLSText, getEffectiveWeightLimits, formatChangeFromPrelim } from './loadsheetHelpers';
 import { LoadsheetEngine } from './LoadsheetEngine';
 import { AIRCRAFT_REGISTRY } from './MockAHM';
 
@@ -136,5 +136,62 @@ describe('generateLSText DG remarks line', () => {
     const cargoLineIdx = lines.findIndex((l) => l.startsWith('T0    '));
     expect(cargoLineIdx).toBeGreaterThan(-1);
     expect(lines[cargoLineIdx + 1]).toBe('');
+  });
+});
+
+describe('formatChangeFromPrelim', () => {
+  it('formats a positive TOW/MACTOW change with a leading +', () => {
+    const text = formatChangeFromPrelim(200500, 25.30, 200180, 25.15, 1);
+    expect(text).toContain('CHANGE FROM PRELIM (V01)');
+    expect(text).toContain('TOW CHG +320KG');
+    expect(text).toContain('MACTOW  +0.15%');
+  });
+
+  it('formats a negative TOW/MACTOW change without a double sign', () => {
+    const text = formatChangeFromPrelim(199800, 24.90, 200180, 25.15, 2);
+    expect(text).toContain('CHANGE FROM PRELIM (V02)');
+    expect(text).toContain('TOW CHG -380KG');
+    expect(text).toContain('MACTOW  -0.25%');
+  });
+
+  it('formats zero change as +0', () => {
+    const text = formatChangeFromPrelim(200000, 25.0, 200000, 25.0, 1);
+    expect(text).toContain('TOW CHG +0KG');
+    expect(text).toContain('MACTOW  +0.00%');
+  });
+});
+
+describe('generateLSText CHANGE FROM PRELIM block', () => {
+  const ahm = AIRCRAFT_REGISTRY['B-HNQ'];
+  const taxiKg = 200;
+  const tripKg = 20000;
+  const limits = { dispMzfw: 250, dispMtow: 300, effectiveMlaw: 230 };
+
+  it('includes the CHANGE FROM PRELIM block for FINAL when a compareStage is given', () => {
+    const payload = buildEnginePayload(snapshot, flightData, taxiKg, tripKg);
+    const engine = new LoadsheetEngine(ahm, payload!);
+    const w = engine.calculateWeights();
+    const cg = engine.calculateCG();
+    // simulate a prelim that had a slightly lighter TOW/MACTOW than this FINAL
+    const compareStage = { version: 1, tow: w.TOW - 300, macTow: cg.MACTOW - 0.1 };
+
+    const text = generateLSText('FINAL', 2, snapshot, engine, payload, flightData, {}, limits, compareStage);
+    expect(text).toContain('CHANGE FROM PRELIM (V01)');
+    expect(text).toContain('TOW CHG +300KG');
+  });
+
+  it('omits the CHANGE FROM PRELIM block when no compareStage is given', () => {
+    const payload = buildEnginePayload(snapshot, flightData, taxiKg, tripKg);
+    const engine = new LoadsheetEngine(ahm, payload!);
+    const text = generateLSText('FINAL', 1, snapshot, engine, payload, flightData, {}, limits);
+    expect(text).not.toContain('CHANGE FROM PRELIM');
+  });
+
+  it('never shows the block for PRELIM, even if a compareStage is (incorrectly) passed', () => {
+    const payload = buildEnginePayload(snapshot, flightData, taxiKg, tripKg);
+    const engine = new LoadsheetEngine(ahm, payload!);
+    const compareStage = { version: 1, tow: 100000, macTow: 25.0 };
+    const text = generateLSText('PRELIM', 2, snapshot, engine, payload, flightData, {}, limits, compareStage);
+    expect(text).not.toContain('CHANGE FROM PRELIM');
   });
 });
