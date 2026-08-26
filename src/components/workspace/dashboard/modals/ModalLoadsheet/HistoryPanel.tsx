@@ -114,7 +114,12 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
                   flightData?.final_ls_rejected ? (
                     <button disabled className="w-full py-2.5 bg-[#FF1744]/10 border border-[#FF1744]/50 text-[#FF1744] rounded-lg font-bold text-[0.7rem] uppercase tracking-widest cursor-not-allowed">FINAL (V{doc.version}) REJECTED</button>
                   ) : flightData?.pilots_signed_final ? (
-                    <div className="w-full py-2.5 bg-[#C6FF00] text-black rounded-lg font-bold text-[0.7rem] uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm">✓ Acknowledged by {flightData?.captain || 'COMMANDER'}</div>
+                    <div className="w-full py-2.5 bg-[#C6FF00] text-black rounded-lg font-bold text-[0.7rem] uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm">
+                      ✓ Acknowledged by {flightData?.captain || 'COMMANDER'}
+                      {/* 🌟 舊 flight（呢個功能改版之前已經 acknowledge 咗）冇呢個欄位，
+                          就唔顯示 timestamp，唔會印一個唔存在嘅假時間出嚟 */}
+                      {flightData?.final_ls_signed_time && ` ${flightData.final_ls_signed_time}`}
+                    </div>
                   ) : (
                     // 🌟 用本地 state 記錄緊邊張卡片被點擊，彈窗字樣先至永遠鎖定正確 version
 <button 
@@ -213,7 +218,12 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
                 Reject
               </button>
               <button
-                onClick={() => { setLocalConfirmVer(null); updateFlightData({ pilots_signed_final: true }); }}
+                onClick={() => {
+                  setLocalConfirmVer(null);
+                  const now = new Date();
+                  const final_ls_signed_time = `${now.getUTCHours().toString().padStart(2, '0')}${now.getUTCMinutes().toString().padStart(2, '0')}Z`;
+                  updateFlightData({ pilots_signed_final: true, final_ls_signed_time });
+                }}
                 className="bg-[#C6FF00] text-black font-black uppercase tracking-widest text-[0.65rem] px-4 py-2.5 rounded-lg shadow-md hover:bg-[#b0e600] transition-colors"
               >
                 Accept
