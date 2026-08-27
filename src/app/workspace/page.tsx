@@ -115,15 +115,12 @@ function WorkspaceContent() {
 
         {/* 左側：國泰 Logo + Flight No & Version Badge */}
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
-          {/* 🌟 撳 logo、返回 icon 定係機號都一樣可以返去 flight-select——以前
-              淨係得 icon+機號嗰組先有 onClick，logo 撳落去冇反應 */}
+          {/* 🌟 撳 logo 定係機號都一樣可以返去 flight-select——嗰個獨立嘅
+              「返回」小 icon 已經刪走，logo/機號本身就係 tap target */}
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(`/flight-select?role=${role}`)}>
             {/* 🌟 原圖比例大約 404x495（窄過方形），淨係限高、寬度 auto，
                 先唔會拉扁變形 */}
             <CathayLogo className="h-7 md:h-8 w-auto shrink-0" />
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-[#8fa0a6] shrink-0">
-              <path d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
-            </svg>
             <span className="text-[0.95rem] md:text-[1.1rem] font-bold text-white tracking-wide whitespace-nowrap">{flightData?.flight_no || flightId}</span>
           </div>
 
