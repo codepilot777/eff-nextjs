@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { computeFuelDerived } from "@/lib/techlog/fuelRecord";
 
 export function TaskFuelRecord({ flightData, tlData, updateTechLogData, setActiveTask }: any) {
   const [fuelTotDep, setFuelTotDep] = useState("");
@@ -11,17 +12,23 @@ export function TaskFuelRecord({ flightData, tlData, updateTechLogData, setActiv
   const fobBefore = parseFloat(tlData?.tl_prev_fob || flightData?.prev_fob || "10.5");
   const parsedTotDep = parseFloat(fuelTotDep) || 0;
   const parsedActual = parseFloat(fuelActual) || 0;
-  const expectedUplift = Math.max(0, parsedTotDep - fobBefore);
-  const discrepancy = (fuelTotDep !== "" && fuelActual !== "") ? parsedActual - expectedUplift : 0;
+  // 🌟 Expected Uplift/Discrepancy 依家同 TaskAcceptance.tsx 共用同一條公式（睇
+  // lib/techlog/fuelRecord.ts），Commander's Acceptance 顯示嗰陣先唔會同呢度算出嚟嘅唔一致
+  const { expectedUplift, discrepancy: rawDiscrepancy } = computeFuelDerived(fobBefore, parsedTotDep, parsedActual);
+  const discrepancy = (fuelTotDep !== "" && fuelActual !== "") ? rawDiscrepancy : 0;
   const isValid = fuelTotDep !== "" && fuelActual !== "" && fuelCycling;
 
   const handleConfirm = () => {
     if (!isValid) return;
-    updateTechLogData({ 
-      tl_fuel_record_completed: true, 
-      tl_total_departure_fuel: parsedTotDep, 
-      tl_actual_uplift: parsedActual 
-    }); 
+    updateTechLogData({
+      tl_fuel_record_completed: true,
+      tl_total_departure_fuel: parsedTotDep,
+      tl_actual_uplift: parsedActual,
+      // 🌟 修復：以前呢個 toggle 淨係本地 state，撳完 Confirm 之後個確認結果就
+      // 冧咗——Commander's Acceptance 想顯示返「refuelling door cycling 做咗未」
+      // 就冇資料可讀。而家存低嚟，畀 Acceptance 畫面讀返
+      tl_fuel_cycling_confirmed: fuelCycling,
+    });
     setActiveTask("acceptance");
   };
 

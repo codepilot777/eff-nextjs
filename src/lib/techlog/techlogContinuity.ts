@@ -1,5 +1,7 @@
 // src/lib/techlog/techlogContinuity.ts
 
+import { pickFlightNumber } from './flightNumbers';
+
 // 🌟 單一嘅「未有 techlog row 之前嘅預設值」，畀 GET /api/techlog（trainee 未寫過任何嘢
 // 之前嘅 fallback）同 syncTechlogForNewFlight（起機嗰刻嘅 continuity sync）共用，
 // 唔再各自維護一份，慢慢走樣
@@ -137,10 +139,8 @@ function formatTechlogDate(d: Date): string {
   return `${d.getUTCDate().toString().padStart(2, '0')} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-function hhmm(totalMinutes: number): string {
-  const h = Math.floor(totalMinutes / 60) % 24;
-  const m = totalMinutes % 60;
-  return `${h.toString().padStart(2, '0')}${m.toString().padStart(2, '0')}`;
+function hhmmFromDate(d: Date): string {
+  return `${d.getUTCHours().toString().padStart(2, '0')}${d.getUTCMinutes().toString().padStart(2, '0')}`;
 }
 
 export interface NewFlightContinuityParams {
@@ -176,10 +176,17 @@ const HUB = "HKG";
 // 「返返嚟 HKG」，唔會有兩個 outstation 直接互飛。而家改成逐程都強制一邊係 HKG：
 // 上一程去到 HKG，呢程就要由 HKG 出走去第個 outstation；上一程喺 outstation，
 // 呢程就要飛返 HKG
+// 🌟 修復：以前 date（決定日曆日）同 blocksOff/takeOff/landing/blocksOn（鐘面時間）
+// 係兩份完全獨立嘅隨機數，逐程之間冇任何關聯——會生成到「舊嗰程」嘅鐘面時間
+// 反而遲過「新嗰程」（例如兩程都係 18 AUG，新嗰程 02:51 落地，舊嗰程反而
+// 08:51 先起飛，時序完全錯亂）。而家改用單一條連續嘅 Date cursor 逐程向後推：
+// 每程嘅 blocksOff/takeOff/landing/blocksOn 全部由呢條 cursor 用真正嘅分鐘數
+// 計出嚟，date 都係跟返呢個真實時間戳嚟，保證逐程（由新至舊）嘅時序一定啱，
+// 中間仲留返合理嘅地面 turnaround 時間
 function buildChainedHistorySectors(count: number, startStation: string, endStation: string, mostRecentDate: Date, fallbackCmdr: string): Array<Record<string, unknown>> {
   const sectors: Array<Record<string, unknown>> = [];
   let arrival = endStation;
-  let date = new Date(mostRecentDate);
+  let cursor = new Date(mostRecentDate);
 
   for (let i = 0; i < count; i++) {
     let departure: string;
@@ -187,33 +194,47 @@ function buildChainedHistorySectors(count: number, startStation: string, endStat
       // 最舊一條要同原有 techlog 記錄嘅「上一個已知位置」接得上，但都唔可以打破
       // 「逐程一定沾到 HKG」——如果 startStation 同上一程嘅 arrival 都唔係 HKG
       // （罕見邊緣情況），寧願強制呢程由 HKG 出走，都好過生成一程兩個 outstation 互飛
-      departure = (startStation === HUB || arrival === HUB) ? startStation : HUB;
+      // 🌟 修復：startStation===HKG 係好常見嘅情況（新機/上一程啱啱好落返 HKG），
+      // 加上新 flight plan 由非 HKG 機場出發時，逐程交替嘅 pattern 去到最舊一條
+      // 嘅 arrival 本身已經係 HKG——兩者一齊撞埋，個 forced departure 就會同
+      // arrival 一樣都係 HKG，生成一程「HKG ➔ HKG」呢種同一個機場起降嘅假 sector。
+      // 呢種情況即係話個 chain 其實已經自然咁銜接返 startStation（喺 arrival 嗰邊），
+      // 唔使再夾硬逼 departure 都係 startStation，跟返平時交替嘅邏輯揀走一個
+      // 唔同嘅 outstation 就得
+      const preferredDeparture = (startStation === HUB || arrival === HUB) ? startStation : HUB;
+      departure = preferredDeparture === arrival ? randomStationExcluding(HUB) : preferredDeparture;
     } else if (arrival === HUB) {
       departure = randomStationExcluding(HUB);
     } else {
       departure = HUB;
     }
 
-    const blocksOffMin = 60 + Math.floor(Math.random() * 600);
-    const takeOffMin = blocksOffMin + 15;
+    // 🌟 呢程嘅 blocksOn 就係 cursor（起始等於上一次迭代留低嘅「起飛前」時刻，
+    // 或者第一程就係 mostRecentDate），逐個時刻由後向前推——保證 blocksOff <
+    // takeOff < landing < blocksOn 呢個 sector 自己內部一定啱，亦都保證同
+    // 下一個（更舊）sector 之間隔返一段 turnaround，時序唔會撞埋/錯亂
+    const blocksOnTime = new Date(cursor);
+    const landingTime = new Date(blocksOnTime.getTime() - 10 * 60_000);
     const flightDurMin = 60 + Math.floor(Math.random() * 180);
-    const landingMin = takeOffMin + flightDurMin;
-    const blocksOnMin = landingMin + 10;
+    const takeOffTime = new Date(landingTime.getTime() - flightDurMin * 60_000);
+    const blocksOffTime = new Date(takeOffTime.getTime() - 15 * 60_000);
 
     const upliftT = (12 + Math.random() * 20).toFixed(1);
     const arrFuelT = (5 + Math.random() * 8).toFixed(1);
     const hasMinorDefect = Math.random() > 0.85;
 
     sectors.push({
-      id: `SEC-${date.getTime().toString().slice(-6)}${i}`,
-      date: formatTechlogDate(date),
+      id: `SEC-${blocksOffTime.getTime().toString().slice(-6)}${i}`,
+      date: formatTechlogDate(blocksOffTime),
       action: "Normal Close",
-      flt: `CX${100 + Math.floor(Math.random() * 800)}`,
+      // 🌟 flight number 而家跟返條航線嚟揀（睇 flightNumbers.ts）——依家個 table
+      // 係 dummy 佔位資料，等用戶 upload 真實資料之後會取代
+      flt: pickFlightNumber(departure, arrival),
       route: `${departure} ➔ ${arrival}`,
-      blocksOff: hhmm(blocksOffMin),
-      takeOff: hhmm(takeOffMin),
-      landing: hhmm(landingMin),
-      blocksOn: hhmm(blocksOnMin),
+      blocksOff: hhmmFromDate(blocksOffTime),
+      takeOff: hhmmFromDate(takeOffTime),
+      landing: hhmmFromDate(landingTime),
+      blocksOn: hhmmFromDate(blocksOnTime),
       def: hasMinorDefect ? [{ id: `S${1000 + Math.floor(Math.random() * 9000)}`, status: "CLEARED", description: "Minor cabin equipment defect rectified." }] : [],
       checks: [Math.random() > 0.7 ? "Daily Check" : "Transit Check"],
       serv: ["Nil Servicing Required"],
@@ -225,7 +246,10 @@ function buildChainedHistorySectors(count: number, startStation: string, endStat
     });
 
     arrival = departure;
-    date = new Date(date.getTime() - (12 + Math.random() * 24) * 3600 * 1000);
+    // 🌟 下一個（更舊）sector 嘅 blocksOn 一定要早過呢一程嘅 blocksOff，中間
+    // 留返一段合理嘅地面 turnaround 時間（45 分鐘至 3 小時）
+    const turnaroundMin = 45 + Math.floor(Math.random() * 135);
+    cursor = new Date(blocksOffTime.getTime() - turnaroundMin * 60_000);
   }
 
   return sectors;
@@ -270,6 +294,9 @@ export function syncTechlogForNewFlight(
   // Commander's Acceptance（TechLogLeftPanel.tsx 個 !isFuelDone 分支睇到嘅
   // 係舊嗰程遺留低嘅 true）
   base.tl_fuel_record_completed = false;
+  // 🌟 同一道理：door cycling 確認都要跟返 tl_fuel_record_completed 一齊 reset，
+  // 唔係新一程 Commander's Acceptance 會顯示返上一程遺留低嘅「已確認」狀態
+  base.tl_fuel_cycling_confirmed = false;
   base.tl_accept = false;
   base.tl_flight_started = false;
   base.tl_flight_status = "SCHEDULED";

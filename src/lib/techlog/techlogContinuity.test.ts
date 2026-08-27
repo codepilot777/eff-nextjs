@@ -31,8 +31,13 @@ describe('syncTechlogForNewFlight', () => {
     expect(flights.length).toBe(before + 10);
     // 最新一條（index 0）嘅 arrival 一定係新 flight plan 嘅出發機場
     expect(String(flights[0].route).endsWith('➔ NRT')).toBe(true);
-    // 最舊嗰條 bridging sector（index 9）嘅 departure 一定係原本已知嘅位置 HKG
-    expect(String(flights[9].route).startsWith('HKG ➔')).toBe(true);
+    // 🌟 regression: startStation（HKG）同交替 pattern 行到最舊一條時嘅 arrival
+    // 啱啱好都係 HKG，以前個「夾硬逼 departure = startStation」嘅邏輯會撞出一條
+    // 「HKG ➔ HKG」自己飛去自己嘅假 sector。而家淨係要求呢條 sector 唔會自己飛
+    // 去自己（departure !== arrival），仍然要沾到 HKG
+    const [oldestDep, oldestArr] = String(flights[9].route).split(' ➔ ');
+    expect(oldestDep).not.toBe(oldestArr);
+    expect(oldestArr).toBe('HKG');
     expect(result.tl_prev_arr).toBe('NRT');
     expect(result.tl_prep_dep).toBe('NRT');
   });
@@ -58,10 +63,50 @@ describe('syncTechlogForNewFlight', () => {
     expect(String(chain[chain.length - 1].route).split(' ➔ ')[0]).toBe('BKK');
     expect(String(chain[0].route).split(' ➔ ')[1]).toBe('KIX');
 
+    // 🌟 HHMM 淨係鐘面時間，冇帶日期——一程飛行完全可以跨 UTC 午夜（例如 2350
+    // 起飛、0130 落地),所以要用「wrap 過 1440」嚟計相差,唔可以淨係當同一日
+    // 咁樣直接比大小
     const toMin = (s: string) => parseInt(String(s).slice(0, 2), 10) * 60 + parseInt(String(s).slice(2, 4), 10);
+    const diffMin = (laterMin: number, earlierMin: number) => ((laterMin - earlierMin) % 1440 + 1440) % 1440;
     for (const sector of chain) {
-      expect(toMin(sector.takeOff as string)).toBeGreaterThan(toMin(sector.blocksOff as string));
-      expect(toMin(sector.blocksOn as string)).toBeGreaterThan(toMin(sector.landing as string));
+      expect(diffMin(toMin(sector.takeOff as string), toMin(sector.blocksOff as string))).toBe(15);
+      expect(diffMin(toMin(sector.blocksOn as string), toMin(sector.landing as string))).toBe(10);
+      const flightDur = diffMin(toMin(sector.landing as string), toMin(sector.takeOff as string));
+      expect(flightDur).toBeGreaterThanOrEqual(60);
+      expect(flightDur).toBeLessThanOrEqual(240);
+    }
+  });
+
+  it('regression: consecutive sectors are in strict chronological order (newest first) — a sector never shows a clock time later than the sector that supposedly came after it', () => {
+    // 🌟 以前 date（日曆日）同 blocksOff/takeOff/landing/blocksOn（鐘面時間）係
+    // 兩份完全獨立嘅隨機數，會生成到「舊嗰程」嘅鐘面時間反而遲過「新嗰程」嘅
+    // 荒謬結果。而家逐程共用同一條連續嘅 Date cursor，呢度驗證返成條 chain
+    // 嘅 blocksOn 一定係嚴格遞減（新至舊）
+    const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    const toTimestamp = (dateStr: string, hhmm: string) => {
+      const [day, monStr, year] = dateStr.split(' ');
+      const month = MONTHS.indexOf(monStr);
+      const hh = parseInt(hhmm.slice(0, 2), 10);
+      const mm = parseInt(hhmm.slice(2, 4), 10);
+      return Date.UTC(parseInt(year, 10), month, parseInt(day, 10), hh, mm);
+    };
+
+    for (let run = 0; run < 10; run++) {
+      const result = syncTechlogForNewFlight(null, { flightNo: 'CX999', depIata: 'NRT', arrIata: 'HKG' });
+      const chain = (result.flights as Array<Record<string, unknown>>).slice(0, 10);
+
+      for (let i = 0; i < chain.length - 1; i++) {
+        const newer = chain[i];
+        const older = chain[i + 1];
+        // 🌟 date 欄位一定係跟返嗰程 blocksOff 嘅日曆日（睇 techlogContinuity.ts
+        // 嘅 formatTechlogDate(blocksOffTime)），所以用 date+blocksOff 砌返出嚟
+        // 嘅 timestamp 保證準確——直接驗證「較新嗰程嘅出發時間，一定遲過較舊
+        // 嗰程嘅出發時間」，先算得上真正嘅時序（唔會受單一 sector 內部飛行
+        // 跨午夜嘅情況影響）
+        const newerDeparture = toTimestamp(String(newer.date), String(newer.blocksOff));
+        const olderDeparture = toTimestamp(String(older.date), String(older.blocksOff));
+        expect(newerDeparture).toBeGreaterThan(olderDeparture);
+      }
     }
   });
 
@@ -90,15 +135,22 @@ describe('syncTechlogForNewFlight', () => {
     expect(result.tl_release).toBe(true);
   });
 
-  it('every generated bridging sector touches HKG (HKG-based fleet, no outstation-to-outstation legs)', () => {
+  it('every generated bridging sector touches HKG and never departs/arrives at the same airport (HKG-based fleet, no outstation-to-outstation legs, no self-loops)', () => {
     // regression: departure used to be picked with randomStationExcluding(arrival), which only
     // avoided repeating the previous station -- it could freely chain outstation-to-outstation
     // legs (e.g. SIN -> KIX) that a HKG-based fleet would never actually fly
+    // 🌟 regression: startStation===HKG (好常見，新機/上一程啱啱好落返 HKG) 加上新
+    // flight plan 由非 HKG 機場出發，以前個「最舊一條夾硬逼 departure=startStation」
+    // 嘅邏輯會同交替 pattern 天然行到嘅 arrival（都係 HKG）撞埋，生成一條
+    // 「HKG ➔ HKG」自己飛去自己嘅假 sector（用戶回報：create CTS→HKG 嘅 flight，
+    // 歷史 anchor 咗喺 HKG，同嚟緊個 sector 嘅 origin 對唔上）
     const scenarios: Array<{ existing: Record<string, unknown> | null; depIata: string; arrIata: string }> = [
       { existing: null, depIata: 'HKG', arrIata: 'NRT' },
       { existing: { ...DEFAULT_TECHLOG, tl_prev_arr: 'HKG' }, depIata: 'NRT', arrIata: 'HKG' },
       { existing: { ...DEFAULT_TECHLOG, tl_prev_arr: 'BKK' }, depIata: 'KIX', arrIata: 'HKG' },
       { existing: { ...DEFAULT_TECHLOG, tl_prev_arr: 'SIN' }, depIata: 'TPE', arrIata: 'HKG' },
+      // 用戶實際回報嘅場景：新機（existing=null，即係 startStation 預設 HKG）由 CTS 出發
+      { existing: null, depIata: 'CTS', arrIata: 'HKG' },
     ];
 
     for (const scenario of scenarios) {
@@ -109,6 +161,7 @@ describe('syncTechlogForNewFlight', () => {
         const chain = (result.flights as Array<Record<string, unknown>>).slice(0, 10);
         for (const sector of chain) {
           const [dep, arr] = String(sector.route).split(' ➔ ');
+          expect(dep).not.toBe(arr);
           expect(dep === 'HKG' || arr === 'HKG').toBe(true);
         }
       }
