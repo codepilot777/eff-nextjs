@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"; // 🌟 加咗 useEffect
 import { useFlightData } from "@/hooks/useFlightData";
 import { buildOfpSnapshot } from "@/lib/flight/ofpHistory";
+import { buildSimbriefDispatchUrl } from "@/lib/flight/simbriefUrl";
 
 export default function ConfigTab() {
   const { flightData, sendFlightDirective } = useFlightData();
@@ -25,12 +26,7 @@ export default function ConfigTab() {
     return rawHtml;
   };
 
-  const getSimbriefUrl = () => {
-    const parts = (flightData?.flight_no || "CPA 564").split(" ");
-    const airline = parts.length > 0 ? parts[0] : "CPA";
-    const fltnum = parts.length > 1 ? parts[1] : "564";
-    return `https://www.simbrief.com/system/dispatch.php?airline=${airline}&fltnum=${fltnum}&orig=${flightData?.dep_icao}&dest=${flightData?.arr_icao}`;
-  };
+  const getSimbriefUrl = () => buildSimbriefDispatchUrl(flightData?.flight_no || "CPA 564", flightData?.dep_icao, flightData?.arr_icao);
 
   const handleFetchUpdate = async () => {
     if (!sbUser) return alert("Please enter Username.");
