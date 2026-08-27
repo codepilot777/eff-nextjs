@@ -187,7 +187,15 @@ function buildChainedHistorySectors(count: number, startStation: string, endStat
       // 最舊一條要同原有 techlog 記錄嘅「上一個已知位置」接得上，但都唔可以打破
       // 「逐程一定沾到 HKG」——如果 startStation 同上一程嘅 arrival 都唔係 HKG
       // （罕見邊緣情況），寧願強制呢程由 HKG 出走，都好過生成一程兩個 outstation 互飛
-      departure = (startStation === HUB || arrival === HUB) ? startStation : HUB;
+      // 🌟 修復：startStation===HKG 係好常見嘅情況（新機/上一程啱啱好落返 HKG），
+      // 加上新 flight plan 由非 HKG 機場出發時，逐程交替嘅 pattern 去到最舊一條
+      // 嘅 arrival 本身已經係 HKG——兩者一齊撞埋，個 forced departure 就會同
+      // arrival 一樣都係 HKG，生成一程「HKG ➔ HKG」呢種同一個機場起降嘅假 sector。
+      // 呢種情況即係話個 chain 其實已經自然咁銜接返 startStation（喺 arrival 嗰邊），
+      // 唔使再夾硬逼 departure 都係 startStation，跟返平時交替嘅邏輯揀走一個
+      // 唔同嘅 outstation 就得
+      const preferredDeparture = (startStation === HUB || arrival === HUB) ? startStation : HUB;
+      departure = preferredDeparture === arrival ? randomStationExcluding(HUB) : preferredDeparture;
     } else if (arrival === HUB) {
       departure = randomStationExcluding(HUB);
     } else {
