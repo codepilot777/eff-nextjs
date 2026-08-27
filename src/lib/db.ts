@@ -34,6 +34,26 @@ async function backfillRawSimbriefColumn() {
   }
 }
 
+// 🌟 同一道理搬 ofp_history 出嚟做獨立欄：每個歷史版本入面都仲有自己嗰份完整
+// raw_simbrief（教官每次 dispatch 新 OFP 都係攞一份全新嘅 SimBrief 數據，唔係
+// 得返 top-level 嗰份嘅 duplicate）。版本數量本身通常好少（教官好少 dispatch
+// 超過 3 次），總儲存量唔算大問題；但 ofp_history 一直留喺 `data` 入面嘅話，
+// 每次 /api/flight/update、甚至每 3 秒一次嘅 /api/flight 輪詢，都要成份搬晒
+// 所有版本嘅歷史。獨立成欄之後，日常 read/write 淨係郁 `data`，ofp_history
+// 淨係喺 ofpDispatchAppend 真係加新版本嗰吓先會郁（睇 /api/flight/update/route.ts）
+async function backfillOfpHistoryColumn() {
+  const result = await db.execute(`SELECT id, data FROM flights`);
+  for (const row of result.rows) {
+    const parsed = JSON.parse(row.data as string);
+    if (!('ofp_history' in parsed)) continue;
+    const { ofp_history, ...rest } = parsed;
+    await db.execute({
+      sql: 'UPDATE flights SET data = ?, ofp_history = ? WHERE id = ?',
+      args: [JSON.stringify(rest), JSON.stringify(ofp_history ?? null), row.id as string],
+    });
+  }
+}
+
 async function migrateFlightsTable() {
   const tableCheck = await db.execute(
     `SELECT name FROM sqlite_master WHERE type='table' AND name='flights'`
@@ -41,11 +61,12 @@ async function migrateFlightsTable() {
 
   if (tableCheck.rows.length === 0) {
     // 全新 DB：直接用新 schema 起，唔使 migrate
-    await db.execute(`CREATE TABLE flights (id TEXT PRIMARY KEY, flight_no TEXT, data JSON, raw_simbrief JSON)`);
+    await db.execute(`CREATE TABLE flights (id TEXT PRIMARY KEY, flight_no TEXT, data JSON, raw_simbrief JSON, ofp_history JSON)`);
   } else {
     const cols = await db.execute(`PRAGMA table_info(flights)`);
     const hasIdPk = cols.rows.some((r) => r.name === 'id' && Number(r.pk) === 1);
     const hasRawSimbriefCol = cols.rows.some((r) => r.name === 'raw_simbrief');
+    const hasOfpHistoryCol = cols.rows.some((r) => r.name === 'ofp_history');
 
     if (!hasIdPk) {
       // 舊資料冇 id 就用返佢哋原本嘅 flight_no 頂替，等舊已分享/書籤咗嘅
@@ -53,16 +74,23 @@ async function migrateFlightsTable() {
       await db.batch(
         [
           `ALTER TABLE flights RENAME TO flights_old`,
-          `CREATE TABLE flights (id TEXT PRIMARY KEY, flight_no TEXT, data JSON, raw_simbrief JSON)`,
+          `CREATE TABLE flights (id TEXT PRIMARY KEY, flight_no TEXT, data JSON, raw_simbrief JSON, ofp_history JSON)`,
           `INSERT INTO flights (id, flight_no, data) SELECT flight_no, flight_no, data FROM flights_old`,
           `DROP TABLE flights_old`,
         ],
         'write'
       );
       await backfillRawSimbriefColumn();
-    } else if (!hasRawSimbriefCol) {
-      await db.execute(`ALTER TABLE flights ADD COLUMN raw_simbrief JSON`);
-      await backfillRawSimbriefColumn();
+      await backfillOfpHistoryColumn();
+    } else {
+      if (!hasRawSimbriefCol) {
+        await db.execute(`ALTER TABLE flights ADD COLUMN raw_simbrief JSON`);
+        await backfillRawSimbriefColumn();
+      }
+      if (!hasOfpHistoryCol) {
+        await db.execute(`ALTER TABLE flights ADD COLUMN ofp_history JSON`);
+        await backfillOfpHistoryColumn();
+      }
     }
   }
 

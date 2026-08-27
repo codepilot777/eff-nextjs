@@ -7,7 +7,11 @@ export async function GET(request: Request) {
     await ensureSchema();
 
     // 🌟 非同步執行 SQL 查詢，取得所有航班記錄
-    const result = await db.execute('SELECT id, data FROM flights');
+    // 🌟 raw_simbrief 同 ofp_history 而家係獨立欄（睇 db.ts 嘅 comment）。呢度
+    // 特登唔攞 raw_simbrief——冇任何一個讀呢個 list 嘅組件用得著（顯示緊嘅係
+    // flight-select 揀機前嘅列表卡），但 ofp_history 要攞埋，因為 flight-select
+    // 個 Compare 面板（睇 getOfpHistory）就係靠呢個 list route 攞返嚟嘅歷史版本
+    const result = await db.execute('SELECT id, data, ofp_history FROM flights');
 
     // Turso 的多筆資料會放在 result.rows 陣列裡
     let flights = result.rows.map((r) => {
@@ -16,6 +20,7 @@ export async function GET(request: Request) {
       // 兩個教官起嘅 session 可以同一個 flight number 都唔會互相 overwrite
       const parsed = JSON.parse(r.data as string);
       parsed._db_id = r.id;
+      parsed.ofp_history = r.ofp_history ? JSON.parse(r.ofp_history as string) : [];
       return parsed;
     });
 

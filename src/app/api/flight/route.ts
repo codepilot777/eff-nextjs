@@ -13,7 +13,11 @@ export async function GET(request: Request) {
     // 🌟 非同步執行 SQL 查詢——id 而家係真正嘅 UUID（睇 db.ts 嘅 migration），
     // 唔再係 flight_no，等兩個 flight number 相同嘅 session 可以並存
     // 🌟 raw_simbrief 而家係獨立欄（睇 db.ts 嘅 comment），呢度攞埋佢，
-    // 砌返落 flightData 度——前端一直讀開嘅 flightData.raw_simbrief.xxx 唔使改
+    // 砌返落 flightData 度——前端一直讀開嘅 flightData.raw_simbrief.xxx 唔使改。
+    // 🌟 呢度特登冇攞埋 ofp_history：呢個 route 由 useFlightData()（workspace/
+    // dashboard 成套組件，每 3 秒輪詢一次）call，冇任何一個讀 flightData.raw_simbrief.*
+    // 嘅組件會讀 ofp_history——嗰個歷史版本 array 淨係 flight-select（睇
+    // /api/flights/route.ts 個 list route）嘅 Compare 面板先要
     const result = await db.execute({
       sql: 'SELECT data, raw_simbrief FROM flights WHERE id = ?',
       args: [flightKey]

@@ -193,21 +193,29 @@ describe('POST /api/flight/update', () => {
     expect(body.data.alternates).toEqual([{ icao: 'RJGG', metar: 'ALTN METAR' }]);
   });
 
-  // 🌟 regression: raw_simbrief（起機嗰刻嘅完整 SimBrief 原始回應）而家係獨立欄，
+  // 🌟 regression: raw_simbrief（起機嗰刻嘅完整 SimBrief 原始回應）同 ofp_history
+  // （歷史 OFP 版本，每個版本入面又帶多一份自己嘅 raw_simbrief）而家都係獨立欄，
   // 唔再喺 `data` JSON 入面（睇 db.ts 嘅 comment，CPA 880 呢類 flight 嘅 data 曾經
-  // 去到 ~2MB，99.7% 都係呢個欄）。呢度證明：(1) 一般 patch 完全唔會撳過呢個欄；
-  // (2) ofpActivate 先會將歷史版本嘅 raw_simbrief promote 做返 live 嘅
-  describe('raw_simbrief lives in its own column, off the hot read-modify-write path', () => {
-    async function seedFlightWithRawSimbrief(id: string, data: object, rawSimbrief: unknown) {
+  // 去到 ~2MB，99.7% 都係 raw_simbrief 一個欄）。呢度證明：(1) 一般 patch 完全唔會
+  // 撳過呢兩個欄；(2) ofpActivate 先會將歷史版本嘅 raw_simbrief promote 做返 live
+  // 嘅（但唔會郁 ofp_history）；(3) ofpDispatchAppend 先會郁 ofp_history（但唔會
+  // 郁 raw_simbrief）
+  describe('raw_simbrief/ofp_history live in their own columns, off the hot read-modify-write path', () => {
+    async function seedFlightWithColumns(id: string, data: object, rawSimbrief: unknown, ofpHistory: unknown) {
       await ensureSchema();
       await db.execute({
-        sql: 'REPLACE INTO flights (id, flight_no, data, raw_simbrief) VALUES (?, ?, ?, ?)',
-        args: [id, id, JSON.stringify(data), JSON.stringify(rawSimbrief)],
+        sql: 'REPLACE INTO flights (id, flight_no, data, raw_simbrief, ofp_history) VALUES (?, ?, ?, ?, ?)',
+        args: [id, id, JSON.stringify(data), JSON.stringify(rawSimbrief), JSON.stringify(ofpHistory)],
       });
     }
 
-    it('an ordinary flat-field patch never rewrites the raw_simbrief column, and the response still carries it inline', async () => {
-      await seedFlightWithRawSimbrief('TEST-RAWSB1', { flight_no: 'TEST-RAWSB1', trainee_input_zfw: 0 }, { general: { icao_airline: 'CX' } });
+    it('an ordinary flat-field patch never rewrites the raw_simbrief/ofp_history columns, and the response still carries them inline', async () => {
+      await seedFlightWithColumns(
+        'TEST-RAWSB1',
+        { flight_no: 'TEST-RAWSB1', trainee_input_zfw: 0 },
+        { general: { icao_airline: 'CX' } },
+        [{ version: 1, dispatched_at: '2026-01-01T00:00:00Z', snapshot: { raw_simbrief: { general: { icao_airline: 'CX' } } } }],
+      );
 
       const res = await POST(makeRequest({ id: 'TEST-RAWSB1', data: { trainee_input_zfw: 182 } }));
       expect(res.status).toBe(200);
@@ -215,30 +223,55 @@ describe('POST /api/flight/update', () => {
 
       // response still reconstructs the full object, same as before the split
       expect(body.data.raw_simbrief).toEqual({ general: { icao_airline: 'CX' } });
+      expect(body.data.ofp_history).toHaveLength(1);
       expect(body.data.trainee_input_zfw).toBe(182);
 
-      // the `data` column itself must not have grown a duplicate raw_simbrief key
-      const row = await db.execute({ sql: 'SELECT data, raw_simbrief FROM flights WHERE id = ?', args: ['TEST-RAWSB1'] });
-      expect(JSON.parse(row.rows[0].data as string).raw_simbrief).toBeUndefined();
+      // neither column-backed field grew a duplicate copy inside `data`
+      const row = await db.execute({ sql: 'SELECT data, raw_simbrief, ofp_history FROM flights WHERE id = ?', args: ['TEST-RAWSB1'] });
+      const storedData = JSON.parse(row.rows[0].data as string);
+      expect(storedData.raw_simbrief).toBeUndefined();
+      expect(storedData.ofp_history).toBeUndefined();
       expect(JSON.parse(row.rows[0].raw_simbrief as string)).toEqual({ general: { icao_airline: 'CX' } });
+      expect(JSON.parse(row.rows[0].ofp_history as string)).toHaveLength(1);
     });
 
-    it('ofpActivate promotes the chosen version\'s raw_simbrief into the column', async () => {
-      await seedFlightWithRawSimbrief('TEST-RAWSB2', {
-        flight_no: 'TEST-RAWSB2',
-        ofp_history: [
-          { version: 1, dispatched_at: '2026-01-01T00:00:00Z', snapshot: { raw_simbrief: { general: { icao_airline: 'V1' } } } },
-          { version: 2, dispatched_at: '2026-01-02T00:00:00Z', snapshot: { raw_simbrief: { general: { icao_airline: 'V2' } } } },
-        ],
-      }, { general: { icao_airline: 'V1' } });
+    it('ofpActivate promotes the chosen version\'s raw_simbrief into the column, without touching ofp_history', async () => {
+      const seededHistory = [
+        { version: 1, dispatched_at: '2026-01-01T00:00:00Z', snapshot: { raw_simbrief: { general: { icao_airline: 'V1' } } } },
+        { version: 2, dispatched_at: '2026-01-02T00:00:00Z', snapshot: { raw_simbrief: { general: { icao_airline: 'V2' } } } },
+      ];
+      await seedFlightWithColumns('TEST-RAWSB2', { flight_no: 'TEST-RAWSB2' }, { general: { icao_airline: 'V1' } }, seededHistory);
 
       const res = await POST(makeRequest({ id: 'TEST-RAWSB2', ofpActivate: { version: 2 } }));
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.data.raw_simbrief).toEqual({ general: { icao_airline: 'V2' } });
 
-      const row = await db.execute({ sql: 'SELECT raw_simbrief FROM flights WHERE id = ?', args: ['TEST-RAWSB2'] });
+      const row = await db.execute({ sql: 'SELECT raw_simbrief, ofp_history FROM flights WHERE id = ?', args: ['TEST-RAWSB2'] });
       expect(JSON.parse(row.rows[0].raw_simbrief as string)).toEqual({ general: { icao_airline: 'V2' } });
+      expect(JSON.parse(row.rows[0].ofp_history as string)).toEqual(seededHistory);
+    });
+
+    it('ofpDispatchAppend appends a new version to ofp_history, without touching the raw_simbrief column', async () => {
+      const seededHistory = [
+        { version: 1, dispatched_at: '2026-01-01T00:00:00Z', snapshot: { raw_simbrief: { general: { icao_airline: 'V1' } } } },
+      ];
+      await seedFlightWithColumns('TEST-RAWSB3', { flight_no: 'TEST-RAWSB3', ofp_version: 1 }, { general: { icao_airline: 'V1' } }, seededHistory);
+      const { token } = createSessionToken();
+
+      const res = await POST(makeRequest(
+        { id: 'TEST-RAWSB3', ofpDispatchAppend: { snapshot: { raw_simbrief: { general: { icao_airline: 'V2' } } } } },
+        `${SESSION_COOKIE_NAME}=${token}`,
+      ));
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.data.ofp_history).toHaveLength(2);
+      // raw_simbrief (the live/activated one) stays on V1 — dispatching doesn't activate
+      expect(body.data.raw_simbrief).toEqual({ general: { icao_airline: 'V1' } });
+
+      const row = await db.execute({ sql: 'SELECT raw_simbrief, ofp_history FROM flights WHERE id = ?', args: ['TEST-RAWSB3'] });
+      expect(JSON.parse(row.rows[0].raw_simbrief as string)).toEqual({ general: { icao_airline: 'V1' } });
+      expect(JSON.parse(row.rows[0].ofp_history as string)).toHaveLength(2);
     });
   });
 });
