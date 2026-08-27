@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 // 🌟 引入 React Query 核心組件
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { buildSimbriefDispatchUrl } from "@/lib/flight/simbriefUrl";
 
 export default function InstructorHub() {
   const router = useRouter();
@@ -118,12 +119,7 @@ export default function InstructorHub() {
   const isAdmin = currentUser.toLowerCase() === "admin";
   const visibleFlights = flights.filter((f: any) => isAdmin || f.created_by === currentUser);
 
-  const getSimbriefUrl = () => {
-    const parts = fltNo.split(" ");
-    const airline = parts.length > 0 ? parts[0] : "CPA";
-    const fltnum = parts.length > 1 ? parts[1] : "564";
-    return `https://www.simbrief.com/system/dispatch.php?airline=${airline}&fltnum=${fltnum}&orig=${dep}&dest=${arr}`;
-  };
+  const getSimbriefUrl = () => buildSimbriefDispatchUrl(fltNo, dep, arr);
 
   // SimBrief API 預覽抓取 (此處為純 Form 的外部請求，維持 Local State 處理最適合)
   const handleFetchPreview = async () => {
