@@ -137,10 +137,8 @@ function formatTechlogDate(d: Date): string {
   return `${d.getUTCDate().toString().padStart(2, '0')} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-function hhmm(totalMinutes: number): string {
-  const h = Math.floor(totalMinutes / 60) % 24;
-  const m = totalMinutes % 60;
-  return `${h.toString().padStart(2, '0')}${m.toString().padStart(2, '0')}`;
+function hhmmFromDate(d: Date): string {
+  return `${d.getUTCHours().toString().padStart(2, '0')}${d.getUTCMinutes().toString().padStart(2, '0')}`;
 }
 
 export interface NewFlightContinuityParams {
@@ -176,10 +174,17 @@ const HUB = "HKG";
 // 「返返嚟 HKG」，唔會有兩個 outstation 直接互飛。而家改成逐程都強制一邊係 HKG：
 // 上一程去到 HKG，呢程就要由 HKG 出走去第個 outstation；上一程喺 outstation，
 // 呢程就要飛返 HKG
+// 🌟 修復：以前 date（決定日曆日）同 blocksOff/takeOff/landing/blocksOn（鐘面時間）
+// 係兩份完全獨立嘅隨機數，逐程之間冇任何關聯——會生成到「舊嗰程」嘅鐘面時間
+// 反而遲過「新嗰程」（例如兩程都係 18 AUG，新嗰程 02:51 落地，舊嗰程反而
+// 08:51 先起飛，時序完全錯亂）。而家改用單一條連續嘅 Date cursor 逐程向後推：
+// 每程嘅 blocksOff/takeOff/landing/blocksOn 全部由呢條 cursor 用真正嘅分鐘數
+// 計出嚟，date 都係跟返呢個真實時間戳嚟，保證逐程（由新至舊）嘅時序一定啱，
+// 中間仲留返合理嘅地面 turnaround 時間
 function buildChainedHistorySectors(count: number, startStation: string, endStation: string, mostRecentDate: Date, fallbackCmdr: string): Array<Record<string, unknown>> {
   const sectors: Array<Record<string, unknown>> = [];
   let arrival = endStation;
-  let date = new Date(mostRecentDate);
+  let cursor = new Date(mostRecentDate);
 
   for (let i = 0; i < count; i++) {
     let departure: string;
@@ -202,26 +207,30 @@ function buildChainedHistorySectors(count: number, startStation: string, endStat
       departure = HUB;
     }
 
-    const blocksOffMin = 60 + Math.floor(Math.random() * 600);
-    const takeOffMin = blocksOffMin + 15;
+    // 🌟 呢程嘅 blocksOn 就係 cursor（起始等於上一次迭代留低嘅「起飛前」時刻，
+    // 或者第一程就係 mostRecentDate），逐個時刻由後向前推——保證 blocksOff <
+    // takeOff < landing < blocksOn 呢個 sector 自己內部一定啱，亦都保證同
+    // 下一個（更舊）sector 之間隔返一段 turnaround，時序唔會撞埋/錯亂
+    const blocksOnTime = new Date(cursor);
+    const landingTime = new Date(blocksOnTime.getTime() - 10 * 60_000);
     const flightDurMin = 60 + Math.floor(Math.random() * 180);
-    const landingMin = takeOffMin + flightDurMin;
-    const blocksOnMin = landingMin + 10;
+    const takeOffTime = new Date(landingTime.getTime() - flightDurMin * 60_000);
+    const blocksOffTime = new Date(takeOffTime.getTime() - 15 * 60_000);
 
     const upliftT = (12 + Math.random() * 20).toFixed(1);
     const arrFuelT = (5 + Math.random() * 8).toFixed(1);
     const hasMinorDefect = Math.random() > 0.85;
 
     sectors.push({
-      id: `SEC-${date.getTime().toString().slice(-6)}${i}`,
-      date: formatTechlogDate(date),
+      id: `SEC-${blocksOffTime.getTime().toString().slice(-6)}${i}`,
+      date: formatTechlogDate(blocksOffTime),
       action: "Normal Close",
       flt: `CX${100 + Math.floor(Math.random() * 800)}`,
       route: `${departure} ➔ ${arrival}`,
-      blocksOff: hhmm(blocksOffMin),
-      takeOff: hhmm(takeOffMin),
-      landing: hhmm(landingMin),
-      blocksOn: hhmm(blocksOnMin),
+      blocksOff: hhmmFromDate(blocksOffTime),
+      takeOff: hhmmFromDate(takeOffTime),
+      landing: hhmmFromDate(landingTime),
+      blocksOn: hhmmFromDate(blocksOnTime),
       def: hasMinorDefect ? [{ id: `S${1000 + Math.floor(Math.random() * 9000)}`, status: "CLEARED", description: "Minor cabin equipment defect rectified." }] : [],
       checks: [Math.random() > 0.7 ? "Daily Check" : "Transit Check"],
       serv: ["Nil Servicing Required"],
@@ -233,7 +242,10 @@ function buildChainedHistorySectors(count: number, startStation: string, endStat
     });
 
     arrival = departure;
-    date = new Date(date.getTime() - (12 + Math.random() * 24) * 3600 * 1000);
+    // 🌟 下一個（更舊）sector 嘅 blocksOn 一定要早過呢一程嘅 blocksOff，中間
+    // 留返一段合理嘅地面 turnaround 時間（45 分鐘至 3 小時）
+    const turnaroundMin = 45 + Math.floor(Math.random() * 135);
+    cursor = new Date(blocksOffTime.getTime() - turnaroundMin * 60_000);
   }
 
   return sectors;

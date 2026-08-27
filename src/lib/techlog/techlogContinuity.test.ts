@@ -63,10 +63,50 @@ describe('syncTechlogForNewFlight', () => {
     expect(String(chain[chain.length - 1].route).split(' ➔ ')[0]).toBe('BKK');
     expect(String(chain[0].route).split(' ➔ ')[1]).toBe('KIX');
 
+    // 🌟 HHMM 淨係鐘面時間，冇帶日期——一程飛行完全可以跨 UTC 午夜（例如 2350
+    // 起飛、0130 落地),所以要用「wrap 過 1440」嚟計相差,唔可以淨係當同一日
+    // 咁樣直接比大小
     const toMin = (s: string) => parseInt(String(s).slice(0, 2), 10) * 60 + parseInt(String(s).slice(2, 4), 10);
+    const diffMin = (laterMin: number, earlierMin: number) => ((laterMin - earlierMin) % 1440 + 1440) % 1440;
     for (const sector of chain) {
-      expect(toMin(sector.takeOff as string)).toBeGreaterThan(toMin(sector.blocksOff as string));
-      expect(toMin(sector.blocksOn as string)).toBeGreaterThan(toMin(sector.landing as string));
+      expect(diffMin(toMin(sector.takeOff as string), toMin(sector.blocksOff as string))).toBe(15);
+      expect(diffMin(toMin(sector.blocksOn as string), toMin(sector.landing as string))).toBe(10);
+      const flightDur = diffMin(toMin(sector.landing as string), toMin(sector.takeOff as string));
+      expect(flightDur).toBeGreaterThanOrEqual(60);
+      expect(flightDur).toBeLessThanOrEqual(240);
+    }
+  });
+
+  it('regression: consecutive sectors are in strict chronological order (newest first) — a sector never shows a clock time later than the sector that supposedly came after it', () => {
+    // 🌟 以前 date（日曆日）同 blocksOff/takeOff/landing/blocksOn（鐘面時間）係
+    // 兩份完全獨立嘅隨機數，會生成到「舊嗰程」嘅鐘面時間反而遲過「新嗰程」嘅
+    // 荒謬結果。而家逐程共用同一條連續嘅 Date cursor，呢度驗證返成條 chain
+    // 嘅 blocksOn 一定係嚴格遞減（新至舊）
+    const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    const toTimestamp = (dateStr: string, hhmm: string) => {
+      const [day, monStr, year] = dateStr.split(' ');
+      const month = MONTHS.indexOf(monStr);
+      const hh = parseInt(hhmm.slice(0, 2), 10);
+      const mm = parseInt(hhmm.slice(2, 4), 10);
+      return Date.UTC(parseInt(year, 10), month, parseInt(day, 10), hh, mm);
+    };
+
+    for (let run = 0; run < 10; run++) {
+      const result = syncTechlogForNewFlight(null, { flightNo: 'CX999', depIata: 'NRT', arrIata: 'HKG' });
+      const chain = (result.flights as Array<Record<string, unknown>>).slice(0, 10);
+
+      for (let i = 0; i < chain.length - 1; i++) {
+        const newer = chain[i];
+        const older = chain[i + 1];
+        // 🌟 date 欄位一定係跟返嗰程 blocksOff 嘅日曆日（睇 techlogContinuity.ts
+        // 嘅 formatTechlogDate(blocksOffTime)），所以用 date+blocksOff 砌返出嚟
+        // 嘅 timestamp 保證準確——直接驗證「較新嗰程嘅出發時間，一定遲過較舊
+        // 嗰程嘅出發時間」，先算得上真正嘅時序（唔會受單一 sector 內部飛行
+        // 跨午夜嘅情況影響）
+        const newerDeparture = toTimestamp(String(newer.date), String(newer.blocksOff));
+        const olderDeparture = toTimestamp(String(older.date), String(older.blocksOff));
+        expect(newerDeparture).toBeGreaterThan(olderDeparture);
+      }
     }
   });
 
