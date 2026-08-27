@@ -61,4 +61,27 @@ describe('GET /api/flights', () => {
     expect(ids).toContain('LISTPUB2');
     expect(ids).toContain('LISTDRAFT2');
   });
+
+  // 🌟 regression: ofp_history 而家係獨立欄（睇 db.ts 嘅 comment）——flight-select
+  // 個 Compare 面板靠呢個 list route 攞歷史版本，所以呢度一定要砌返落去。反之
+  // raw_simbrief 冇任何一個讀呢個 list 嘅組件用得著，特登唔攞（keep the list payload lean）
+  it('reattaches ofp_history from its own column, but leaves raw_simbrief out of the list payload', async () => {
+    await ensureSchema();
+    await db.execute({
+      sql: 'REPLACE INTO flights (id, flight_no, data, raw_simbrief, ofp_history) VALUES (?, ?, ?, ?, ?)',
+      args: [
+        'LISTHIST1',
+        'LISTHIST1',
+        JSON.stringify({ flight_no: 'LISTHIST1', is_published: true }),
+        JSON.stringify({ general: { icao_airline: 'CX' } }),
+        JSON.stringify([{ version: 1, dispatched_at: '2026-01-01T00:00:00Z', snapshot: {} }]),
+      ],
+    });
+
+    const res = await GET(makeRequest());
+    const flights = await res.json();
+    const flight = flights.find((f: { flight_no: string }) => f.flight_no === 'LISTHIST1');
+    expect(flight.ofp_history).toHaveLength(1);
+    expect(flight.raw_simbrief).toBeUndefined();
+  });
 });

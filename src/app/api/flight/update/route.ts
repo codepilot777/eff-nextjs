@@ -28,10 +28,19 @@ export async function POST(request: Request) {
 
     // 2. 用 interactive transaction 讀最新一份 row，喺 server 端 apply directives,
     //    再寫返去，收窄 read-modify-write 嘅 race window
+    // 🌟 raw_simbrief（起機嗰刻嘅完整 SimBrief 原始回應）同 ofp_history（歷史 OFP
+    // 版本，每個版本入面又帶多一份自己嘅 raw_simbrief）而家都係獨立欄，唔再喺
+    // `data` JSON 入面——CPA 880 呢類 flight 嘅 data 曾經去到 ~2MB，99.7% 都係
+    // raw_simbrief。但呢度嘅日常 patch（fuel/PDC/ATIS/ACARS/checklist...）從來
+    // 冇改過呢兩個欄，淨係 ofpActivate 會覆寫 raw_simbrief（Object.assign 咗個
+    // 歷史版本嘅 snapshot），ofpDispatchAppend 先會加新版本落 ofp_history。用
+    // reference 唔同咗嚟判斷使唔使連埋邊個欄一齊寫，避免日常寫入都要無辜搬呢啲
+    // 大 blob——version 數量本身好少（好少超過 3 個），總儲存量唔係問題，
+    // 問題係唔可以每次 read/write 都要郁晒所有版本
     const tx = await db.transaction('write');
     try {
       const result = await tx.execute({
-        sql: 'SELECT data FROM flights WHERE id = ?',
+        sql: 'SELECT data, raw_simbrief, ofp_history FROM flights WHERE id = ?',
         args: [id],
       });
       const row = result.rows[0];
@@ -42,11 +51,30 @@ export async function POST(request: Request) {
       }
 
       const current = JSON.parse(row.data as string);
+      current.raw_simbrief = row.raw_simbrief ? JSON.parse(row.raw_simbrief as string) : null;
+      current.ofp_history = row.ofp_history ? JSON.parse(row.ofp_history as string) : [];
+
       const merged = applyFlightDirectives(current, patch);
 
+      const rawSimbriefChanged = merged.raw_simbrief !== current.raw_simbrief;
+      const ofpHistoryChanged = merged.ofp_history !== current.ofp_history;
+      const { raw_simbrief: mergedRawSimbrief, ofp_history: mergedOfpHistory, ...dataToStore } = merged;
+
+      const setClauses = ['data = ?'];
+      const updateArgs: unknown[] = [JSON.stringify(dataToStore)];
+      if (rawSimbriefChanged) {
+        setClauses.push('raw_simbrief = ?');
+        updateArgs.push(JSON.stringify(mergedRawSimbrief ?? null));
+      }
+      if (ofpHistoryChanged) {
+        setClauses.push('ofp_history = ?');
+        updateArgs.push(JSON.stringify(mergedOfpHistory ?? null));
+      }
+      updateArgs.push(id);
+
       await tx.execute({
-        sql: 'UPDATE flights SET data = ? WHERE id = ?',
-        args: [JSON.stringify(merged), id],
+        sql: `UPDATE flights SET ${setClauses.join(', ')} WHERE id = ?`,
+        args: updateArgs as (string | number | null)[],
       });
 
       await tx.commit();

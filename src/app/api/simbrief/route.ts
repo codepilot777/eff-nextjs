@@ -224,16 +224,26 @@ export async function POST(request: Request) {
     // flight number 嘅 session 直接刪走第一個。而家用一個真正嘅 UUID 做 id，
     // flight_no 淨係普通欄位，容許重複，兩個 session 各自獨立存在
     const sessionId = randomUUID();
+    // 🌟 raw_simbrief（完整 SimBrief 原始回應）同 ofp_history（歷史 OFP 版本，
+    // 每個版本入面又帶多一份自己嘅 raw_simbrief）而家都搬咗做獨立欄（睇 db.ts
+    // 嘅 comment）——呢度 flightData.ofp_history[0].snapshot 仍然要完整一份
+    // （起機第一版 OFP 嘅歷史記錄），淨係 `data` 呢個 column 唔再帶埋呢兩個
+    // 欄，等日常 read-modify-write 唔使無辜搬呢啲大 blob
+    const { raw_simbrief: rawSimbriefForColumn, ofp_history: ofpHistoryForColumn, ...flightDataForStorage } = flightData;
     await db.execute({
-      sql: 'INSERT INTO flights (id, flight_no, data) VALUES (?, ?, ?)',
-      args: [sessionId, finalFlightNo, JSON.stringify(flightData)]
+      sql: 'INSERT INTO flights (id, flight_no, data, raw_simbrief, ofp_history) VALUES (?, ?, ?, ?, ?)',
+      args: [sessionId, finalFlightNo, JSON.stringify(flightDataForStorage), JSON.stringify(rawSimbriefForColumn), JSON.stringify(ofpHistoryForColumn)]
     });
 
     // 🌟 起機嗰刻自動將呢架機嘅 techlog「Prepare Flight」同 continuity 同新 flight plan
     // 同步（唔一定由 HKG 出發，例如今次係外地飛返香港），唔使 trainee 手動入 e-techlog
     // 補一程先夾得返出發機場（睇 techlogContinuity.ts）
+    // 🌟 修復：techlogs 而家 key by flight_id，唔再係 reg——揾返「呢個機牌最近一次」
+    // 嘅 techlog 做 continuity 嘅種子（ORDER BY rowid DESC LIMIT 1），但用 INSERT
+    // 幫呢個新 session 開一條佢自己獨立嘅 row，唔會再 REPLACE 咗仲用緊呢個機牌嘅
+    // 另一個 session 嘅 techlog（defects/accept 狀態）
     const techlogRow = await db.execute({
-      sql: 'SELECT data FROM techlogs WHERE reg = ?',
+      sql: 'SELECT data FROM techlogs WHERE reg = ? ORDER BY rowid DESC LIMIT 1',
       args: [flightData.aircraft_reg],
     });
     const existingTechlog = techlogRow.rows[0]?.data ? JSON.parse(techlogRow.rows[0].data as string) : null;
@@ -243,8 +253,8 @@ export async function POST(request: Request) {
       arrIata: dest.iata_code || flightData.arr_icao,
     });
     await db.execute({
-      sql: 'REPLACE INTO techlogs (reg, data) VALUES (?, ?)',
-      args: [flightData.aircraft_reg, JSON.stringify(syncedTechlog)],
+      sql: 'INSERT INTO techlogs (flight_id, reg, data) VALUES (?, ?, ?)',
+      args: [sessionId, flightData.aircraft_reg, JSON.stringify(syncedTechlog)],
     });
 
     return NextResponse.json({ success: true, flight_no: finalFlightNo, id: sessionId });

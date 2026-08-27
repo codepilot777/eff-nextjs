@@ -14,6 +14,46 @@ let schemaReady: Promise<unknown> | null = null;
 // SQLite 冇得直接改一個已存在 table 嘅 PRIMARY KEY，所以要 rename→重新起→搬資料→
 // 刪舊 table；用 PRAGMA table_info 檢查 id 欄位係咪已經係 PK，等呢個 migration
 // 淨係行一次
+// 🌟 修復：raw_simbrief（起機嗰刻由 SimBrief API 攞返嚟嘅完整原始回應）以前塞喺
+// `data` JSON 頂層——實測 CPA 880 呢班機成個 data blob 1.9MB，raw_simbrief 自己
+// 就佔咗 99.7%。但呢個欄起機之後，除咗 ofpActivate 會成份覆寫一次之外，冇任何
+// patch 會再碰佢——即係 /api/flight/update 改一個 fuel 數、送一個 PDC request
+// 呢啲日常寫入，都要無辜成舊 SELECT/parse/merge/stringify/UPDATE 埋呢 2MB。而家
+// 搬出嚟做獨立欄，read-modify-write 嘅 hot path 淨係處理 `data`（睇
+// /api/flight/update/route.ts），淨係 ofpActivate 先會連埋呢個欄一齊寫
+async function backfillRawSimbriefColumn() {
+  const result = await db.execute(`SELECT id, data FROM flights`);
+  for (const row of result.rows) {
+    const parsed = JSON.parse(row.data as string);
+    if (!('raw_simbrief' in parsed)) continue;
+    const { raw_simbrief, ...rest } = parsed;
+    await db.execute({
+      sql: 'UPDATE flights SET data = ?, raw_simbrief = ? WHERE id = ?',
+      args: [JSON.stringify(rest), JSON.stringify(raw_simbrief ?? null), row.id as string],
+    });
+  }
+}
+
+// 🌟 同一道理搬 ofp_history 出嚟做獨立欄：每個歷史版本入面都仲有自己嗰份完整
+// raw_simbrief（教官每次 dispatch 新 OFP 都係攞一份全新嘅 SimBrief 數據，唔係
+// 得返 top-level 嗰份嘅 duplicate）。版本數量本身通常好少（教官好少 dispatch
+// 超過 3 次），總儲存量唔算大問題；但 ofp_history 一直留喺 `data` 入面嘅話，
+// 每次 /api/flight/update、甚至每 3 秒一次嘅 /api/flight 輪詢，都要成份搬晒
+// 所有版本嘅歷史。獨立成欄之後，日常 read/write 淨係郁 `data`，ofp_history
+// 淨係喺 ofpDispatchAppend 真係加新版本嗰吓先會郁（睇 /api/flight/update/route.ts）
+async function backfillOfpHistoryColumn() {
+  const result = await db.execute(`SELECT id, data FROM flights`);
+  for (const row of result.rows) {
+    const parsed = JSON.parse(row.data as string);
+    if (!('ofp_history' in parsed)) continue;
+    const { ofp_history, ...rest } = parsed;
+    await db.execute({
+      sql: 'UPDATE flights SET data = ?, ofp_history = ? WHERE id = ?',
+      args: [JSON.stringify(rest), JSON.stringify(ofp_history ?? null), row.id as string],
+    });
+  }
+}
+
 async function migrateFlightsTable() {
   const tableCheck = await db.execute(
     `SELECT name FROM sqlite_master WHERE type='table' AND name='flights'`
@@ -21,10 +61,12 @@ async function migrateFlightsTable() {
 
   if (tableCheck.rows.length === 0) {
     // 全新 DB：直接用新 schema 起，唔使 migrate
-    await db.execute(`CREATE TABLE flights (id TEXT PRIMARY KEY, flight_no TEXT, data JSON)`);
+    await db.execute(`CREATE TABLE flights (id TEXT PRIMARY KEY, flight_no TEXT, data JSON, raw_simbrief JSON, ofp_history JSON)`);
   } else {
     const cols = await db.execute(`PRAGMA table_info(flights)`);
     const hasIdPk = cols.rows.some((r) => r.name === 'id' && Number(r.pk) === 1);
+    const hasRawSimbriefCol = cols.rows.some((r) => r.name === 'raw_simbrief');
+    const hasOfpHistoryCol = cols.rows.some((r) => r.name === 'ofp_history');
 
     if (!hasIdPk) {
       // 舊資料冇 id 就用返佢哋原本嘅 flight_no 頂替，等舊已分享/書籤咗嘅
@@ -32,16 +74,63 @@ async function migrateFlightsTable() {
       await db.batch(
         [
           `ALTER TABLE flights RENAME TO flights_old`,
-          `CREATE TABLE flights (id TEXT PRIMARY KEY, flight_no TEXT, data JSON)`,
+          `CREATE TABLE flights (id TEXT PRIMARY KEY, flight_no TEXT, data JSON, raw_simbrief JSON, ofp_history JSON)`,
           `INSERT INTO flights (id, flight_no, data) SELECT flight_no, flight_no, data FROM flights_old`,
           `DROP TABLE flights_old`,
+        ],
+        'write'
+      );
+      await backfillRawSimbriefColumn();
+      await backfillOfpHistoryColumn();
+    } else {
+      if (!hasRawSimbriefCol) {
+        await db.execute(`ALTER TABLE flights ADD COLUMN raw_simbrief JSON`);
+        await backfillRawSimbriefColumn();
+      }
+      if (!hasOfpHistoryCol) {
+        await db.execute(`ALTER TABLE flights ADD COLUMN ofp_history JSON`);
+        await backfillOfpHistoryColumn();
+      }
+    }
+  }
+
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_flights_flight_no ON flights(flight_no)`);
+}
+
+// 🌟 修復：舊 schema 用 reg（機牌）做 PRIMARY KEY，令兩個獨立 session 一旦用著
+// 同一個/相似嘅機牌（好常見，因為 aircraft_reg 預設由 SimBrief 派出嚟），起機
+// continuity sync（syncTechlogForNewFlight）就會直接 REPLACE 咗嗰個 reg 現有嘅
+// techlog row——即係一個 session 起機，會即刻蓋走另一個仲用緊嗰個 reg 嘅 session
+// 嘅 defects/accept 狀態。而家改用 flight_id（同 flights.id 一一對應）做 PK，
+// 每個 session 有自己獨立嘅 techlog row，reg 淨係保留做普通欄位，畀起機嗰刻
+// 揾返「呢個機牌上一次」嘅 techlog 做 continuity 嘅種子用（睇 /api/simbrief/route.ts）
+async function migrateTechlogsTable() {
+  const tableCheck = await db.execute(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name='techlogs'`
+  );
+
+  if (tableCheck.rows.length === 0) {
+    await db.execute(`CREATE TABLE techlogs (flight_id TEXT PRIMARY KEY, reg TEXT, data JSON)`);
+  } else {
+    const cols = await db.execute(`PRAGMA table_info(techlogs)`);
+    const hasFlightIdPk = cols.rows.some((r) => r.name === 'flight_id' && Number(r.pk) === 1);
+
+    if (!hasFlightIdPk) {
+      // 舊資料冇 flight_id，backfill = reg（同舊行為一致：直至下次起機，
+      // 呢條 row 先會俾新 session 換走）
+      await db.batch(
+        [
+          `ALTER TABLE techlogs RENAME TO techlogs_old`,
+          `CREATE TABLE techlogs (flight_id TEXT PRIMARY KEY, reg TEXT, data JSON)`,
+          `INSERT INTO techlogs (flight_id, reg, data) SELECT reg, reg, data FROM techlogs_old`,
+          `DROP TABLE techlogs_old`,
         ],
         'write'
       );
     }
   }
 
-  await db.execute(`CREATE INDEX IF NOT EXISTS idx_flights_flight_no ON flights(flight_no)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_techlogs_reg ON techlogs(reg)`);
 }
 
 // 🌟 只喺 process 第一次用到 DB 時執行一次 migration，唔使每個 request 都 CREATE TABLE IF NOT EXISTS
@@ -49,7 +138,7 @@ export function ensureSchema() {
   if (!schemaReady) {
     schemaReady = Promise.all([
       migrateFlightsTable(),
-      db.execute(`CREATE TABLE IF NOT EXISTS techlogs (reg TEXT PRIMARY KEY, data TEXT)`),
+      migrateTechlogsTable(),
     ]).catch((err) => {
       // 如果失敗，下次 request 要俾機會再試一次
       schemaReady = null;

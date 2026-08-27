@@ -137,39 +137,39 @@ describe('flightDeleteBodySchema', () => {
 });
 
 describe('techlogPostBodySchema', () => {
-  it('requires reg + object patch', () => {
-    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', data: { tl_prepared: true } }).success).toBe(true);
-    expect(techlogPostBodySchema.safeParse({ reg: '', data: {} }).success).toBe(false);
-    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', data: 'nope' }).success).toBe(false);
+  it('requires id + object patch', () => {
+    expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', data: { tl_prepared: true } }).success).toBe(true);
+    expect(techlogPostBodySchema.safeParse({ id: '', data: {} }).success).toBe(false);
+    expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', data: 'nope' }).success).toBe(false);
   });
 
   it('defaults data to {} so a directive-only patch is valid on its own', () => {
-    const result = techlogPostBodySchema.safeParse({ reg: 'B-HNQ', signOffDefects: true });
+    const result = techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', signOffDefects: true });
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.data).toEqual({});
   });
 
   it('accepts each directive shape', () => {
     expect(techlogPostBodySchema.safeParse({
-      reg: 'B-HNQ',
+      id: 'FLIGHT-1',
       defectUpdate: { id: 'A1', changes: { status: 'CLEARED' } },
     }).success).toBe(true);
-    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', defectAppend: { id: 'A2' } }).success).toBe(true);
-    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', tlEntryAppend: { id: 'ENT-1' } }).success).toBe(true);
-    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', tlEntriesReset: true }).success).toBe(true);
-    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', flightsPrepend: { id: 'SEC-1' } }).success).toBe(true);
-    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', signOffDefects: true }).success).toBe(true);
+    expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', defectAppend: { id: 'A2' } }).success).toBe(true);
+    expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', tlEntryAppend: { id: 'ENT-1' } }).success).toBe(true);
+    expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', tlEntriesReset: true }).success).toBe(true);
+    expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', flightsPrepend: { id: 'SEC-1' } }).success).toBe(true);
+    expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', signOffDefects: true }).success).toBe(true);
   });
 
   it('rejects tlEntriesReset/signOffDefects set to false (must be the true literal or absent)', () => {
-    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', tlEntriesReset: false }).success).toBe(false);
-    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', signOffDefects: false }).success).toBe(false);
+    expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', tlEntriesReset: false }).success).toBe(false);
+    expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', signOffDefects: false }).success).toBe(false);
   });
 
   it('rejects defects/tl_entries/flights smuggled inside data (the array-replacement bypass)', () => {
-    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', data: { defects: [] } }).success).toBe(false);
-    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', data: { tl_entries: [] } }).success).toBe(false);
-    expect(techlogPostBodySchema.safeParse({ reg: 'B-HNQ', data: { flights: [] } }).success).toBe(false);
+    expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', data: { defects: [] } }).success).toBe(false);
+    expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', data: { tl_entries: [] } }).success).toBe(false);
+    expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', data: { flights: [] } }).success).toBe(false);
   });
 });
 

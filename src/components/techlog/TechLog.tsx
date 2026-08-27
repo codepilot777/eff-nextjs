@@ -51,21 +51,21 @@ export default function TechLog({ forcedRole }: { forcedRole?: string }) {
   // 防呆保護
   if (!flightData) return null;
 
-  // 🌟 1. 抽取 Aircraft Registration
-  const rawSb = flightData?.raw_simbrief || {};
-  const gen = rawSb.general || {};
-  const currentReg = flightData?.aircraft_reg || gen.aircraft_reg || 'B-HNQ';
+  // 🌟 1. 攞返個 flight session id——techlog 而家 key by flight id（唔再係
+  // aircraft reg），同一機牌嘅唔同 session 唔會再共用/互相蓋走 techlog（睇
+  // db.ts migrateTechlogsTable 嘅 comment）
+  const flightId = searchParams.get("id");
 
-  // 🌟 2. Fetch 時使用 reg 參數 (保留原有獨立 Polling 邏輯以策安全)
+  // 🌟 2. Fetch 時使用 flight id 參數 (保留原有獨立 Polling 邏輯以策安全)
   const fetchTechLog = async () => {
-    if (!currentReg || isUpdatingTl.current) return;
+    if (!flightId || isUpdatingTl.current) return;
     try {
-      const res = await fetch(`/api/techlog?reg=${encodeURIComponent(currentReg)}`);
+      const res = await fetch(`/api/techlog?id=${encodeURIComponent(flightId)}`);
       if (res.ok) setTlData(await res.json());
-    } catch (e) { 
-      console.error(e); 
-    } finally { 
-      setTlLoading(false); 
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTlLoading(false);
     }
   };
 
@@ -73,9 +73,9 @@ export default function TechLog({ forcedRole }: { forcedRole?: string }) {
     fetchTechLog();
     const interval = setInterval(fetchTechLog, 3000);
     return () => clearInterval(interval);
-  }, [currentReg]);
+  }, [flightId]);
 
-  // 🌟 3. Update 時 Payload 傳送 reg
+  // 🌟 3. Update 時 Payload 傳送 flight id
   // patch 可以係扁平 { field: value } (向後兼容，等同 { data: patch })，
   // 亦可以帶埋 directive 欄位 (defectUpdate/defectAppend/tlEntryAppend/...)
   const updateTechLogData = async (patch: TechLogPatch | Record<string, unknown>) => {
@@ -90,7 +90,7 @@ export default function TechLog({ forcedRole }: { forcedRole?: string }) {
       const res = await fetch('/api/techlog', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reg: currentReg, ...normalized })
+        body: JSON.stringify({ id: flightId, ...normalized })
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

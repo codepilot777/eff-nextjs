@@ -80,9 +80,11 @@ describe('/api/simbrief POST — techlog continuity side effect', () => {
   it('auto-inserts a 10-sector bridging chain when an existing techlog for the reg has a continuity mismatch', async () => {
     // Pre-seed a techlog for this reg whose last known position is HKG,
     // with the release checklist left in a "not released" leftover state.
+    // 🌟 techlogs 而家 key by flight_id——呢度用個假 flight_id 模擬「呢個 reg 之前
+    // 一個 session 留低嘅 techlog」，simbrief route 應該揾到佢做 continuity 種子
     await db.execute({
-      sql: 'REPLACE INTO techlogs (reg, data) VALUES (?, ?)',
-      args: ['B-MISMATCH1', JSON.stringify({
+      sql: 'REPLACE INTO techlogs (flight_id, reg, data) VALUES (?, ?, ?)',
+      args: ['SEED-MISMATCH1', 'B-MISMATCH1', JSON.stringify({
         tl_prev_arr: 'HKG', tl_prev_dep: 'SIN', tl_prev_flt: 'CX691', tl_prev_fob: '10.5',
         tl_fluids: false, tl_checks: false, tl_defects: false, tl_release: false,
         tl_cmdr: 'CHAN T M',
@@ -96,7 +98,9 @@ describe('/api/simbrief POST — techlog continuity side effect', () => {
     const res = await POST(authedPostRequest({ username: 'EFFSIM', flightNo: 'CX999' }));
     expect(res.status).toBe(200);
 
-    const row = await db.execute({ sql: 'SELECT data FROM techlogs WHERE reg = ?', args: ['B-MISMATCH1'] });
+    // 🌟 新 session 起咗自己獨立嘅 techlog row（唔再 REPLACE 咗個 seed row），
+    // 揾返最新一條先係啱嘅 assertion 對象
+    const row = await db.execute({ sql: 'SELECT data FROM techlogs WHERE reg = ? ORDER BY rowid DESC LIMIT 1', args: ['B-MISMATCH1'] });
     const tl = JSON.parse(row.rows[0].data as string);
 
     expect(tl.flights.length).toBe(11); // 1 original + 10 chained bridging sectors
@@ -109,8 +113,8 @@ describe('/api/simbrief POST — techlog continuity side effect', () => {
 
   it('still inserts a 10-sector chain even when the new departure already matches the known current location', async () => {
     await db.execute({
-      sql: 'REPLACE INTO techlogs (reg, data) VALUES (?, ?)',
-      args: ['B-MATCHED1', JSON.stringify({
+      sql: 'REPLACE INTO techlogs (flight_id, reg, data) VALUES (?, ?, ?)',
+      args: ['SEED-MATCHED1', 'B-MATCHED1', JSON.stringify({
         tl_prev_arr: 'NRT', tl_prev_dep: 'HKG', tl_prev_flt: 'CX564', tl_prev_fob: '10.5',
         tl_fluids: true, tl_checks: true, tl_defects: true, tl_release: true,
         tl_cmdr: 'CHAN T M',
@@ -124,7 +128,7 @@ describe('/api/simbrief POST — techlog continuity side effect', () => {
     const res = await POST(authedPostRequest({ username: 'EFFSIM', flightNo: 'CX582' }));
     expect(res.status).toBe(200);
 
-    const row = await db.execute({ sql: 'SELECT data FROM techlogs WHERE reg = ?', args: ['B-MATCHED1'] });
+    const row = await db.execute({ sql: 'SELECT data FROM techlogs WHERE reg = ? ORDER BY rowid DESC LIMIT 1', args: ['B-MATCHED1'] });
     const tl = JSON.parse(row.rows[0].data as string);
 
     expect(tl.flights.length).toBe(11); // 1 original + 10 chained sectors, unconditionally
@@ -167,5 +171,40 @@ describe('/api/simbrief POST — duplicate flight number does not overwrite', ()
 
     const rows = await db.execute({ sql: 'SELECT id FROM flights WHERE flight_no = ?', args: ['DUP1'] });
     expect(rows.rows.length).toBe(2);
+  });
+});
+
+// 🌟 regression: 舊 schema techlogs key by reg，兩個獨立 session 一齊用同一個機牌
+// 起機，第二個嘅 continuity sync 會直接 REPLACE 咗第一個嘅 techlog（defects/accept
+// 狀態全部俾人蓋走）。而家 techlogs key by flight_id，兩個 session 應該有各自獨立
+// 嘅 techlog row，唔會互相影響
+describe('/api/simbrief POST — two sessions sharing an aircraft reg no longer collide', () => {
+  it('creates two independent techlog rows when two sessions use the same reg', async () => {
+    mockSimbriefFetch({ aircraft: { reg: 'B-SHARED1' } });
+    const res1 = await POST(authedPostRequest({ username: 'EFFSIM', flightNo: 'CX100' }));
+    const body1 = await res1.json();
+
+    // Session A的 trainee 標記咗架機已 accept（模擬佢做緊嘢）
+    const rowA = await db.execute({ sql: 'SELECT data FROM techlogs WHERE flight_id = ?', args: [body1.id] });
+    const tlA = JSON.parse(rowA.rows[0].data as string);
+    await db.execute({
+      sql: 'UPDATE techlogs SET data = ? WHERE flight_id = ?',
+      args: [JSON.stringify({ ...tlA, tl_accept: true }), body1.id],
+    });
+
+    // 教官起多一個用同一個機牌嘅獨立 session
+    mockSimbriefFetch({ aircraft: { reg: 'B-SHARED1' } });
+    const res2 = await POST(authedPostRequest({ username: 'EFFSIM', flightNo: 'CX200' }));
+    const body2 = await res2.json();
+
+    expect(body1.id).not.toBe(body2.id);
+
+    // Session A 嘅 tl_accept=true 冇俾 Session B 嘅起機 continuity sync 蓋走
+    const rowAAfter = await db.execute({ sql: 'SELECT data FROM techlogs WHERE flight_id = ?', args: [body1.id] });
+    expect(JSON.parse(rowAAfter.rows[0].data as string).tl_accept).toBe(true);
+
+    // Session B 有自己獨立、未 accept 嘅 row
+    const rowB = await db.execute({ sql: 'SELECT data FROM techlogs WHERE flight_id = ?', args: [body2.id] });
+    expect(JSON.parse(rowB.rows[0].data as string).tl_accept).toBe(false);
   });
 });
