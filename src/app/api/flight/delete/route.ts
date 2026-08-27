@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     // 🌟 非同步執行 Delete (args 陣列用來防止 SQL Injection)
     const info = await db.execute({
-      sql: 'DELETE FROM flights WHERE flight_no = ?',
+      sql: 'DELETE FROM flights WHERE id = ?',
       args: [id]
     });
 

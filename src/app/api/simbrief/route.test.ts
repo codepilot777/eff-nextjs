@@ -144,3 +144,28 @@ describe('/api/simbrief POST — techlog continuity side effect', () => {
     expect(row.rows[0]).toBeDefined();
   });
 });
+
+// 🌟 regression: 舊 schema 用 flight_no 做 PRIMARY KEY，REPLACE INTO 令教官起
+// 第二個同 flight number 嘅 session 會直接刪走第一個。而家改用 UUID 做 id，
+// 兩個 session 應該各自獨立存在，唔會互相 overwrite
+describe('/api/simbrief POST — duplicate flight number does not overwrite', () => {
+  it('creates two independent sessions when the same flight number is used twice', async () => {
+    mockSimbriefFetch({ aircraft: { reg: 'B-DUPTEST' } });
+    const res1 = await POST(authedPostRequest({ username: 'EFFSIM', flightNo: 'DUP1' }));
+    expect(res1.status).toBe(200);
+    const body1 = await res1.json();
+
+    mockSimbriefFetch({ aircraft: { reg: 'B-DUPTEST' } });
+    const res2 = await POST(authedPostRequest({ username: 'EFFSIM', flightNo: 'DUP1' }));
+    expect(res2.status).toBe(200);
+    const body2 = await res2.json();
+
+    // 兩次都拎到唔同嘅 id，唔係同一個 row 俾人覆寫咗
+    expect(body1.id).toBeDefined();
+    expect(body2.id).toBeDefined();
+    expect(body1.id).not.toBe(body2.id);
+
+    const rows = await db.execute({ sql: 'SELECT id FROM flights WHERE flight_no = ?', args: ['DUP1'] });
+    expect(rows.rows.length).toBe(2);
+  });
+});

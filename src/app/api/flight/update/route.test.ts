@@ -22,8 +22,8 @@ beforeAll(async () => {
 async function seedFlight(id: string, data: object) {
   await ensureSchema();
   await db.execute({
-    sql: 'REPLACE INTO flights (flight_no, data) VALUES (?, ?)',
-    args: [id, JSON.stringify(data)],
+    sql: 'REPLACE INTO flights (id, flight_no, data) VALUES (?, ?, ?)',
+    args: [id, id, JSON.stringify(data)],
   });
 }
 
