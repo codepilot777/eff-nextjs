@@ -278,6 +278,9 @@ export function syncTechlogForNewFlight(
   // Commander's Acceptance（TechLogLeftPanel.tsx 個 !isFuelDone 分支睇到嘅
   // 係舊嗰程遺留低嘅 true）
   base.tl_fuel_record_completed = false;
+  // 🌟 同一道理：door cycling 確認都要跟返 tl_fuel_record_completed 一齊 reset，
+  // 唔係新一程 Commander's Acceptance 會顯示返上一程遺留低嘅「已確認」狀態
+  base.tl_fuel_cycling_confirmed = false;
   base.tl_accept = false;
   base.tl_flight_started = false;
   base.tl_flight_status = "SCHEDULED";
