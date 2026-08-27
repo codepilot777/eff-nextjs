@@ -137,6 +137,15 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
   const MIN_ALTN_ROWS = 4;
   const emptyAltnRows = Math.max(0, MIN_ALTN_ROWS - displayAlternates.length);
 
+  // 🌟 NOTOC 卡片：以前淨係顯示一句概括嘅「DG Onboard」，而家直接列出實際
+  // 裝緊嘅 DG class/division（IATA/ICAO 危險品分類），俾人一眼睇到裝緊乜嘢
+  // 類型嘅危險品，唔使撳入去先知
+  const dgClasses: string[] = Array.from(
+    new Set<string>(
+      (flightData?.notoc?.items || []).map((item: { class_division?: string }) => String(item?.class_division || '').trim())
+    ).values()
+  ).filter(Boolean);
+
   return (
     <div className="flex-[4] flex flex-col gap-2 h-full overflow-hidden min-h-0 text-white font-sans w-full md:max-w-[320px]">
       
@@ -201,7 +210,13 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
         </div>
         <div className="flex items-center justify-center relative z-10 py-3">
           {flightData?.notoc?.hasDg ? (
-            <span className="text-[0.6rem] text-[#FF9100] uppercase tracking-widest font-bold">⚠️ DG Onboard</span>
+            <div className="flex flex-wrap items-center justify-center gap-1">
+              {dgClasses.map((cls) => (
+                <span key={cls} className="text-[0.55rem] text-[#FF9100] bg-[#FF9100]/10 border border-[#FF9100]/40 px-1.5 py-0.5 rounded font-bold uppercase tracking-widest">
+                  Class {cls}
+                </span>
+              ))}
+            </div>
           ) : (
             <span className="text-[0.6rem] text-[#8fa0a6] uppercase tracking-widest font-bold">Nil DG</span>
           )}
@@ -245,7 +260,11 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
             <div>ALTN</div><div className="text-right">MDF</div><div className="text-right">Hold</div><div className="text-right">Time</div><div className="text-right">ETA</div>
           </div>
           
-          <div className="flex-1 flex flex-col overflow-y-auto mt-2 pr-1 relative min-h-0 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
+          {/* 🌟 4 行 ALTN（真實 + placeholder 補到 4 行）用 justify-between 平均
+              攤晒滿成個可用高度，先至真係「fit 個 window」——以前冇呢個
+              justify-between，啲行會靠晒頂，落到 Critical Points 之前有一截
+              明顯空位 */}
+          <div className="flex-1 flex flex-col justify-between overflow-y-auto mt-2 pr-1 relative min-h-0 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
              <div className="absolute left-[3px] top-2 bottom-2 w-px bg-[#444] z-0"></div>
 
             {/* 真實 Alternate 數據 */}
