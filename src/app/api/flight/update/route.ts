@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     const tx = await db.transaction('write');
     try {
       const result = await tx.execute({
-        sql: 'SELECT data FROM flights WHERE flight_no = ?',
+        sql: 'SELECT data FROM flights WHERE id = ?',
         args: [id],
       });
       const row = result.rows[0];
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       const merged = applyFlightDirectives(current, patch);
 
       await tx.execute({
-        sql: 'UPDATE flights SET data = ? WHERE flight_no = ?',
+        sql: 'UPDATE flights SET data = ? WHERE id = ?',
         args: [JSON.stringify(merged), id],
       });
 

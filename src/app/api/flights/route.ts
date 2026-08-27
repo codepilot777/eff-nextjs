@@ -7,13 +7,15 @@ export async function GET(request: Request) {
     await ensureSchema();
 
     // 🌟 非同步執行 SQL 查詢，取得所有航班記錄
-    const result = await db.execute('SELECT flight_no, data FROM flights');
+    const result = await db.execute('SELECT id, data FROM flights');
 
     // Turso 的多筆資料會放在 result.rows 陣列裡
     let flights = result.rows.map((r) => {
       // 確保 data 轉換回 JSON，並補上 _db_id 供前端辨識
+      // 🌟 _db_id 而家係真正嘅 UUID（睇 db.ts 嘅 migration），唔再係 flight_no——
+      // 兩個教官起嘅 session 可以同一個 flight number 都唔會互相 overwrite
       const parsed = JSON.parse(r.data as string);
-      parsed._db_id = r.flight_no;
+      parsed._db_id = r.id;
       return parsed;
     });
 

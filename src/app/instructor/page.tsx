@@ -22,8 +22,7 @@ export default function InstructorHub() {
   const [editCmdr, setEditCmdr] = useState<string>("");
   const [editCrewFd, setEditCrewFd] = useState<number>(0);
   const [editCrewCc, setEditCrewCc] = useState<number>(0);
-  const [includeNotoc, setIncludeNotoc] = useState<boolean>(false);
-  
+
   const [isFetchingPreview, setIsFetchingPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
 
@@ -49,7 +48,7 @@ export default function InstructorHub() {
   // 🌟 MUTATION 1: 建立新航班 Session
   // ==========================================
   const createFlightMutation = useMutation({
-    mutationFn: async (payload: { username: string; flightNo: string; created_by: string; is_published: boolean; commander_override: string; crew_fd_override?: number; crew_cc_override?: number; include_notoc?: boolean }) => {
+    mutationFn: async (payload: { username: string; flightNo: string; created_by: string; is_published: boolean; commander_override: string; crew_fd_override?: number; crew_cc_override?: number }) => {
       const res = await fetch('/api/simbrief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -160,7 +159,6 @@ export default function InstructorHub() {
       commander_override: editCmdr,
       crew_fd_override: editCrewFd || undefined,
       crew_cc_override: editCrewCc || undefined,
-      include_notoc: includeNotoc
     });
   };
 
@@ -234,13 +232,25 @@ export default function InstructorHub() {
                 </div>
                 
                 <div className="mt-auto flex gap-2">
-                  <button 
+                  <button
                     onClick={() => router.push(`/instructor/ios?id=${encodeURIComponent(f._db_id)}`)}
                     className="flex-[2] py-3 bg-lido-800 border border-[#404040] text-white font-bold rounded-lg hover:bg-[#00bfa5] hover:text-black hover:border-[#00bfa5] transition-colors text-xs"
                   >
                     IOS PANEL
                   </button>
-                  
+
+                  {/* 🌟 教官自己個 session cookie 已經令 /api/flights 連 DRAFT flight 都攞得到，
+                      所以呢度唔使 publish 都可以開新分頁用返教官自己個 login 睇到 trainee
+                      EFB 實際會顯示咩——唔使全世界都睇到先睇得到自己做緊嘅嘢 */}
+                  <a
+                    href={`/flight-select?role=Trainee&id=${encodeURIComponent(f._db_id)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-[1.5] py-3 bg-lido-800 border border-[#404040] text-white font-bold rounded-lg hover:bg-[#00bfa5] hover:text-black hover:border-[#00bfa5] transition-colors text-xs flex items-center justify-center"
+                  >
+                    👁 PREVIEW
+                  </a>
+
                   {!f.is_published && (
                     <button 
                       onClick={() => publishFlightMutation.mutate(f)}
@@ -327,16 +337,6 @@ export default function InstructorHub() {
                 />
               </div>
             </div>
-
-            <label className="flex items-center gap-2 bg-[#0a0a0a] border border-[#FF9100] rounded-md p-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={includeNotoc}
-                onChange={e => setIncludeNotoc(e.target.checked)}
-                className="w-4 h-4 accent-[#FF9100]"
-              />
-              <span className="text-xs font-bold text-[#FF9100] uppercase">🎲 Generate Random NOTOC (Dangerous Goods Exercise)</span>
-            </label>
           </div>
 
           <div className="flex-1 flex flex-col justify-center gap-4 bg-[#0a0a0a] p-6 rounded-lg border border-[#1d2733]">

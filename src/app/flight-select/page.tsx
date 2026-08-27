@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getOfpHistory, diffOfpSnapshots } from "@/lib/flight/ofpHistory";
@@ -158,6 +158,18 @@ function FlightSelectContent() {
     setSelectedVersion(flight.activated_version || flight.ofp_version || 1);
     setShowCompare(false);
   };
+
+  // 🌟 教官喺 Instructor Hub 撳「PREVIEW AS TRAINEE」會帶埋 ?id=... 過嚟——
+  // 一到就自動揀返嗰班機（教官個 session cookie 已經令 /api/flights 連 DRAFT
+  // 都攞得到，呢度淨係做返自動揀嗰步，等教官唔使自己喺清單度搵）
+  const previewId = searchParams.get("id");
+  useEffect(() => {
+    if (!previewId || selectedFlightId) return;
+    const match = flights.find((f: any) => f._db_id === previewId);
+    if (!match) return;
+    setSelectedFlightId(match._db_id);
+    setSelectedVersion(match.activated_version || match.ofp_version || 1);
+  }, [previewId, flights, selectedFlightId]);
 
   const handleSelectVersion = (v: number) => {
     setSelectedVersion(v);

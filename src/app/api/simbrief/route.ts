@@ -1,9 +1,10 @@
+import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import db, { ensureSchema } from '@/lib/db';
 import { isInstructorAuthed } from '@/lib/auth';
 import { simbriefBodySchema } from '@/lib/validation';
 import { buildOfpSnapshot, type OfpSnapshot } from '@/lib/flight/ofpHistory';
-import { generateRandomNotoc, type Notoc } from '@/lib/dg/dgRegistry';
+import { type Notoc } from '@/lib/dg/dgRegistry';
 import { generateCrewRoster, type CrewRoster } from '@/lib/crew/crewRoster';
 import { syncTechlogForNewFlight } from '@/lib/techlog/techlogContinuity';
 import { getDynamicAhm } from '@/lib/loadsheet/loadsheetHelpers';
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid request body' }, { status: 400 });
     }
-    const { username, flightNo, created_by, is_published, commander_override, crew_fd_override, crew_cc_override, include_notoc } = parsed.data;
+    const { username, flightNo, created_by, is_published, commander_override, crew_fd_override, crew_cc_override } = parsed.data;
 
     // 🌟 修正：舊版冇 encode username 就直接砌入 URL，
     // 如果 username 有特殊字符（例如 &）會篡改成個 query string
@@ -215,17 +216,17 @@ export async function POST(request: Request) {
       { version: 1, dispatched_at: new Date().toISOString(), snapshot: buildOfpSnapshot(flightData) },
     ];
 
-    if (include_notoc) {
-      flightData.notoc = generateRandomNotoc(flightData);
-    }
-
     flightData.crew_roster = generateCrewRoster(flightData);
 
     await ensureSchema();
 
+    // 🌟 修復：以前用 flight_no 做 PRIMARY KEY，REPLACE INTO 會令教官起第二個同
+    // flight number 嘅 session 直接刪走第一個。而家用一個真正嘅 UUID 做 id，
+    // flight_no 淨係普通欄位，容許重複，兩個 session 各自獨立存在
+    const sessionId = randomUUID();
     await db.execute({
-      sql: 'REPLACE INTO flights (flight_no, data) VALUES (?, ?)',
-      args: [finalFlightNo, JSON.stringify(flightData)]
+      sql: 'INSERT INTO flights (id, flight_no, data) VALUES (?, ?, ?)',
+      args: [sessionId, finalFlightNo, JSON.stringify(flightData)]
     });
 
     // 🌟 起機嗰刻自動將呢架機嘅 techlog「Prepare Flight」同 continuity 同新 flight plan
@@ -246,7 +247,7 @@ export async function POST(request: Request) {
       args: [flightData.aircraft_reg, JSON.stringify(syncedTechlog)],
     });
 
-    return NextResponse.json({ success: true, flight_no: finalFlightNo });
+    return NextResponse.json({ success: true, flight_no: finalFlightNo, id: sessionId });
 
   } catch (error) {
     console.error("SimBrief Integration Error:", error);

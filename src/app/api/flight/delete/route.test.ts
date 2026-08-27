@@ -22,8 +22,8 @@ beforeAll(async () => {
 async function seedFlight(id: string) {
   await ensureSchema();
   await db.execute({
-    sql: 'REPLACE INTO flights (flight_no, data) VALUES (?, ?)',
-    args: [id, JSON.stringify({ flight_no: id })],
+    sql: 'REPLACE INTO flights (id, flight_no, data) VALUES (?, ?, ?)',
+    args: [id, id, JSON.stringify({ flight_no: id })],
   });
 }
 
@@ -44,7 +44,7 @@ describe('POST /api/flight/delete', () => {
     const res = await POST(makeRequest({ id: 'DEL1' }));
     expect(res.status).toBe(401);
 
-    const row = await db.execute({ sql: 'SELECT flight_no FROM flights WHERE flight_no = ?', args: ['DEL1'] });
+    const row = await db.execute({ sql: 'SELECT id FROM flights WHERE id = ?', args: ['DEL1'] });
     expect(row.rows.length).toBe(1);
   });
 
@@ -54,7 +54,7 @@ describe('POST /api/flight/delete', () => {
     const res = await POST(makeRequest({ id: 'DEL2' }, `${SESSION_COOKIE_NAME}=${token}`));
     expect(res.status).toBe(200);
 
-    const row = await db.execute({ sql: 'SELECT flight_no FROM flights WHERE flight_no = ?', args: ['DEL2'] });
+    const row = await db.execute({ sql: 'SELECT id FROM flights WHERE id = ?', args: ['DEL2'] });
     expect(row.rows.length).toBe(0);
   });
 

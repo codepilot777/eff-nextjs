@@ -10,9 +10,10 @@ export async function GET(request: Request) {
   try {
     await ensureSchema();
 
-    // 🌟 非同步執行 SQL 查詢
+    // 🌟 非同步執行 SQL 查詢——id 而家係真正嘅 UUID（睇 db.ts 嘅 migration），
+    // 唔再係 flight_no，等兩個 flight number 相同嘅 session 可以並存
     const result = await db.execute({
-      sql: 'SELECT data FROM flights WHERE flight_no = ?',
+      sql: 'SELECT data FROM flights WHERE id = ?',
       args: [flightKey]
     });
 
