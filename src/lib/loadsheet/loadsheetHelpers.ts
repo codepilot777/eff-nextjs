@@ -281,7 +281,7 @@ CMDR NAME
 SIGN
 
 SI
-NOTOC: ${flightData?.notoc?.hasDg ? 'YES - SEE ATTACHED' : 'NO'}
+NOTOC: ${flightData?.notoc?.hasDg ? 'YES' : 'NO'}
 PANTRY CODE:        ${ahm.acType === "B77W" ? "77J-A" : "77P-A"}
 SERVICE WEIGHT ADJUSTMENT/INDEX ADD
 POTABLE WATER       ${flightData?.water_fraction || 15}/16   ${Math.round(((flightData?.water_fraction || 15)/16)*100)}  PCT

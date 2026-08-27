@@ -3,6 +3,7 @@ import { Fragment, useState } from "react";
 import { LoadsheetEngine } from "@/lib/loadsheet/LoadsheetEngine";
 import { AIRCRAFT_REGISTRY } from "@/lib/loadsheet/MockAHM";
 import { buildEnginePayload, generateLSText, getAzfText, getEzfwText } from "@/lib/loadsheet/loadsheetHelpers";
+import { diffLoadsheetText } from "@/lib/loadsheet/loadsheetDiff";
 
 export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModal, limits }: any) {
 
@@ -37,26 +38,23 @@ export function HistoryPanel({ flightData, calc, updateFlightData, setActiveModa
     };
   };
 
-  // Highlight Token 演算法 (保持原樣)
+  // 🌟 Highlight diff：改用 loadsheetDiff.ts 嘅 LCS-based 演算法，唔再淨係
+  // 逐行按位置比較——插入咗成段 CHANGE FROM PRELIM 之後，位置之後嘅內容
+  // 唔會再因為「錯位」而被誤 highlight（同 old 一字不差就唔標記）
   const renderHighlightedFinal = (newText: string, oldText: string) => {
     if (!oldText || !newText) return newText;
-    const newLines = newText.split('\n');
-    const oldLines = oldText.split('\n');
+    const diffLines = diffLoadsheetText(newText, oldText);
 
-    return newLines.map((line, i) => {
-      const oLine = oldLines[i] || '';
-      if (line === oLine) return <div key={i}>{line || " "}</div>;
-      
-      const nTokens = line.split(/(\s+)/);
-      const oTokens = oLine.split(/(\s+)/);
+    return diffLines.map((line, i) => {
+      if (!line.tokens) return <div key={i}>{line.text || " "}</div>;
 
       return (
         <div key={i}>
-          {nTokens.map((token, j) => {
-            if (token.trim() !== '' && token !== oTokens[j]) {
-              return <span key={j} className="text-[#0a0a0a] bg-[#FF9100] px-0.5 rounded shadow-[0_0_8px_rgba(255,145,0,0.8)] font-black">{token}</span>;
+          {line.tokens.map((token, j) => {
+            if (token.highlight) {
+              return <span key={j} className="text-[#0a0a0a] bg-[#FF9100] px-0.5 rounded shadow-[0_0_8px_rgba(255,145,0,0.8)] font-black">{token.text}</span>;
             }
-            return <Fragment key={j}>{token}</Fragment>;
+            return <Fragment key={j}>{token.text}</Fragment>;
           })}
         </div>
       );
