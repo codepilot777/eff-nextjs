@@ -29,13 +29,13 @@ export default function Home() {
       <div className="mt-10 flex flex-wrap justify-center gap-x-10 gap-y-3 text-xs">
         <div className="flex items-center gap-3">
           <span className="uppercase tracking-widest text-slate-600 font-bold">Trainee Guides</span>
-          <a href="https://claude.ai/code/artifact/928a97e2-ecef-4f19-93d6-98ceb48a965c" target="_blank" rel="noreferrer" className="text-slate-400 hover:text-status-teal transition-colors">Quick Start</a>
-          <a href="https://claude.ai/code/artifact/046dfdc1-1962-4cdf-8021-cdada5e954d6" target="_blank" rel="noreferrer" className="text-slate-400 hover:text-status-teal transition-colors">Operating Procedures</a>
+          <Link href="/guides/trainee-quickstart" className="text-slate-400 hover:text-status-teal transition-colors">Quick Start</Link>
+          <Link href="/guides/trainee-procedures" className="text-slate-400 hover:text-status-teal transition-colors">Operating Procedures</Link>
         </div>
         <div className="flex items-center gap-3">
           <span className="uppercase tracking-widest text-slate-600 font-bold">Instructor Guides</span>
-          <a href="https://claude.ai/code/artifact/4a854464-f15d-4e9f-9f3c-c290ed1d8f4a" target="_blank" rel="noreferrer" className="text-slate-400 hover:text-status-teal transition-colors">Quick Start</a>
-          <a href="https://claude.ai/code/artifact/54afdb61-3840-4642-b2d3-5f1f8c481572" target="_blank" rel="noreferrer" className="text-slate-400 hover:text-status-teal transition-colors">Operating Procedures</a>
+          <Link href="/guides/instructor-quickstart" className="text-slate-400 hover:text-status-teal transition-colors">Quick Start</Link>
+          <Link href="/guides/instructor-procedures" className="text-slate-400 hover:text-status-teal transition-colors">Operating Procedures</Link>
         </div>
       </div>
     </div>
