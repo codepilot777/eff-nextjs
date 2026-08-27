@@ -11,6 +11,7 @@ import Notam from "@/components/workspace/Notam";
 import Comms from "@/components/workspace/comms/Comms";
 import TechLog from "@/components/techlog/TechLog";
 import RefuelToast from "@/components/workspace/RefuelToast";
+import CathayLogo from "@/components/workspace/CathayLogo";
 
 function WorkspaceContent() {
   const searchParams = useSearchParams();
@@ -83,8 +84,14 @@ function WorkspaceContent() {
   const eetMins = Math.floor((flightData?.eet_seconds || 0) / 60);
   const fltH = Math.floor(eetMins / 60).toString().padStart(2, '0');
   const fltM = (eetMins % 60).toString().padStart(2, '0');
-  
-  const blkMins = eetMins + 40; 
+
+  // 🌟 STA = STD + Block Time，兩者一定要一致——block_time_seconds 由
+  // /api/simbrief/route.ts 起機嗰刻用 SimBrief 真正嘅 scheduled block time
+  // 計埋 STA 一齊寫低（睇 scheduleTimes.ts）。舊 flight（呢個功能改版之前起機）
+  // 未有呢個欄位，就 fallback 返舊有嘅「flight time + 40 分鐘」粗略估算
+  const blkMins = flightData?.block_time_seconds
+    ? Math.floor(flightData.block_time_seconds / 60)
+    : eetMins + 40;
   const blkH = Math.floor(blkMins / 60).toString().padStart(2, '0');
   const blkM = (blkMins % 60).toString().padStart(2, '0');
 
@@ -106,12 +113,14 @@ function WorkspaceContent() {
           唔會逼窄屏幕塞晒成行嘢變到冇一樣睇得清 */}
       <header className="flex-none flex items-center justify-between h-[54px] bg-[#1E1E1E] px-2 md:px-4 shadow-md z-50 border-b border-[#333] overflow-x-auto scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
 
-        {/* 左側：Flight No & Version Badge */}
+        {/* 左側：國泰 Logo + Flight No & Version Badge */}
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
+          {/* 🌟 撳 logo 定係機號都一樣可以返去 flight-select——嗰個獨立嘅
+              「返回」小 icon 已經刪走，logo/機號本身就係 tap target */}
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(`/flight-select?role=${role}`)}>
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-[#8fa0a6] shrink-0">
-              <path d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
-            </svg>
+            {/* 🌟 原圖比例大約 404x495（窄過方形），淨係限高、寬度 auto，
+                先唔會拉扁變形 */}
+            <CathayLogo className="h-7 md:h-8 w-auto shrink-0" />
             <span className="text-[0.95rem] md:text-[1.1rem] font-bold text-white tracking-wide whitespace-nowrap">{flightData?.flight_no || flightId}</span>
           </div>
 

@@ -8,6 +8,7 @@ import { generateCrewRoster, type CrewRoster } from '@/lib/crew/crewRoster';
 import { syncTechlogForNewFlight } from '@/lib/techlog/techlogContinuity';
 import { getDynamicAhm } from '@/lib/loadsheet/loadsheetHelpers';
 import { buildAutoEzfwSnapshot, computeEzfwTimeZ } from '@/lib/loadsheet/autoEzfw';
+import { resolveBlockTimeSeconds, computeStaUnix } from '@/lib/flight/scheduleTimes';
 
 export async function POST(request: Request) {
   try {
@@ -40,12 +41,20 @@ export async function POST(request: Request) {
     const times = sbData.times || {};
 
     const stdUnix = parseInt(times.est_out || 0);
-    const staUnix = parseInt(times.est_in || 0);
     const formatTime = (unix: number) => {
         if (!unix) return "0000Z";
         const d = new Date(unix * 1000);
         return d.toISOString().substring(11, 16).replace(":", "") + "Z";
     };
+
+    // 🌟 STA 一定要係 STD + Block Time，先可以保證 header 顯示嘅 BLOCK TIME 同
+    // STA 減 STD 呢條數啱得返——以前 STA 直接用 SimBrief 自己嘅 times.est_in，
+    // BLOCK TIME 就係 workspace/page.tsx 另一條完全獨立、粗略嘅估算公式計，
+    // 兩個數冇保證一致。有 SimBrief 真正嘅 scheduled block time 就用嚟計 STA，
+    // 冇（罕見）先 fallback 返 SimBrief 自己嘅 est_in
+    const eetSeconds = parseInt(times.est_time_enroute || 0);
+    const blockTimeSeconds = resolveBlockTimeSeconds(times, eetSeconds);
+    const staUnix = computeStaUnix(stdUnix, blockTimeSeconds) || parseInt(times.est_in || 0);
 
     const rawNavlog = sbData.navlog?.fix || [];
     const fixArray = Array.isArray(rawNavlog) ? rawNavlog : [rawNavlog];
@@ -91,6 +100,10 @@ export async function POST(request: Request) {
       sta_z: formatTime(staUnix),
       std_unix: stdUnix,
       sta_unix: staUnix,
+      // 🌟 workspace/page.tsx header 顯示嘅 BLOCK TIME 讀呢個欄位（唔再自己
+      // 用「flight time + 40 分鐘」粗略估）——同上面 STA 用嘅係同一個數，
+      // 兩者永遠一致
+      block_time_seconds: blockTimeSeconds,
       cruise_alt: gen.initial_altitude || "35000",
       avg_wind: gen.avg_wind_comp || "N/A",
       
@@ -112,7 +125,7 @@ export async function POST(request: Request) {
       weight_tow_ofp: parseInt(weights.est_tow || 0) / 1000.0,
       weight_lw_ofp: parseInt(weights.est_ldw || 0) / 1000.0,
       dow: parseInt(weights.oew || 161968),
-      eet_seconds: parseInt(times.est_time_enroute || 0),
+      eet_seconds: eetSeconds,
       ofp_version: 1,
       // 🌟 修復：以前一開機就自動 activate V1，令 flight plan activation status 恆定
       // 顯示「已 activate」，即使教官都未撳過個 activate 掣。而家跟返 ofpDeactivate
