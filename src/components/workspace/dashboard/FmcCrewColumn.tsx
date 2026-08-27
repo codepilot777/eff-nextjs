@@ -110,7 +110,13 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
   // 顯示「未指派」，唔再扮有數
   const crewRoster = flightData?.crew_roster;
   const firstOfficer = crewRoster?.flight_deck?.[0];
-  const otherCrewCount = (crewRoster?.flight_deck?.length || 0) - (firstOfficer ? 1 : 0) + (crewRoster?.cabin_crew?.length || 0);
+  // 🌟 Flight Crew 卡片預留 4 個 name slot（機長 + 3 個 flight_deck 位，
+  // 對應長途 augmented crew 常見編制），冇夠人就淨係留空行，唔會夾硬砌數
+  const reliefPilots = [crewRoster?.flight_deck?.[1], crewRoster?.flight_deck?.[2]];
+  // 🌟 Chief Cabin Crew 一定係 cabin_crew[0]（generateCrewRoster 保證第一個
+  // 就係 IC/in-charge），rank 顯示做 "U-IM"（航空公司內部對 Chief Purser
+  // 呢個職位嘅代號，唔係 crewRoster.ts 入面存低嗰個 "IC" role string）
+  const chiefCabinCrew = crewRoster?.cabin_crew?.[0];
 
   return (
     <div className="flex flex-col gap-2 h-full overflow-hidden font-sans text-white w-full md:max-w-[280px]">
@@ -251,22 +257,24 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
           <span className="text-[#8fa0a6] text-lg font-light leading-none">›</span>
         </div>
 
-        <div className="flex-1 flex flex-col justify-between font-mono text-[0.8rem] pr-1 py-1">
+        {/* 🌟 Crew sections spacing 收窄（gap-0.5 + 細一級字），先夠位擺低
+            4 個 Flight Crew name slot + divider + Chief Cabin Crew 呢 6 行 */}
+        <div className="flex-1 flex flex-col justify-between font-mono text-[0.7rem] pr-1 py-0.5 gap-0.5 min-h-0">
           <div className="flex justify-between items-center text-white leading-none">
             <div className="flex items-center gap-2">
               <span className="text-[#C6FF00] text-[0.65rem]">✓</span>
               <span className="truncate max-w-[120px]">{cmdrName}</span>
             </div>
-            <span className="text-[#8fa0a6] text-[0.7rem] bg-[#333] px-1.5 rounded">T-CN</span>
+            <span className="text-[#8fa0a6] text-[0.65rem] bg-[#333] px-1.5 rounded">T-CN</span>
           </div>
 
           {firstOfficer ? (
             <div className="flex justify-between items-center text-white leading-none">
               <div className="flex items-center gap-2">
                 <span className="text-[#C6FF00] text-[0.65rem]">✓</span>
-                <span>{firstOfficer.name}</span>
+                <span className="truncate max-w-[120px]">{firstOfficer.name}</span>
               </div>
-              <span className="text-[#8fa0a6] text-[0.7rem] bg-[#333] px-1.5 rounded">{firstOfficer.role}</span>
+              <span className="text-[#8fa0a6] text-[0.65rem] bg-[#333] px-1.5 rounded">{firstOfficer.role}</span>
             </div>
           ) : (
             <div className="flex justify-between items-center text-[#8fa0a6] leading-none opacity-60">
@@ -274,11 +282,40 @@ export default function FmcCrewColumn({ setActiveModal }: { setActiveModal: any 
             </div>
           )}
 
-          <div className="w-full border-t border-[#333] my-1"></div>
+          {/* 🌟 額外 2 個 relief pilot slot——augmented long-haul crew 常見編制，
+              淨係得機長+FO 都照留返呢兩行位（顯示「—」），令張卡片高度穩定 */}
+          {reliefPilots.map((pilot, idx) => pilot ? (
+            <div key={idx} className="flex justify-between items-center text-white leading-none">
+              <div className="flex items-center gap-2">
+                <span className="text-[#C6FF00] text-[0.65rem]">✓</span>
+                <span className="truncate max-w-[120px]">{pilot.name}</span>
+              </div>
+              <span className="text-[#8fa0a6] text-[0.65rem] bg-[#333] px-1.5 rounded">{pilot.role}</span>
+            </div>
+          ) : (
+            <div key={idx} className="flex justify-between items-center text-[#555] leading-none">
+              <span>—</span>
+            </div>
+          ))}
 
-          <div className="flex justify-between items-center text-[#8fa0a6] leading-none">
-            <span className="italic">{otherCrewCount > 0 ? `+${otherCrewCount} more crew` : "No other crew assigned"}</span>
-          </div>
+          <div className="w-full border-t border-[#333]"></div>
+
+          {/* 🌟 Chief Cabin Crew（cabin_crew[0]，即 generateCrewRoster 保證嘅
+              in-charge）——rank 顯示公司內部代號 "U-IM"，唔再淨係印一句
+              「+N more crew」概括帶過 */}
+          {chiefCabinCrew ? (
+            <div className="flex justify-between items-center text-white leading-none">
+              <div className="flex items-center gap-2">
+                <span className="text-[#C6FF00] text-[0.65rem]">✓</span>
+                <span className="truncate max-w-[120px]">{chiefCabinCrew.name}</span>
+              </div>
+              <span className="text-[#8fa0a6] text-[0.65rem] bg-[#333] px-1.5 rounded">U-IM</span>
+            </div>
+          ) : (
+            <div className="flex justify-between items-center text-[#8fa0a6] leading-none opacity-60">
+              <span className="italic">No CC assigned</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
