@@ -1,5 +1,7 @@
 // src/lib/techlog/techlogContinuity.ts
 
+import { pickFlightNumber } from './flightNumbers';
+
 // 🌟 單一嘅「未有 techlog row 之前嘅預設值」，畀 GET /api/techlog（trainee 未寫過任何嘢
 // 之前嘅 fallback）同 syncTechlogForNewFlight（起機嗰刻嘅 continuity sync）共用，
 // 唔再各自維護一份，慢慢走樣
@@ -225,7 +227,9 @@ function buildChainedHistorySectors(count: number, startStation: string, endStat
       id: `SEC-${blocksOffTime.getTime().toString().slice(-6)}${i}`,
       date: formatTechlogDate(blocksOffTime),
       action: "Normal Close",
-      flt: `CX${100 + Math.floor(Math.random() * 800)}`,
+      // 🌟 flight number 而家跟返條航線嚟揀（睇 flightNumbers.ts）——依家個 table
+      // 係 dummy 佔位資料，等用戶 upload 真實資料之後會取代
+      flt: pickFlightNumber(departure, arrival),
       route: `${departure} ➔ ${arrival}`,
       blocksOff: hhmmFromDate(blocksOffTime),
       takeOff: hhmmFromDate(takeOffTime),
