@@ -262,6 +262,11 @@ describe('hasProtectedFlightFields', () => {
     expect(hasProtectedFlightFields({})).toBe(false);
   });
 
+  it('flags notoc_draft the same as the published notoc — a trainee should not be able to write either', () => {
+    expect(hasProtectedFlightFields({ notoc: { hasDg: true, items: [] } })).toBe(true);
+    expect(hasProtectedFlightFields({ notoc_draft: { hasDg: true, items: [] } })).toBe(true);
+  });
+
   it('flags WxTab/NotamTab fields (metar_dep/taf_dep/metar_arr/taf_arr/notam_dep/notam_arr/alternates) — only instructor-only components ever write these', () => {
     expect(hasProtectedFlightFields({ metar_dep: 'METAR VHHH...' })).toBe(true);
     expect(hasProtectedFlightFields({ taf_dep: 'TAF VHHH...' })).toBe(true);

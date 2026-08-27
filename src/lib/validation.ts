@@ -190,6 +190,10 @@ export const PROTECTED_FLIGHT_PATCH_FIELDS = [
   'notam_arr',
   'alternates',
   'notoc',
+  // 🌟 notoc_draft：教官編緊、未 publish 落 EFB 嘅 NOTOC 草稿（睇 NOTOCTab.tsx）——
+  // 雖然仲未去到 trainee 見到嘅 notoc，但內容一樣係教官專屬嘅資料，一樣唔可以
+  // 俾 trainee 直接寫呢個欄位扮教官打緊 DG 資料
+  'notoc_draft',
   'metar_toff_altn',
   'taf_toff_altn',
   'notam_toff_altn',

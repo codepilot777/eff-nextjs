@@ -3,6 +3,13 @@ import { useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
 import type { NotocEntry } from "@/lib/dg/dgRegistry";
 
+// 🌟 真實運作：NOTOC 一定係先由教官/貨運部準備好（可能仲要黎返改幾次），
+// 之後先至喺 session 去到啱嘅 phase（例如貨物裝機/loadsheet 定案之後）先至
+// 正式 publish 落 trainee 個 EFB——唔會一打好就即刻出現喺 trainee 部機度。
+// 所以呢度分開兩個狀態：notoc_draft（教官自己編緊，trainee 見唔到）同
+// notoc（已經 publish、trainee 個 EFB 讀緊嘅版本，睇 LoadsheetAirportColumn.tsx/
+// ModalNOTOC.tsx/loadsheetHelpers.ts 嘅 DG remarks 行）
+
 const BLANK_ITEM: NotocEntry = {
   station_of_unloading: "",
   awb_number: "",
@@ -46,9 +53,15 @@ const FIELDS: Array<{ key: keyof NotocEntry; label: string; placeholder: string 
 export default function NOTOCTab() {
   const { flightData, updateFlightData } = useFlightData();
 
-  const [items, setItems] = useState<NotocEntry[]>(() => flightData?.notoc?.items || []);
-  const [draft, setDraft] = useState<NotocEntry>({ ...BLANK_ITEM });
+  // 🌟 一打開個 tab 就見返「而家最新」嗰版——有 draft 就用 draft（教官上次編緊
+  // 未 publish 嗰底），冇 draft 先跌落已 publish 嘅 notoc（呢個功能改版之前
+  // 起機嘅舊 flight，一開始係冇 notoc_draft 呢個欄位嘅）
+  const [items, setItems] = useState<NotocEntry[]>(() => flightData?.notoc_draft?.items || flightData?.notoc?.items || []);
+  // 🌟 呢個 itemDraft 係下面「Add Dangerous Goods Item」表格本身輸入緊嘅單一件
+  // 貨物草稿，同上面成份 NOTOC 嘅 draft/publish 狀態係兩件事，改個名分清楚
+  const [itemDraft, setItemDraft] = useState<NotocEntry>({ ...BLANK_ITEM });
   const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   // 🌟 教官成份 NOTOC 通常係喺 Excel/Sheets 度整定，逐格拷貝落嚟太慢——呢個 textarea
   // 收成段 tab-分隔嘅內容（一行一件 item，欄位順序同 FIELDS 一致），一次過拆晒落 items
@@ -56,17 +69,17 @@ export default function NOTOCTab() {
 
   if (!flightData) return null;
 
-  const updateDraft = (key: keyof NotocEntry, value: string) => {
-    setDraft((prev) => ({ ...prev, [key]: value }));
+  const updateItemDraft = (key: keyof NotocEntry, value: string) => {
+    setItemDraft((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleAddItem = () => {
-    if (!draft.un_number.trim() || !draft.proper_shipping_name.trim()) {
+    if (!itemDraft.un_number.trim() || !itemDraft.proper_shipping_name.trim()) {
       alert("UN or ID No. and Proper Shipping Name are required.");
       return;
     }
-    setItems((prev) => [...prev, draft]);
-    setDraft({ ...BLANK_ITEM });
+    setItems((prev) => [...prev, itemDraft]);
+    setItemDraft({ ...BLANK_ITEM });
   };
 
   // 🌟 由 Excel/Sheets 拷貝落嚟嘅內容一定係 tab 分隔——一行一件 item，15 個欄位順序
@@ -115,18 +128,35 @@ export default function NOTOCTab() {
     setItems((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const handleSave = () => {
+  const buildNotoc = () => ({
+    hasDg: items.length > 0,
+    items,
+    generated_at: new Date().toISOString(),
+  });
+
+  // 🌟 淨係存底——寫落 notoc_draft，唔會掂到 notoc（trainee EFB 讀緊嗰個
+  // 欄位），所以撳完呢個掣 trainee 個 EFB 完全冇任何變化
+  const handleSaveDraft = () => {
     setIsSaving(true);
-    updateFlightData({
-      notoc: {
-        hasDg: items.length > 0,
-        items,
-        generated_at: new Date().toISOString(),
-      },
-    });
+    updateFlightData({ notoc_draft: buildNotoc() });
     setIsSaving(false);
-    alert(items.length > 0 ? "NOTOC saved and published to EFB!" : "NOTOC cleared (NIL) and published to EFB!");
+    alert(items.length > 0 ? "NOTOC draft saved (not yet published to EFB)." : "NOTOC draft cleared (not yet published to EFB).");
   };
+
+  // 🌟 正式 publish：連 notoc_draft 都一齊同步（等下次一開返呢個 tab 都係
+  // 見返呢一版），trainee 個 EFB 即刻見到
+  const handlePublish = () => {
+    setIsPublishing(true);
+    const notoc = buildNotoc();
+    updateFlightData({ notoc_draft: notoc, notoc });
+    setIsPublishing(false);
+    alert(items.length > 0 ? "NOTOC published to EFB!" : "NOTOC cleared (NIL) and published to EFB!");
+  };
+
+  // 🌟 畀教官睇返而家嗰版 (items) 同已經 publish 咗嗰版係咪同步——用嚟決定
+  // 個 status banner 顯示緊 published / draft-only / unsaved 邊個狀態
+  const itemsJson = JSON.stringify(items);
+  const isPublishedInSync = itemsJson === JSON.stringify(flightData?.notoc?.items || []);
 
   return (
     <div className="animate-fade-in flex flex-col gap-4">
@@ -159,8 +189,8 @@ export default function NOTOCTab() {
               <label className="text-[#8fa0a6] text-[0.65rem] font-bold uppercase tracking-widest">{f.label}</label>
               <input
                 type="text"
-                value={draft[f.key]}
-                onChange={(e) => updateDraft(f.key, e.target.value)}
+                value={itemDraft[f.key]}
+                onChange={(e) => updateItemDraft(f.key, e.target.value)}
                 placeholder={f.placeholder}
                 className="bg-lido-950 border border-[#404040] rounded-md p-2.5 text-white text-sm outline-none focus:border-[#00bfa5] transition-colors"
               />
@@ -215,13 +245,34 @@ export default function NOTOCTab() {
         )}
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={isSaving}
-        className="w-full bg-[#C6FF00] text-black py-4 rounded-lg font-black tracking-widest hover:bg-[#00c853] mt-2 shadow-lg disabled:opacity-50"
-      >
-        {isSaving ? "⏳ SAVING..." : "💾 SAVE & PUBLISH NOTOC TO EFB"}
-      </button>
+      {/* 🌟 status banner：畀教官一眼睇到而家呢版 items 同 trainee EFB 度
+          嗰版係咪同步——避免教官執完貨、以為已經出咗去，其實仲未撳 publish */}
+      {isPublishedInSync ? (
+        <div className="bg-[#00E676]/10 border border-[#00E676]/40 rounded-lg px-4 py-2.5 text-[#00E676] text-xs font-bold uppercase tracking-widest text-center">
+          ✅ Published — this is what the trainee&apos;s EFB currently shows
+        </div>
+      ) : (
+        <div className="bg-[#FF9100]/10 border border-[#FF9100]/40 rounded-lg px-4 py-2.5 text-[#FF9100] text-xs font-bold uppercase tracking-widest text-center">
+          ⚠️ Not yet published — trainee&apos;s EFB still shows the last published version
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <button
+          onClick={handleSaveDraft}
+          disabled={isSaving}
+          className="flex-1 bg-[#0a0a0a] border-2 border-[#404040] text-white py-4 rounded-lg font-black tracking-widest hover:border-[#00bfa5] transition-colors disabled:opacity-50"
+        >
+          {isSaving ? "⏳ SAVING..." : "💾 SAVE DRAFT"}
+        </button>
+        <button
+          onClick={handlePublish}
+          disabled={isPublishing}
+          className="flex-1 bg-[#C6FF00] text-black py-4 rounded-lg font-black tracking-widest hover:bg-[#00c853] shadow-lg disabled:opacity-50"
+        >
+          {isPublishing ? "⏳ PUBLISHING..." : "📡 PUBLISH TO EFB"}
+        </button>
+      </div>
     </div>
   );
 }
