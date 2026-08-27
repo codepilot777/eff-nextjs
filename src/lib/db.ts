@@ -44,12 +44,48 @@ async function migrateFlightsTable() {
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_flights_flight_no ON flights(flight_no)`);
 }
 
+// 🌟 修復：舊 schema 用 reg（機牌）做 PRIMARY KEY，令兩個獨立 session 一旦用著
+// 同一個/相似嘅機牌（好常見，因為 aircraft_reg 預設由 SimBrief 派出嚟），起機
+// continuity sync（syncTechlogForNewFlight）就會直接 REPLACE 咗嗰個 reg 現有嘅
+// techlog row——即係一個 session 起機，會即刻蓋走另一個仲用緊嗰個 reg 嘅 session
+// 嘅 defects/accept 狀態。而家改用 flight_id（同 flights.id 一一對應）做 PK，
+// 每個 session 有自己獨立嘅 techlog row，reg 淨係保留做普通欄位，畀起機嗰刻
+// 揾返「呢個機牌上一次」嘅 techlog 做 continuity 嘅種子用（睇 /api/simbrief/route.ts）
+async function migrateTechlogsTable() {
+  const tableCheck = await db.execute(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name='techlogs'`
+  );
+
+  if (tableCheck.rows.length === 0) {
+    await db.execute(`CREATE TABLE techlogs (flight_id TEXT PRIMARY KEY, reg TEXT, data JSON)`);
+  } else {
+    const cols = await db.execute(`PRAGMA table_info(techlogs)`);
+    const hasFlightIdPk = cols.rows.some((r) => r.name === 'flight_id' && Number(r.pk) === 1);
+
+    if (!hasFlightIdPk) {
+      // 舊資料冇 flight_id，backfill = reg（同舊行為一致：直至下次起機，
+      // 呢條 row 先會俾新 session 換走）
+      await db.batch(
+        [
+          `ALTER TABLE techlogs RENAME TO techlogs_old`,
+          `CREATE TABLE techlogs (flight_id TEXT PRIMARY KEY, reg TEXT, data JSON)`,
+          `INSERT INTO techlogs (flight_id, reg, data) SELECT reg, reg, data FROM techlogs_old`,
+          `DROP TABLE techlogs_old`,
+        ],
+        'write'
+      );
+    }
+  }
+
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_techlogs_reg ON techlogs(reg)`);
+}
+
 // 🌟 只喺 process 第一次用到 DB 時執行一次 migration，唔使每個 request 都 CREATE TABLE IF NOT EXISTS
 export function ensureSchema() {
   if (!schemaReady) {
     schemaReady = Promise.all([
       migrateFlightsTable(),
-      db.execute(`CREATE TABLE IF NOT EXISTS techlogs (reg TEXT PRIMARY KEY, data TEXT)`),
+      migrateTechlogsTable(),
     ]).catch((err) => {
       // 如果失敗，下次 request 要俾機會再試一次
       schemaReady = null;

@@ -8,7 +8,6 @@ const patchObjectSchema = z.record(z.string(), z.unknown());
 const nonEmptyString = (label: string) => z.string().trim().min(1, `${label} is required`);
 
 export const flightIdSchema = nonEmptyString('flight id');
-export const aircraftRegSchema = nonEmptyString('aircraft reg').max(20);
 
 // 🌟 pdc_requests/atis_requests/acars_messages 一定要行 directive 路徑，唔可以再喺
 // `data` 度直接塞成個 array 落嚟覆寫——否則任何人都可以送一個「status: APPROVED」
@@ -108,7 +107,7 @@ const techlogDataSchema = patchObjectSchema.refine(
 );
 
 export const techlogPostBodySchema = z.object({
-  reg: aircraftRegSchema,
+  id: flightIdSchema,
   data: techlogDataSchema.optional().default({}),
   defectUpdate: z.object({
     id: nonEmptyString('defectUpdate.id'),

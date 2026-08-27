@@ -21,7 +21,7 @@ export default function InboxPanel() {
   // 🌟 從天上直接抽取 Data 同 Update Function (全域共用，自帶樂觀更新！)
   const { flightData, updateFlightData, sendFlightDirective } = useFlightData();
 
-  // 🌟 修復：tl_accept 淨係存喺獨立嘅 techlogs 表（keyed by aircraft reg），
+  // 🌟 修復：tl_accept 淨係存喺獨立嘅 techlogs 表（keyed by flight session id），
   // 唔喺 flights 表嘅 flightData 度——之前直接讀 flightData.tl_accept 永遠
   // undefined，令 Aircraft Accepted 狀態卡死喺 PENDING。跟返 RefuelAircraftColumn.tsx
   // 個做法，獨立自主 fetch 返 techlog data

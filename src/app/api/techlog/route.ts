@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import db, { ensureSchema } from '@/lib/db';
-import { aircraftRegSchema, requiresInstructorAuth, techlogPostBodySchema } from '@/lib/validation';
+import { flightIdSchema, requiresInstructorAuth, techlogPostBodySchema } from '@/lib/validation';
 import { isInstructorAuthed } from '@/lib/auth';
 import { applyTechLogDirectives } from '@/lib/techlog/directives';
 import { DEFAULT_TECHLOG } from '@/lib/techlog/techlogContinuity';
@@ -8,18 +8,20 @@ import { DEFAULT_TECHLOG } from '@/lib/techlog/techlogContinuity';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const regParam = aircraftRegSchema.safeParse(searchParams.get('reg'));
+    const idParam = flightIdSchema.safeParse(searchParams.get('id'));
 
-    if (!regParam.success) {
-      return NextResponse.json({ error: 'Missing reg parameter' }, { status: 400 });
+    if (!idParam.success) {
+      return NextResponse.json({ error: 'Missing id parameter' }, { status: 400 });
     }
-    const reg = regParam.data;
+    const id = idParam.data;
 
     await ensureSchema();
 
+    // 🌟 techlogs 而家 key by flight_id（每個 session 獨立一條 row），
+    // 唔再係 reg——同一機牌嘅唔同 session 唔會再共用/互相蓋走 techlog 狀態
     const result = await db.execute({
-      sql: 'SELECT data FROM techlogs WHERE reg = ?',
-      args: [reg]
+      sql: 'SELECT data FROM techlogs WHERE flight_id = ?',
+      args: [id]
     });
 
     const row = result.rows[0];
@@ -42,9 +44,9 @@ export async function POST(request: Request) {
     // 蓋走另一方啱啱寫低嘅欄位（包括 defects/tl_entries/flights 呢啲 array）
     const parsed = techlogPostBodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Missing reg or data payload', details: parsed.error.issues }, { status: 400 });
+      return NextResponse.json({ error: 'Missing id or data payload', details: parsed.error.issues }, { status: 400 });
     }
-    const { reg, ...patch } = parsed.data;
+    const { id, ...patch } = parsed.data;
 
     // 🌟 ENGINEER 專屬動作（release/checks/fluids/CRS/sign-off/clear-defer defect）
     // 一定要教官登入先做得，唔再淨係靠前端隱藏返啲掣
@@ -57,16 +59,19 @@ export async function POST(request: Request) {
     const tx = await db.transaction('write');
     try {
       const result = await tx.execute({
-        sql: 'SELECT data FROM techlogs WHERE reg = ?',
-        args: [reg],
+        sql: 'SELECT data FROM techlogs WHERE flight_id = ?',
+        args: [id],
       });
       const row = result.rows[0];
       const current = row && row.data ? JSON.parse(row.data as string) : {};
       const merged = applyTechLogDirectives(current, patch);
 
+      // 🌟 用 ON CONFLICT DO UPDATE 淨係改 data，唔好用 REPLACE INTO——REPLACE
+      // 會成行刪咗重插，如果冇帶埋 reg 會將 /api/simbrief 起機嗰陣寫低嘅 reg
+      // 洗返做 NULL，累到之後嘅 continuity 查詢（WHERE reg = ?）搵唔返呢條 row
       await tx.execute({
-        sql: 'REPLACE INTO techlogs (reg, data) VALUES (?, ?)',
-        args: [reg, JSON.stringify(merged)],
+        sql: 'INSERT INTO techlogs (flight_id, data) VALUES (?, ?) ON CONFLICT(flight_id) DO UPDATE SET data = excluded.data',
+        args: [id, JSON.stringify(merged)],
       });
 
       await tx.commit();

@@ -232,8 +232,12 @@ export async function POST(request: Request) {
     // 🌟 起機嗰刻自動將呢架機嘅 techlog「Prepare Flight」同 continuity 同新 flight plan
     // 同步（唔一定由 HKG 出發，例如今次係外地飛返香港），唔使 trainee 手動入 e-techlog
     // 補一程先夾得返出發機場（睇 techlogContinuity.ts）
+    // 🌟 修復：techlogs 而家 key by flight_id，唔再係 reg——揾返「呢個機牌最近一次」
+    // 嘅 techlog 做 continuity 嘅種子（ORDER BY rowid DESC LIMIT 1），但用 INSERT
+    // 幫呢個新 session 開一條佢自己獨立嘅 row，唔會再 REPLACE 咗仲用緊呢個機牌嘅
+    // 另一個 session 嘅 techlog（defects/accept 狀態）
     const techlogRow = await db.execute({
-      sql: 'SELECT data FROM techlogs WHERE reg = ?',
+      sql: 'SELECT data FROM techlogs WHERE reg = ? ORDER BY rowid DESC LIMIT 1',
       args: [flightData.aircraft_reg],
     });
     const existingTechlog = techlogRow.rows[0]?.data ? JSON.parse(techlogRow.rows[0].data as string) : null;
@@ -243,8 +247,8 @@ export async function POST(request: Request) {
       arrIata: dest.iata_code || flightData.arr_icao,
     });
     await db.execute({
-      sql: 'REPLACE INTO techlogs (reg, data) VALUES (?, ?)',
-      args: [flightData.aircraft_reg, JSON.stringify(syncedTechlog)],
+      sql: 'INSERT INTO techlogs (flight_id, reg, data) VALUES (?, ?, ?)',
+      args: [sessionId, flightData.aircraft_reg, JSON.stringify(syncedTechlog)],
     });
 
     return NextResponse.json({ success: true, flight_no: finalFlightNo, id: sessionId });
