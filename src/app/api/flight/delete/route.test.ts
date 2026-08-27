@@ -63,4 +63,21 @@ describe('POST /api/flight/delete', () => {
     const res = await POST(makeRequest({ id: 'NEVER-EXISTED' }, `${SESSION_COOKIE_NAME}=${token}`));
     expect(res.status).toBe(404);
   });
+
+  // 🌟 regression: 刪 flight 以前唔會清埋佢自己嗰條 techlog row（flight_id 同
+  // flights.id 一一對應），會留低一條永遠冇 flight 會再揾返嚟嘅孤兒 row
+  it('also deletes the flight\'s own techlog row (no orphaned row left behind)', async () => {
+    await seedFlight('DEL3');
+    await db.execute({
+      sql: 'REPLACE INTO techlogs (flight_id, reg, data) VALUES (?, ?, ?)',
+      args: ['DEL3', 'B-TEST', JSON.stringify({ tl_prepared: true })],
+    });
+
+    const { token } = createSessionToken();
+    const res = await POST(makeRequest({ id: 'DEL3' }, `${SESSION_COOKIE_NAME}=${token}`));
+    expect(res.status).toBe(200);
+
+    const techlogRow = await db.execute({ sql: 'SELECT flight_id FROM techlogs WHERE flight_id = ?', args: ['DEL3'] });
+    expect(techlogRow.rows.length).toBe(0);
+  });
 });

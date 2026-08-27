@@ -17,14 +17,23 @@ export async function POST(request: Request) {
 
     await ensureSchema();
 
-    // 🌟 非同步執行 Delete (args 陣列用來防止 SQL Injection)
-    const info = await db.execute({
-      sql: 'DELETE FROM flights WHERE id = ?',
-      args: [id]
-    });
+    // 🌟 修復：刪 flight 以前唔會清埋佢自己嗰條 techlog row（techlogs.flight_id
+    // 而家同 flights.id 一一對應），會留低一條永遠冇 flight 再會揾返嚟嘅孤兒
+    // row。SQLite 冇辦法幫一個已存在嘅 table 追加 FOREIGN KEY ... ON DELETE
+    // CASCADE（要成個 table 重建，而且舊資料嘅 techlog row 係用 reg 頂替
+    // flight_id，未必真係對應到任何 flights.id，追溯性咁加真正嘅 FK constraint
+    // 反而會炸），所以喺 application 層一齊刪——用 batch 保持兩個 DELETE 同一個
+    // transaction，唔會出現「flight 冇咗但 techlog 仲喺度」嘅中間狀態
+    const [flightInfo] = await db.batch(
+      [
+        { sql: 'DELETE FROM flights WHERE id = ?', args: [id] },
+        { sql: 'DELETE FROM techlogs WHERE flight_id = ?', args: [id] },
+      ],
+      'write'
+    );
 
     // 🌟 Turso 傳回的變更行數名稱叫 rowsAffected
-    if (info.rowsAffected > 0) {
+    if (flightInfo.rowsAffected > 0) {
       return NextResponse.json({ success: true });
     } else {
       return NextResponse.json({ error: 'Flight not found' }, { status: 404 });
