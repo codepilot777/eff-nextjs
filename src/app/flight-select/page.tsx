@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getOfpHistory, diffOfpSnapshots } from "@/lib/flight/ofpHistory";
+import CathayLogo from "@/components/workspace/CathayLogo";
 
 // ==========================================
 // 🌟 內部組件 1: 左側航班清單
@@ -181,9 +182,9 @@ function FlightSelectContent() {
       <div className="mb-6 flex justify-between items-start shrink-0">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-black text-white uppercase tracking-widest flex items-center gap-3">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-[#8fa0a6]">
-              <path d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
-            </svg>
+            {/* 🌟 原圖比例大約 404x495（窄過方形），淨係限高、寬度 auto，
+                先唔會拉扁變形——同 workspace header 個 logo 一致 */}
+            <CathayLogo className="h-6 w-auto shrink-0" />
             {role === "Instructor" ? "IOS Dispatch Control" : "EFB Flight Selection"}
           </h1>
           <h2 className="text-[#8fa0a6] text-[0.8rem] font-bold tracking-widest uppercase mt-1">
