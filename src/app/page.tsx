@@ -25,6 +25,19 @@ export default function Home() {
           </button>
         </Link>
       </div>
+
+      <div className="mt-10 flex flex-wrap justify-center gap-x-10 gap-y-3 text-xs">
+        <div className="flex items-center gap-3">
+          <span className="uppercase tracking-widest text-slate-600 font-bold">Trainee Guides</span>
+          <Link href="/guides/trainee-quickstart" className="text-slate-400 hover:text-status-teal transition-colors">Quick Start</Link>
+          <Link href="/guides/trainee-procedures" className="text-slate-400 hover:text-status-teal transition-colors">Operating Procedures</Link>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="uppercase tracking-widest text-slate-600 font-bold">Instructor Guides</span>
+          <Link href="/guides/instructor-quickstart" className="text-slate-400 hover:text-status-teal transition-colors">Quick Start</Link>
+          <Link href="/guides/instructor-procedures" className="text-slate-400 hover:text-status-teal transition-colors">Operating Procedures</Link>
+        </div>
+      </div>
     </div>
   );
 }
