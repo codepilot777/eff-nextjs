@@ -234,13 +234,25 @@ export default function InstructorHub() {
                 </div>
                 
                 <div className="mt-auto flex gap-2">
-                  <button 
+                  <button
                     onClick={() => router.push(`/instructor/ios?id=${encodeURIComponent(f._db_id)}`)}
                     className="flex-[2] py-3 bg-lido-800 border border-[#404040] text-white font-bold rounded-lg hover:bg-[#00bfa5] hover:text-black hover:border-[#00bfa5] transition-colors text-xs"
                   >
                     IOS PANEL
                   </button>
-                  
+
+                  {/* 🌟 教官自己個 session cookie 已經令 /api/flights 連 DRAFT flight 都攞得到，
+                      所以呢度唔使 publish 都可以開新分頁用返教官自己個 login 睇到 trainee
+                      EFB 實際會顯示咩——唔使全世界都睇到先睇得到自己做緊嘅嘢 */}
+                  <a
+                    href={`/flight-select?role=Trainee&id=${encodeURIComponent(f._db_id)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-[1.5] py-3 bg-lido-800 border border-[#404040] text-white font-bold rounded-lg hover:bg-[#00bfa5] hover:text-black hover:border-[#00bfa5] transition-colors text-xs flex items-center justify-center"
+                  >
+                    👁 PREVIEW
+                  </a>
+
                   {!f.is_published && (
                     <button 
                       onClick={() => publishFlightMutation.mutate(f)}
