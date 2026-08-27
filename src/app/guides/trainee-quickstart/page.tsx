@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Trainee Quick Start",
@@ -384,8 +385,18 @@ export default function Page() {
     .closing { grid-template-columns: 1fr; }
     .shell { padding: 0 18px 90px; }
   }
+
+  .return-link {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 24px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 500;
+    letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-muted);
+    text-decoration: none; transition: color 0.15s ease;
+  }
+  .return-link:hover { color: var(--accent-strong); }
 `}</style>
 <div className="shell">
+
+  <Link href="/" className="return-link">← Return to Home</Link>
 
   <header className="masthead">
     <div className="eyebrow">Electronic Flight Folder — Training Mock Up</div>
