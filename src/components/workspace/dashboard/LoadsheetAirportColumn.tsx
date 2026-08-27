@@ -149,10 +149,8 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
   return (
     <div className="flex-[4] flex flex-col gap-2 h-full overflow-hidden min-h-0 text-white font-sans w-full md:max-w-[320px]">
       
-      {/* 1. Loadsheet 卡片 — 🌟 同 NOTOC 一齊由 shrink-0（淨係跟內容高度）
-          改做 flex-grow 比例，做高少少；Airport 個 flex ratio 相應調細，
-          平衡返成欄嘅視覺高度分佈 */}
-      <div onClick={() => setActiveModal('Loadsheet')} className="bg-[#1E1E1E] rounded-xl p-3 flex-[1.1] flex flex-col justify-between cursor-pointer hover:bg-[#252525] transition-colors relative">
+      {/* 1. Loadsheet 卡片 */}
+      <div onClick={() => setActiveModal('Loadsheet')} className="bg-[#1E1E1E] rounded-xl p-3 shrink-0 flex flex-col cursor-pointer hover:bg-[#252525] transition-colors relative">
         <div className="flex justify-between items-center mb-1 border-b border-[#333] pb-1.5">
           <div className="flex items-baseline gap-2">
             <h2 className="text-[1.05rem] font-bold text-white leading-none">Loadsheet</h2>
@@ -203,7 +201,7 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
           itemised 清單，同 Loadsheet/Airport 卡片一樣可以撳 */}
       <div
         onClick={() => setActiveModal('NOTOC')}
-        className="bg-[#1E1E1E] rounded-xl p-3 flex-[0.9] flex flex-col justify-between relative overflow-hidden cursor-pointer hover:bg-[#252525] transition-colors"
+        className="bg-[#1E1E1E] rounded-xl p-3 shrink-0 flex flex-col relative overflow-hidden cursor-pointer hover:bg-[#252525] transition-colors"
       >
         {planeWatermark}
         <div className="flex justify-between items-center relative z-10">
@@ -221,10 +219,8 @@ export default function LoadsheetAirportColumn({ setActiveModal }: { setActiveMo
         </div>
       </div>
 
-      {/* 3. Airport 卡片 — 🌟 以前 flex-1 會霸晒 Loadsheet/NOTOC 讓出嚟嘅所有
-          剩餘高度，而家改做有上限嘅比例（同上面兩張卡片一齊平衡），Loadsheet/
-          NOTOC 做高咗，Airport 就相應矮返少少 */}
-      <div onClick={() => setActiveModal('Airports')} className="bg-[#1E1E1E] rounded-xl p-3 flex-[2] flex flex-col min-h-0 cursor-pointer hover:bg-[#252525] transition-colors relative overflow-hidden">
+      {/* 3. Airport 卡片 */}
+      <div onClick={() => setActiveModal('Airports')} className="bg-[#1E1E1E] rounded-xl p-3 flex-1 flex flex-col min-h-0 cursor-pointer hover:bg-[#252525] transition-colors relative overflow-hidden">
         
         {/* 頂部 50%：Airport & ALTN List */}
         <div className="flex-1 flex flex-col min-h-0">
