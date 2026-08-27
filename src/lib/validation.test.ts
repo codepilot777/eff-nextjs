@@ -126,6 +126,10 @@ describe('requiresInstructorAuthForFlight', () => {
   it('gates writes to atis_library (the pre-loaded ATIS content atisAutoDeliver reads from)', () => {
     expect(requiresInstructorAuthForFlight({ data: { atis_library: [{ icao: 'VHHH', type: 'DEPARTURE', content: 'FAKE' }] } })).toBe(true);
   });
+
+  it('gates writes to lesson_runsheet (the instructor-only IOS sidebar checklist)', () => {
+    expect(requiresInstructorAuthForFlight({ data: { lesson_runsheet: '- [x] Fake tick' } })).toBe(true);
+  });
 });
 
 describe('flightDeleteBodySchema', () => {

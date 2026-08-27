@@ -197,6 +197,9 @@ export const PROTECTED_FLIGHT_PATCH_FIELDS = [
   'enroute_altns',
   'enroute_stations',
   'atis_library',
+  // 🌟 lesson_runsheet：教官自己打嘅 lesson plan checklist（IOS sidebar），
+  // 純粹教官用嚟提自己下一步做咩,同 atis_library 一樣唔應該俾 trainee 寫
+  'lesson_runsheet',
 ] as const;
 
 export function hasProtectedFlightFields(patch: Record<string, unknown>): boolean {
