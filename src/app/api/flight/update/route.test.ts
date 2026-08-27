@@ -192,4 +192,53 @@ describe('POST /api/flight/update', () => {
     expect(body.data.metar_dep).toBe('REAL METAR');
     expect(body.data.alternates).toEqual([{ icao: 'RJGG', metar: 'ALTN METAR' }]);
   });
+
+  // 🌟 regression: raw_simbrief（起機嗰刻嘅完整 SimBrief 原始回應）而家係獨立欄，
+  // 唔再喺 `data` JSON 入面（睇 db.ts 嘅 comment，CPA 880 呢類 flight 嘅 data 曾經
+  // 去到 ~2MB，99.7% 都係呢個欄）。呢度證明：(1) 一般 patch 完全唔會撳過呢個欄；
+  // (2) ofpActivate 先會將歷史版本嘅 raw_simbrief promote 做返 live 嘅
+  describe('raw_simbrief lives in its own column, off the hot read-modify-write path', () => {
+    async function seedFlightWithRawSimbrief(id: string, data: object, rawSimbrief: unknown) {
+      await ensureSchema();
+      await db.execute({
+        sql: 'REPLACE INTO flights (id, flight_no, data, raw_simbrief) VALUES (?, ?, ?, ?)',
+        args: [id, id, JSON.stringify(data), JSON.stringify(rawSimbrief)],
+      });
+    }
+
+    it('an ordinary flat-field patch never rewrites the raw_simbrief column, and the response still carries it inline', async () => {
+      await seedFlightWithRawSimbrief('TEST-RAWSB1', { flight_no: 'TEST-RAWSB1', trainee_input_zfw: 0 }, { general: { icao_airline: 'CX' } });
+
+      const res = await POST(makeRequest({ id: 'TEST-RAWSB1', data: { trainee_input_zfw: 182 } }));
+      expect(res.status).toBe(200);
+      const body = await res.json();
+
+      // response still reconstructs the full object, same as before the split
+      expect(body.data.raw_simbrief).toEqual({ general: { icao_airline: 'CX' } });
+      expect(body.data.trainee_input_zfw).toBe(182);
+
+      // the `data` column itself must not have grown a duplicate raw_simbrief key
+      const row = await db.execute({ sql: 'SELECT data, raw_simbrief FROM flights WHERE id = ?', args: ['TEST-RAWSB1'] });
+      expect(JSON.parse(row.rows[0].data as string).raw_simbrief).toBeUndefined();
+      expect(JSON.parse(row.rows[0].raw_simbrief as string)).toEqual({ general: { icao_airline: 'CX' } });
+    });
+
+    it('ofpActivate promotes the chosen version\'s raw_simbrief into the column', async () => {
+      await seedFlightWithRawSimbrief('TEST-RAWSB2', {
+        flight_no: 'TEST-RAWSB2',
+        ofp_history: [
+          { version: 1, dispatched_at: '2026-01-01T00:00:00Z', snapshot: { raw_simbrief: { general: { icao_airline: 'V1' } } } },
+          { version: 2, dispatched_at: '2026-01-02T00:00:00Z', snapshot: { raw_simbrief: { general: { icao_airline: 'V2' } } } },
+        ],
+      }, { general: { icao_airline: 'V1' } });
+
+      const res = await POST(makeRequest({ id: 'TEST-RAWSB2', ofpActivate: { version: 2 } }));
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.data.raw_simbrief).toEqual({ general: { icao_airline: 'V2' } });
+
+      const row = await db.execute({ sql: 'SELECT raw_simbrief FROM flights WHERE id = ?', args: ['TEST-RAWSB2'] });
+      expect(JSON.parse(row.rows[0].raw_simbrief as string)).toEqual({ general: { icao_airline: 'V2' } });
+    });
+  });
 });

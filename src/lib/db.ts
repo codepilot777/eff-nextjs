@@ -14,6 +14,26 @@ let schemaReady: Promise<unknown> | null = null;
 // SQLite 冇得直接改一個已存在 table 嘅 PRIMARY KEY，所以要 rename→重新起→搬資料→
 // 刪舊 table；用 PRAGMA table_info 檢查 id 欄位係咪已經係 PK，等呢個 migration
 // 淨係行一次
+// 🌟 修復：raw_simbrief（起機嗰刻由 SimBrief API 攞返嚟嘅完整原始回應）以前塞喺
+// `data` JSON 頂層——實測 CPA 880 呢班機成個 data blob 1.9MB，raw_simbrief 自己
+// 就佔咗 99.7%。但呢個欄起機之後，除咗 ofpActivate 會成份覆寫一次之外，冇任何
+// patch 會再碰佢——即係 /api/flight/update 改一個 fuel 數、送一個 PDC request
+// 呢啲日常寫入，都要無辜成舊 SELECT/parse/merge/stringify/UPDATE 埋呢 2MB。而家
+// 搬出嚟做獨立欄，read-modify-write 嘅 hot path 淨係處理 `data`（睇
+// /api/flight/update/route.ts），淨係 ofpActivate 先會連埋呢個欄一齊寫
+async function backfillRawSimbriefColumn() {
+  const result = await db.execute(`SELECT id, data FROM flights`);
+  for (const row of result.rows) {
+    const parsed = JSON.parse(row.data as string);
+    if (!('raw_simbrief' in parsed)) continue;
+    const { raw_simbrief, ...rest } = parsed;
+    await db.execute({
+      sql: 'UPDATE flights SET data = ?, raw_simbrief = ? WHERE id = ?',
+      args: [JSON.stringify(rest), JSON.stringify(raw_simbrief ?? null), row.id as string],
+    });
+  }
+}
+
 async function migrateFlightsTable() {
   const tableCheck = await db.execute(
     `SELECT name FROM sqlite_master WHERE type='table' AND name='flights'`
@@ -21,10 +41,11 @@ async function migrateFlightsTable() {
 
   if (tableCheck.rows.length === 0) {
     // 全新 DB：直接用新 schema 起，唔使 migrate
-    await db.execute(`CREATE TABLE flights (id TEXT PRIMARY KEY, flight_no TEXT, data JSON)`);
+    await db.execute(`CREATE TABLE flights (id TEXT PRIMARY KEY, flight_no TEXT, data JSON, raw_simbrief JSON)`);
   } else {
     const cols = await db.execute(`PRAGMA table_info(flights)`);
     const hasIdPk = cols.rows.some((r) => r.name === 'id' && Number(r.pk) === 1);
+    const hasRawSimbriefCol = cols.rows.some((r) => r.name === 'raw_simbrief');
 
     if (!hasIdPk) {
       // 舊資料冇 id 就用返佢哋原本嘅 flight_no 頂替，等舊已分享/書籤咗嘅
@@ -32,12 +53,16 @@ async function migrateFlightsTable() {
       await db.batch(
         [
           `ALTER TABLE flights RENAME TO flights_old`,
-          `CREATE TABLE flights (id TEXT PRIMARY KEY, flight_no TEXT, data JSON)`,
+          `CREATE TABLE flights (id TEXT PRIMARY KEY, flight_no TEXT, data JSON, raw_simbrief JSON)`,
           `INSERT INTO flights (id, flight_no, data) SELECT flight_no, flight_no, data FROM flights_old`,
           `DROP TABLE flights_old`,
         ],
         'write'
       );
+      await backfillRawSimbriefColumn();
+    } else if (!hasRawSimbriefCol) {
+      await db.execute(`ALTER TABLE flights ADD COLUMN raw_simbrief JSON`);
+      await backfillRawSimbriefColumn();
     }
   }
 

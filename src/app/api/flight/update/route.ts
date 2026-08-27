@@ -28,10 +28,16 @@ export async function POST(request: Request) {
 
     // 2. 用 interactive transaction 讀最新一份 row，喺 server 端 apply directives,
     //    再寫返去，收窄 read-modify-write 嘅 race window
+    // 🌟 raw_simbrief（起機嗰刻嘅完整 SimBrief 原始回應）而家係獨立欄，唔再喺
+    // `data` JSON 入面——CPA 880 呢類 flight 嘅 data 曾經去到 ~2MB，99.7% 都係
+    // 呢個欄，但呢度嘅日常 patch（fuel/PDC/ATIS/ACARS/checklist...）從來冇改過
+    // 佢，淨係 ofpActivate 會（Object.assign 咗個歷史版本嘅 snapshot 落 merged）。
+    // 用 reference 唔同咗嚟判斷使唔使連埋呢個欄一齊寫，避免日常寫入都要無辜
+    // 搬呢 2MB
     const tx = await db.transaction('write');
     try {
       const result = await tx.execute({
-        sql: 'SELECT data FROM flights WHERE id = ?',
+        sql: 'SELECT data, raw_simbrief FROM flights WHERE id = ?',
         args: [id],
       });
       const row = result.rows[0];
@@ -42,12 +48,24 @@ export async function POST(request: Request) {
       }
 
       const current = JSON.parse(row.data as string);
+      current.raw_simbrief = row.raw_simbrief ? JSON.parse(row.raw_simbrief as string) : null;
+
       const merged = applyFlightDirectives(current, patch);
 
-      await tx.execute({
-        sql: 'UPDATE flights SET data = ? WHERE id = ?',
-        args: [JSON.stringify(merged), id],
-      });
+      const rawSimbriefChanged = merged.raw_simbrief !== current.raw_simbrief;
+      const { raw_simbrief: mergedRawSimbrief, ...dataToStore } = merged;
+
+      if (rawSimbriefChanged) {
+        await tx.execute({
+          sql: 'UPDATE flights SET data = ?, raw_simbrief = ? WHERE id = ?',
+          args: [JSON.stringify(dataToStore), JSON.stringify(mergedRawSimbrief ?? null), id],
+        });
+      } else {
+        await tx.execute({
+          sql: 'UPDATE flights SET data = ? WHERE id = ?',
+          args: [JSON.stringify(dataToStore), id],
+        });
+      }
 
       await tx.commit();
       return NextResponse.json({ success: true, message: 'Flight updated successfully', data: merged });
