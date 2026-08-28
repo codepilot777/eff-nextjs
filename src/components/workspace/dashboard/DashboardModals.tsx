@@ -11,7 +11,7 @@ import { useTechlogData } from "@/hooks/useTechlogData";
 export default function DashboardModals({ activeModal, setActiveModal }: { activeModal: string | null, setActiveModal: any }) {
 
   // 🌟 從 React Query 抽取資料
-  const { flightData, calc: fuelCalc, handlers, updateFlightData } = useFlightData();
+  const { flightData, calc: fuelCalc, updateFlightData } = useFlightData();
   const { data: techlogData } = useTechlogData(flightData);
 
   if (!activeModal || !flightData || !fuelCalc) return null;
@@ -110,8 +110,8 @@ export default function DashboardModals({ activeModal, setActiveModal }: { activ
           {activeModal === 'DOCS' && <ModalDOCS flightData={flightData} />}
           {/* 🌟 修復：以前呢度冇傳 updateFlightData，令 ModalAcceptFuel 入面
               `if (updateFlightData)` 個 guard 恆定 false，Log Fuel/estimated_uplift
-              寫入靜靜雞冇咗，淨係 handlers.handleAcceptFuel() 真正生效 */}
-          {activeModal === 'AcceptFuel' && <ModalAcceptFuel flightData={flightData} updateFlightData={updateFlightData} calc={fullCalc} handlers={handlers} setActiveModal={setActiveModal} />}
+              寫入靜靜雞冇咗 */}
+          {activeModal === 'AcceptFuel' && <ModalAcceptFuel flightData={flightData} updateFlightData={updateFlightData} calc={fullCalc} setActiveModal={setActiveModal} />}
           {activeModal === 'Defects' && <ModalDefects techlogData={techlogData} />}
           {activeModal === 'NOTOC' && <ModalNOTOC flightData={flightData} />}
           {activeModal === 'Crew' && <ModalCrew flightData={flightData} />}
