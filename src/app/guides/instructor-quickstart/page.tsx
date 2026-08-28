@@ -411,6 +411,7 @@ export default function Page() {
       <a href="#step-06"><b>06</b>WX</a>
       <a href="#step-07"><b>07</b>NOTAMs</a>
       <a href="#step-08"><b>08</b>NOTOC</a>
+      <a href="#step-09"><b>09</b>Lesson Runsheet</a>
     </nav>
 
     <div className="procedure">
@@ -591,6 +592,31 @@ export default function Page() {
         </div>
       </section>
 
+      <section className="step" id="step-09">
+        <div className="step-num">09</div>
+        <div className="step-body">
+          <h2>Lesson Runsheet — your own script for the session</h2>
+          <p className="sub">A slide-out sidebar on the right edge of the IOS Panel for the lesson plan you&apos;re personally running — separate from anything the trainee sees.</p>
+          <div className="step-content">
+            <div className="step-text">
+              <ul>
+                <li>The arrow tab on the right edge opens the sidebar from any module — EFB Monitor, E-Techlog or Sim Control.</li>
+                <li><b className="mono">Edit</b> switches to a plain-text box: paste or type a markdown checklist, then <b className="mono">Save</b>. <b className="mono">Load Sample</b> drops in a dummy runsheet to try the feature immediately.</li>
+                <li>Tap any item in view mode to check it off — this flips just that line&apos;s <span className="mono">[ ]</span>/<span className="mono">[x]</span> in the saved markdown, so your own wording and order are never rewritten.</li>
+              </ul>
+              <div className="callout tip">
+                <span className="tag">Tip</span>
+                <span>Any AI-drafted lesson plan can be pasted straight in — headings, bold, code blocks and tables all render, not just the checklist lines.</span>
+              </div>
+            </div>
+            <figure className="shot">
+              <img src="/guides/instructor/qs-ios-runsheet.png" alt="Lesson Runsheet sidebar open over the IOS Panel" />
+              <figcaption>IOS Panel · Lesson Runsheet</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
     </div>
   </div>
 
@@ -598,7 +624,7 @@ export default function Page() {
     <div></div>
     <div>
       <h3>That&apos;s the core loop</h3>
-      <p>Sign in → create &amp; dispatch a flight → publish it → drive Config, Payload, WX, NOTAMs and NOTOC live from the IOS Panel as the exercise runs. Everything here is training data only — nothing in this app is fit for operational use.</p>
+      <p>Sign in → create &amp; dispatch a flight → publish it → drive Config, Payload, WX, NOTAMs and NOTOC live from the IOS Panel as the exercise runs, with your own Lesson Runsheet open on the side. Everything here is training data only — nothing in this app is fit for operational use.</p>
     </div>
   </div>
 
