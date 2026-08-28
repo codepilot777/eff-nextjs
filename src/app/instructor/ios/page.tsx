@@ -21,6 +21,9 @@ import TechLogModal from "@/components/techlog/TechLogModal";
 // 🕹️ Sim Control 組件
 import SimControlTab from "@/components/ios/simcontrol/SimControlTab";
 
+// 📋 Lesson Runsheet Sidebar
+import LessonRunsheetSidebar from "@/components/ios/LessonRunsheetSidebar";
+
 function IOSPanelContent() {
   const router = useRouter();
   
@@ -185,11 +188,14 @@ function IOSPanelContent() {
       </div>
 
       {/* 🌟 保留 TechLog Modal 彈出邏輯：當 activeModule 切換至 TECHLOG 時，觸發開啟 */}
-      <TechLogModal 
-        isOpen={activeModule === "TECHLOG"} 
-        onClose={() => setActiveModule("EFB")} 
+      <TechLogModal
+        isOpen={activeModule === "TECHLOG"}
+        onClose={() => setActiveModule("EFB")}
       />
-      
+
+      {/* 📋 Lesson Runsheet：右邊拉出式 sidebar，唔理而家揀緊邊個 module 都用得到 */}
+      <LessonRunsheetSidebar />
+
     </div>
   );
 }
