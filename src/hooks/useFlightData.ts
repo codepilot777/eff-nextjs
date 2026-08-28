@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { calculateFuelEngine } from "@/lib/fuelCalculator"; // 🌟 引入燃油引擎
 
 // 🌟 修復：以前個 ALTN dropdown 借用 handleFuelInput，parseFloat 一個 ICAO 代碼會變 NaN→0，
@@ -15,16 +15,31 @@ export function useFlightData() {
   const searchParams = useSearchParams();
   const flightId = searchParams.get("id"); // 🌟 自己去 URL 搵 ID，唔使人哋餵！
 
+  // 🌟 修復：3 秒背景 poll 同 fire-and-forget 嘅 update mutation 冇協調——如果
+  // poll 啱啱好喺 optimistic update 之後、server 個 write 仲未寫完嗰陣觸發，
+  // 攞返嚟嗰份係「寫入之前」嘅舊 snapshot，會直接覆晒個 optimistic 顯示，令
+  // trainee 啱啱打完 blur 咗嘅數（例如 Revised ZFW）睇落「回潮」消失咗，
+  // 要等落一輪 poll 先追返上嚟。
+  // 🌟 淨係暫停 poll（refetchInterval 回傳 false）唔夠：react-query 淨係喺
+  // reschedule 嗰刻先讀呢個 function 嘅返回值，一個已經排咗程嘅 timer 唔會理
+  // pendingWritesRef 中途轉咗值，照樣會喺原定嗰刻 fire——實測真係會撞到。
+  // 真正靠得住嘅做法係喺 queryFn 度：淨係跟蹤緊未 settle 嘅欄位（pendingFieldsRef），
+  // 每次 poll 攞完 server response 都無條件用呢份 diff 蓋返上去先至存入 cache，
+  // 咁唔理個 poll 幾時啱啱好撞入嚟，都唔會蓋走仲未寫完嗰個欄位
+  const pendingWritesRef = useRef(0);
+  const pendingFieldsRef = useRef<Record<string, unknown>>({});
+
   // 1. 讀取資料
   const { data: flightData, isLoading, isFetching } = useQuery({
     queryKey: ["flight", flightId],
     queryFn: async () => {
       const res = await fetch(`/api/flight?id=${encodeURIComponent(flightId || "")}`);
       if (!res.ok) throw new Error("Failed to fetch flight data");
-      return res.json();
+      const json = await res.json();
+      return { ...json, ...pendingFieldsRef.current };
     },
     enabled: !!flightId,
-    refetchInterval: 3000,
+    refetchInterval: () => (pendingWritesRef.current > 0 ? false : 3000),
   });
 
   // 2. 更新資料
@@ -45,11 +60,33 @@ export function useFlightData() {
       return res.json();
     },
     onMutate: async (updates) => {
+      pendingWritesRef.current += 1;
+      Object.assign(pendingFieldsRef.current, updates);
       await queryClient.cancelQueries({ queryKey: ["flight", flightId] });
       const previousData = queryClient.getQueryData(["flight", flightId]) as any;
-queryClient.setQueryData(["flight", flightId], { ...(previousData || {}), ...updates });
+      queryClient.setQueryData(["flight", flightId], { ...(previousData || {}), ...updates });
+      return { previousData };
     },
-    onSettled: () => {
+    // 🌟 server 個 transaction 一 commit 就即刻喺 response 度連埋權威嘅 merge
+    // 咗嘅 row 一齊送返嚟（睇 /api/flight/update/route.ts 嘅 `data: merged`），
+    // 直接寫呢份落 cache，唔使淨係靠落面 onSettled 嘅 invalidate 先再等多一
+    // round GET 先至 confirm——減少多一個可以撞到 poll 嘅 race window
+    onSuccess: (result: { data?: Record<string, unknown> }) => {
+      if (result?.data) {
+        queryClient.setQueryData(["flight", flightId], (old: Record<string, unknown> | undefined) => ({ ...(old || {}), ...result.data }));
+      }
+    },
+    onError: (_err, _updates, context) => {
+      if (context?.previousData) queryClient.setQueryData(["flight", flightId], context.previousData);
+    },
+    onSettled: (_data, _error, updates) => {
+      pendingWritesRef.current = Math.max(0, pendingWritesRef.current - 1);
+      // 🌟 淨係清返呢次 mutation 自己啱啱加落 pendingFieldsRef 嘅欄位——如果
+      // 中途另一個 mutation 又啱啱好改緊同一個欄位，唔好連人哋仲未 settle 嗰個都
+      // 一齊清咗
+      for (const key of Object.keys(updates || {})) {
+        delete pendingFieldsRef.current[key];
+      }
       queryClient.invalidateQueries({ queryKey: ["flight", flightId] });
     },
   });
@@ -72,7 +109,18 @@ queryClient.setQueryData(["flight", flightId], { ...(previousData || {}), ...upd
       }
       return res.json();
     },
+    // 🌟 directive 都要計落 pendingWritesRef——同上面個 update mutation 一樣嘅
+    // POST /api/flight/update，一樣會撞落背景 poll 嗰個 race window
+    onMutate: () => {
+      pendingWritesRef.current += 1;
+    },
+    onSuccess: (result: { data?: Record<string, unknown> }) => {
+      if (result?.data) {
+        queryClient.setQueryData(["flight", flightId], (old: Record<string, unknown> | undefined) => ({ ...(old || {}), ...result.data }));
+      }
+    },
     onSettled: () => {
+      pendingWritesRef.current = Math.max(0, pendingWritesRef.current - 1);
       queryClient.invalidateQueries({ queryKey: ["flight", flightId] });
     },
   });
