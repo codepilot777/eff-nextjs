@@ -53,7 +53,7 @@ function AircraftFuelVisual({ acType, reg, standard, left, center, right }: { ac
   );
 }
 
-export function ModalAcceptFuel({ flightData, updateFlightData, calc, handlers, setActiveModal }: any) {
+export function ModalAcceptFuel({ flightData, updateFlightData, calc, setActiveModal }: any) {
 
   // 🌟 左邊數據狀態
   const finalFuel = calc.currTotal || 0.0;
@@ -81,6 +81,13 @@ export function ModalAcceptFuel({ flightData, updateFlightData, calc, handlers, 
   const displayRight = tanksStandard ? stdSplit.right : rightKg;
 
   const handleConfirm = () => {
+    // 🌟 修復：以前呢度分開兩個獨立 mutate() call（呢個 updateFlightData 一個，
+    // handlers.handleAcceptFuel() 入面又一個）——兩個 optimistic write 撞埋一齊
+    // 用緊同一條 query key，onMutate 入面嘅 `await cancelQueries()` 會令兩個
+    // continuation 執行次序唔一定跟返 call 嗰陣嘅次序，遲落手嗰個好可能用住
+    // 執行早咗嗰刻嘅 snapshot 蓋走另一個岡岡寫低嘅欄位——實測就係 final_fuel_accepted
+    // 呢種「accept 咗一瞬間變返 pending，隔一陣先真係變返 accept」嘅回潮。
+    // 合併做一個 write 就唔會撞
     if (updateFlightData) {
       updateFlightData({
         fuel_on_board: logFuel,
@@ -93,9 +100,10 @@ export function ModalAcceptFuel({ flightData, updateFlightData, calc, handlers, 
         fuel_right_main: displayRight,
         final_fuel_notify_load_control: notifyLoadControl,
         final_fuel_notify_fuel_company: notifyFuelCompany,
+        final_fuel_accepted: true,
+        final_fuel_request: finalFuel,
       });
     }
-    handlers.handleAcceptFuel();
     setActiveModal(null);
   };
 

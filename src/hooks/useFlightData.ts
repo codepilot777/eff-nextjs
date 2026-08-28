@@ -160,7 +160,6 @@ export function useFlightData() {
       handleAltnSelect: (icao: string) => {
         if (icao !== flightData?.selected_altn) rqUpdateFlightData(buildAltnSelectUpdate(icao));
       },
-      handleAcceptFuel: () => { rqUpdateFlightData({ final_fuel_accepted: true, final_fuel_request: calc.currTotal }); },
     };
   }, [flightData, calc, rqUpdateFlightData]);
 
