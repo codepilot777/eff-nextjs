@@ -38,7 +38,10 @@ export function useFlightData() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: flightId, data: updates })
       });
-      if (!res.ok) throw new Error("Failed to update flight data");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to update flight data");
+      }
       return res.json();
     },
     onMutate: async (updates) => {

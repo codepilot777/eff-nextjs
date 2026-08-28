@@ -10,10 +10,11 @@ const SIDEBAR_WIDTH = 380;
 // Save 完之後淨係存低嗰段原始 markdown 文字——剔一剔淨係翻轉返嗰行嘅 [ ]/[x]
 // （睇 lib/instructor/lessonRunsheet.ts），冇額外開第二個欄位存 done 狀態
 export default function LessonRunsheetSidebar() {
-  const { flightData, updateFlightData } = useFlightData();
+  const { flightData, updateFlightDataAsync } = useFlightData();
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
 
   if (!flightData) return null;
 
@@ -23,20 +24,35 @@ export default function LessonRunsheetSidebar() {
 
   const startEditing = () => {
     setDraft(markdown);
+    setError("");
     setIsEditing(true);
   };
 
-  const handleSave = () => {
-    updateFlightData({ lesson_runsheet: draft });
-    setIsEditing(false);
+  // 🌟 一定要用 updateFlightDataAsync + try/catch——之前用 fire-and-forget 嘅
+  // updateFlightData，如果 server 因為未登入教官帳戶拒絕（lesson_runsheet 係受保護
+  // 欄位，睇 validation.ts）就會靜靜雞冇晒反應，教官淨係見到 paste 完好似「無效果」
+  const handleSave = async () => {
+    setError("");
+    try {
+      await updateFlightDataAsync({ lesson_runsheet: draft });
+      setIsEditing(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed");
+    }
   };
 
   const handleCancel = () => {
+    setError("");
     setIsEditing(false);
   };
 
-  const handleToggleItem = (lineIndex: number) => {
-    updateFlightData({ lesson_runsheet: toggleRunsheetItem(markdown, lineIndex) });
+  const handleToggleItem = async (lineIndex: number) => {
+    setError("");
+    try {
+      await updateFlightDataAsync({ lesson_runsheet: toggleRunsheetItem(markdown, lineIndex) });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed");
+    }
   };
 
   return (
@@ -75,6 +91,11 @@ export default function LessonRunsheetSidebar() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
+          {error && (
+            <div className="mb-3 bg-[#FF1744]/10 border border-[#FF1744]/50 text-[#FF1744] text-[0.72rem] font-bold rounded-lg px-3 py-2">
+              ⚠️ {error}
+            </div>
+          )}
           {isEditing ? (
             <div className="flex flex-col gap-3 h-full">
               <textarea

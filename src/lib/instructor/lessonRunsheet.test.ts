@@ -31,6 +31,23 @@ describe('parseRunsheet', () => {
     expect(parseRunsheet('')).toEqual([]);
     expect(parseRunsheet('   \n\n  ')).toEqual([]);
   });
+
+  it('parses indented/nested sub-items (2-space indent before the dash)', () => {
+    const md = ['- [ ] Parent step', '  - [ ] Nested sub-item', '  - [x] Nested done sub-item'].join('\n');
+    expect(parseRunsheet(md)).toEqual([
+      { type: 'item', text: 'Parent step', done: false, lineIndex: 0 },
+      { type: 'item', text: 'Nested sub-item', done: false, lineIndex: 1 },
+      { type: 'item', text: 'Nested done sub-item', done: true, lineIndex: 2 },
+    ]);
+  });
+
+  it('parses numbered checklist items (`1. [ ] ...`)', () => {
+    const md = ['1. [ ] First debrief point', '2. [x] Second debrief point'].join('\n');
+    expect(parseRunsheet(md)).toEqual([
+      { type: 'item', text: 'First debrief point', done: false, lineIndex: 0 },
+      { type: 'item', text: 'Second debrief point', done: true, lineIndex: 1 },
+    ]);
+  });
 });
 
 describe('toggleRunsheetItem', () => {
@@ -54,6 +71,16 @@ describe('toggleRunsheetItem', () => {
     const md = ['## Section', '- [ ] First'].join('\n');
     expect(toggleRunsheetItem(md, 0)).toBe(md);
     expect(toggleRunsheetItem(md, 99)).toBe(md);
+  });
+
+  it('preserves indentation when toggling a nested sub-item', () => {
+    const md = ['- [ ] Parent', '  - [ ] Nested'].join('\n');
+    expect(toggleRunsheetItem(md, 1)).toBe(['- [ ] Parent', '  - [x] Nested'].join('\n'));
+  });
+
+  it('preserves numbering when toggling a numbered item', () => {
+    const result = toggleRunsheetItem('1. [ ] First debrief point', 0);
+    expect(result).toBe('1. [x] First debrief point');
   });
 });
 
