@@ -296,6 +296,7 @@ export default function Page() {
         <div className="rail-group-label">Part C — Other Modules</div>
         <a href="#c1"><b>C1</b>E-Techlog</a>
         <a href="#c2"><b>C2</b>Sim Control</a>
+        <a href="#c3"><b>C3</b>Lesson Runsheet</a>
       </div>
     </nav>
 
@@ -524,7 +525,7 @@ export default function Page() {
       
       <div className="part" id="part-c">
         <div className="part-head"><span className="part-letter">C</span><h2>Other Modules</h2></div>
-        <p className="part-dek">The other two buttons at the top of the IOS Panel, alongside EFB Monitor. Lighter reference — E-Techlog mirrors familiar tech-log workflows, and Sim Control only matters when a P3D/PMDG session is actually connected.</p>
+        <p className="part-dek">The other two buttons at the top of the IOS Panel, alongside EFB Monitor, plus the Lesson Runsheet sidebar that&apos;s reachable from any of them. Lighter reference — E-Techlog mirrors familiar tech-log workflows, Sim Control only matters when a P3D/PMDG session is actually connected, and the Runsheet is entirely your own content, never seen by the trainee.</p>
 
         <section className="section" id="c1">
           <div className="section-head"><span className="section-id">C1</span><h3>E-Techlog</h3></div>
@@ -546,6 +547,24 @@ export default function Page() {
 
           <p><b className="mono">INIT SCENARIO</b> and <b className="mono">PAUSE</b> sit in the status bar above all four sections.</p>
           <figure className="shot wide"><img src="/guides/instructor/simcontrol.png" alt="Sim Control Failures section with MEL-referenced emergency matrix" /><figcaption>Sim Control · Failures</figcaption></figure>
+        </section>
+
+        <section className="section" id="c3">
+          <div className="section-head"><span className="section-id">C3</span><h3>Lesson Runsheet</h3></div>
+          <p className="sub">A slide-out sidebar for your own lesson plan — separate from the flight data the trainee&apos;s EFB reads, and reachable from EFB Monitor, E-Techlog or Sim Control alike.</p>
+
+          <div className="fieldref">
+            <div className="row"><div className="field-name">Arrow tab</div><div className="field-desc">Fixed to the right edge of the IOS Panel at all times — opens/closes the sidebar without leaving whichever module you&apos;re on.</div></div>
+            <div className="row"><div className="field-name">Edit</div><div className="field-desc">Switches to a plain-text box holding the raw markdown. Paste or type freely — any AI-drafted lesson plan works as-is.</div></div>
+            <div className="row"><div className="field-name">Load Sample</div><div className="field-desc">Drops a dummy runsheet into the edit box, to see the feature working before writing a real one.</div></div>
+            <div className="row"><div className="field-name">Save</div><div className="field-desc">Stores the markdown verbatim. Requires an active instructor session — an expired one surfaces a red error banner in the sidebar rather than silently doing nothing.</div></div>
+          </div>
+
+          <p>In view mode the markdown renders in full — headings, bold, code blocks and tables included, not just checklist lines. Any checklist item is tappable, including indented sub-items (<span className="mono">{"  - [ ]"}</span>) and numbered ones (<span className="mono">1. [ ]</span>): tapping flips only that line&apos;s <span className="mono">[ ]</span>/<span className="mono">[x]</span> in the stored markdown, so wording, order and blank lines are never rewritten.</p>
+
+          <div className="callout note"><span className="tag">Note</span><span>Stored on the flight itself, not the techlog, and gated the same way as ATIS Library entries — trainees can&apos;t read or write it. It has nothing to do with anything the trainee&apos;s EFB shows; it&apos;s purely for keeping your own script on-screen while you run the session.</span></div>
+
+          <figure className="shot"><img src="/guides/instructor/lesson-runsheet.png" alt="Lesson Runsheet sidebar showing rendered markdown checklist" /><figcaption>Lesson Runsheet Sidebar</figcaption></figure>
         </section>
       </div>
 
