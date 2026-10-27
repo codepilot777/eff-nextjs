@@ -134,7 +134,7 @@ describe('requiresInstructorAuthForFlight', () => {
   it('gates writes to the Weather Radar scenario fields (SIGMETs, airborne time, active snapshot)', () => {
     expect(requiresInstructorAuthForFlight({ data: { scenario_sigmets_raw: 'VHHK SIGMET 3 VALID...' } })).toBe(true);
     expect(requiresInstructorAuthForFlight({ data: { scenario_airborne_time_z: '0600' } })).toBe(true);
-    expect(requiresInstructorAuthForFlight({ data: { scenario_active_snapshot_idx: 2 } })).toBe(true);
+    expect(requiresInstructorAuthForFlight({ data: { scenario_active_snapshot: { ac: { x: 0 }, t: 400 } } })).toBe(true);
   });
 });
 

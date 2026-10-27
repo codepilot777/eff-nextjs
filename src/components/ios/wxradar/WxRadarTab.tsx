@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
-import { useWxRadarSync } from "@/hooks/useWxRadarSync";
+import { useWxRadarSync, type ActiveSnapshot } from "@/hooks/useWxRadarSync";
 import { parseSigmetBulletin } from "@/lib/weather/sigmetParser";
 import { extractRouteFixes } from "@/lib/weather/routeFixes";
 import SigmetChart from "@/components/weather/SigmetChart";
@@ -149,12 +149,13 @@ function AirborneTimeControl() {
 // 🌟 教官呢度 save 低嘅 SIGMET/airborne time，會 postMessage 落 iframe（睇
 // useWxRadarSync + weather-nd/index.html 嘅 applyScenarioSigmets/
 // applyScenarioAirborne），即時反映落個雷達畫面。
-// 🌟 教官同trainee 嗰份飛機 position 唔再靠即時 simulation 嚟 sync（試過，
-// 唔準）——雷達畫面而家淨係 6 張沿住 planned flight 嘅靜態 snapshot，由同
-// 一份 route 數據計出嚟，兩邊睇到嘅位置保證一樣。教官喺呢個 iframe 揀低
-// 邊一張做 trainee 睇到嘅畫面（撳「Set as trainee return」），個 iframe 會
-// postMessage 返個 index 畀呢度（onActiveSnapshotAction），寫落
-// scenario_active_snapshot_idx，trainee 嗰邊個 ND tab 就跟住顯示返嗰張。
+// 🌟 教官同 trainee 嗰份飛機 position 唔再靠即時 simulation 嚟 sync（試過，
+// 唔準）——iframe 入面嘅 Interactive 畫面淨係教官自己 scouting 用（撳 Play/
+// LNAV/HDG/Hold/Direct 自由咁探索劇本），搵到想畀 trainee 睇嘅一刻就撳
+// 「📸 Capture for trainee」，個 iframe 會將嗰刻成個畫面（aircraft 狀態/
+// 時間/view）postMessage 返出嚟（onActiveSnapshotAction），寫落
+// scenario_active_snapshot，trainee 嗰邊個 ND tab 就原樣 replay 返嗰張，
+// 100% 同教官 capture 嗰刻一致。
 // 🌟 真正跟 EFF OFP route：routeFixes 由呢個 flight 嘅 raw_simbrief.navlog
 // 攞返嚟（睇 lib/weather/routeFixes.ts），postMessage 落 iframe 之後會換走
 // 佢個檔案自己 hard-code 嗰套虛構 RCTP-VHHH 地理（連埋 TC centre 嘅風眼位置
@@ -169,8 +170,8 @@ export default function WxRadarTab() {
   const routeFixes = useMemo(() => extractRouteFixes(flightData?.raw_simbrief), [flightData?.raw_simbrief]);
 
   const handleActiveSnapshotAction = useCallback(
-    (idx: number) => {
-      updateFlightData({ scenario_active_snapshot_idx: idx });
+    (snapshot: ActiveSnapshot) => {
+      updateFlightData({ scenario_active_snapshot: snapshot });
     },
     [updateFlightData]
   );
@@ -179,7 +180,7 @@ export default function WxRadarTab() {
     iframeRef,
     parsed,
     flightData?.scenario_airborne_time_z,
-    flightData?.scenario_active_snapshot_idx,
+    flightData?.scenario_active_snapshot,
     handleActiveSnapshotAction,
     routeFixes
   );
@@ -192,7 +193,7 @@ export default function WxRadarTab() {
         <div className="flex-none px-4 py-2 border-b border-[#333] flex items-center justify-between gap-3">
           <span className="text-[#00bfa5] font-black text-xs tracking-widest uppercase shrink-0">🌩️ Observer Weather Radar (ND)</span>
           <AirborneTimeControl />
-          <span className="text-[#8fa0a6] text-[0.65rem] font-mono shrink-0">Pick a snapshot as the trainee return</span>
+          <span className="text-[#8fa0a6] text-[0.65rem] font-mono shrink-0">Fly it, then Capture for trainee</span>
         </div>
         <iframe
           ref={iframeRef}
