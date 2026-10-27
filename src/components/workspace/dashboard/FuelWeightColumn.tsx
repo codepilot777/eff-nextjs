@@ -208,7 +208,7 @@ export default function FuelWeightColumn({ setActiveModal }: { setActiveModal: a
             {Row({ label: "Reserve", ofp: calc.ofpRes, rev: calc.ofpRes, sideValue: formatTime(resMins) })}
             {Row({ label: "Fuel Reqd", ofp: calc.ofpReqdBase, rev: calc.currReqdBase, sideValue: formatTime(reqdMins), isBold: true, isTotal: true })}
             {Row({ label: "Tankering", ofp: 0.0, rev: calc.currTank, sideValue: formatTime(tankMins), isInput: true, field: 'tankering' })}
-            {Row({ label: "Extra", ofp: 0.0, rev: calc.currExtra, sideValue: formatTime(extraMins), isInput: true, field: 'extra' })}
+            {Row({ label: "Extra", ofp: calc.ofpExtra, rev: calc.currExtra, sideValue: formatTime(extraMins), isInput: true, field: 'extra' })}
             {Row({ label: "Total Fuel", ofp: calc.ofpTotal, rev: calc.currTotal, sideValue: formatTime(totalMins), isBold: true, isTotal: true, isInput: true, field: 'total' })}
           </div>
 

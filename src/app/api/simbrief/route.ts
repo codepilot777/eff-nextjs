@@ -113,8 +113,12 @@ export async function POST(request: Request) {
       fuel_cont_ofp: parseInt(fuel.contingency || 0) / 1000.0,
       fuel_altn_ofp: parseInt(fuel.alternate_burn || 0) / 1000.0,
       fuel_reserve_ofp: parseInt(fuel.reserve || 0) / 1000.0,
+      // 🌟 以前完全冇攞 SimBrief 嘅 fuel.extra——Dashboard 嘅 "Extra" 行 OFP
+      // 欄一直 hard-code 0.0，令 dispatcher 喺 SimBrief 度派嘅 extra fuel
+      // 喺 EFF 度完全隱形（唔淨係顯示唔到，連埋計落 ofpTotal 都計漏咗）
+      fuel_extra_ofp: parseInt(fuel.extra || 0) / 1000.0,
       plan_fuel_total: parseInt(fuel.plan_ramp || 0) / 1000.0,
-      weight_fuel_reqd_ofp: parseInt(fuel.plan_takeoff || 0) / 1000.0, 
+      weight_fuel_reqd_ofp: parseInt(fuel.plan_takeoff || 0) / 1000.0,
 
       // 🌟 修復：以前教官可以喺建立表單填一個 zfw_override 直接覆寫呢個「OFP」欄位，
       // 令 PayloadTab.tsx 嘅 auto-fill（targetZFW = weight_zfw_ofp）同 Dashboard 顯示緊嘅

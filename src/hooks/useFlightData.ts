@@ -173,7 +173,10 @@ export function useFlightData() {
       handleManualToggle: () => {
         const newMode = !calc.isManual;
         if (newMode) {
-          rqUpdateFlightData({ fuel_manual_mode: newMode, manual_fuel: { taxi: Number(calc.autoTaxi.toFixed(1)), trip: Number(calc.autoTrip.toFixed(1)), cont: Number(calc.autoCont.toFixed(1)), tankering: 0.0, extra: 0.0, total: Number(calc.autoTotal.toFixed(1)) } });
+          // 🌟 extra 要由 calc.autoExtra（跟返 SimBrief OFP 嘅 extra fuel baseline）
+          // seed 落去，唔可以死寫 0.0——否則一撳 Manual，dispatcher 喺 SimBrief
+          // 派落嘅 extra fuel 即刻無聲無息歸零
+          rqUpdateFlightData({ fuel_manual_mode: newMode, manual_fuel: { taxi: Number(calc.autoTaxi.toFixed(1)), trip: Number(calc.autoTrip.toFixed(1)), cont: Number(calc.autoCont.toFixed(1)), tankering: 0.0, extra: Number(calc.autoExtra.toFixed(1)), total: Number(calc.autoTotal.toFixed(1)) } });
         } else rqUpdateFlightData({ fuel_manual_mode: newMode });
       },
       handleFuelInput: (field: string, val: string) => {

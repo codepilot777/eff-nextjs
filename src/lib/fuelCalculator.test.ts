@@ -39,6 +39,27 @@ describe('calculateFuelEngine', () => {
     expect(calc.autoTrip).toBeGreaterThan(baseFlight.fuel_trip_ofp);
   });
 
+  it('surfaces SimBrief OFP extra fuel (fuel_extra_ofp) instead of silently dropping it', () => {
+    const withExtra = { ...baseFlight, fuel_extra_ofp: 1.5 };
+    const calc = calculateFuelEngine(withExtra);
+
+    expect(calc.ofpExtra).toBeCloseTo(1.5);
+    // OFP total must include the extra, not just taxi+trip+cont+altn+reserve
+    expect(calc.ofpTotal).toBeCloseTo(calc.ofpReqdBase + 1.5);
+    // Untouched baseline: auto/current extra defaults to the real OFP figure, not 0
+    expect(calc.autoExtra).toBeCloseTo(1.5);
+    expect(calc.currExtra).toBeCloseTo(1.5);
+    expect(calc.currTotal).toBeCloseTo(calc.ofpReqdBase + 1.5);
+  });
+
+  it('preserves the OFP extra fuel baseline when switching into manual mode without an explicit override', () => {
+    const withExtra = { ...baseFlight, fuel_extra_ofp: 1.5, fuel_manual_mode: true, manual_fuel: { taxi: 1.0, trip: 20.0, cont: 1.0 } };
+    const calc = calculateFuelEngine(withExtra);
+
+    // manual_fuel.extra was never set -> should fall back to the OFP baseline, not 0
+    expect(calc.currExtra).toBeCloseTo(1.5);
+  });
+
   it('lets manual fuel entry override the computed values entirely', () => {
     const manual = {
       ...baseFlight,
