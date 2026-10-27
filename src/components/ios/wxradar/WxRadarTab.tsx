@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
+import { useWxRadarSync } from "@/hooks/useWxRadarSync";
 import { parseSigmetBulletin } from "@/lib/weather/sigmetParser";
 import SigmetChart from "@/components/weather/SigmetChart";
 
@@ -104,25 +105,72 @@ function SigmetPanel() {
   );
 }
 
+// 🌟 設定幾點「起飛」（Z time，hhmm）——`core.js` 嘅 S.airborne 一路都要有
+// 一個值先計得到 PLAN route/飛機位置，而家由呢度教官自己設，postMessage 落
+// iframe（睇 useWxRadarSync），唔再靠 Observer 自己喺 iframe 入面嗰個
+// "Airborne (Z)" input 手打一次
+function AirborneTimeControl() {
+  const { flightData, updateFlightDataAsync } = useFlightData();
+  const [error, setError] = useState("");
+  if (!flightData) return null;
+
+  const handleBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const v = e.target.value.replace(/\D/g, "").padStart(4, "0").slice(0, 4);
+    if (v === flightData.scenario_airborne_time_z) return;
+    setError("");
+    try {
+      await updateFlightDataAsync({ scenario_airborne_time_z: v });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[#8fa0a6] text-[0.6rem] font-bold uppercase tracking-widest">Airborne (Z)</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        maxLength={4}
+        defaultValue={flightData.scenario_airborne_time_z || "0600"}
+        onBlur={handleBlur}
+        key={`airborne-${flightData.scenario_airborne_time_z}`}
+        className="w-14 bg-[#0a0a0a] border border-[#333] rounded px-1.5 py-0.5 text-[0.72rem] font-mono text-[#00bfa5] text-center outline-none focus:border-[#00bfa5] transition-colors"
+      />
+      {error && <span className="text-[#FF1744] text-[0.6rem] font-bold">⚠️ {error}</span>}
+    </div>
+  );
+}
+
 // 🌟 Phase 1：原封不動嵌入 weather_nd_standalone.html（public/weather-nd/index.html）
 // 做個 iframe——呢個工具本身純 client-side canvas render，完全唔靠連接任何 sim
-// （P3D/PMDG 定係公司 sim 都好），所以無論個 session 用邊種 sim 都用得。Observer
-// 自己喺 iframe 入面嘅 Airborne time / typhoon pace 輸入操作，同而家開獨立瀏覽器
-// 分頁冇分別，淨係搬咗入 IOS panel 度，唔使再開多個 window。
-// Phase 2（之後先做）先會將 core.js 啲 hard-coded constant 换成讀 flightData 嘅
-// scenario_sigmets_raw/scenario_airborne_time_z/scenario_aircraft_override，
-// 等教官喺 IOS 度做嘅嘢可以直接反映落呢個 iframe，而唔使 Observer 自己手動對齊
+// （P3D/PMDG 定係公司 sim 都好），所以無論個 session 用邊種 sim 都用得。
+// 🌟 Phase 2：教官呢度 save 低嘅 SIGMET/airborne time，而家會真係 postMessage
+// 落 iframe（睇 useWxRadarSync + weather-nd/index.html 嘅 applyScenarioSigmets/
+// applyScenarioAirborne），即時反映落個雷達畫面，唔使 Observer 自己手動對齊。
+// scenario_aircraft_override（教官手動 override 飛機位置）同埋真正跟 EFF OFP
+// route（而家 ND 用緊嘅 RCTP-VHHH route 仲係呢個 scenario 自己 hard-code 嗰套）
+// 仲未做，係呢個 Phase 2 之後嘅工夫
 export default function WxRadarTab() {
+  const { flightData } = useFlightData();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const rawText: string = flightData?.scenario_sigmets_raw || "";
+  const parsed = parseSigmetBulletin(rawText);
+  useWxRadarSync(iframeRef, parsed, flightData?.scenario_airborne_time_z);
+
   return (
     <div className="h-full flex flex-col gap-4 md:flex-row">
       <SigmetPanel />
 
       <div className="flex-1 min-w-0 bg-[#1a1a1a] border border-[#333] rounded-xl overflow-hidden flex flex-col">
-        <div className="flex-none px-4 py-2 border-b border-[#333] flex items-center justify-between">
-          <span className="text-[#00bfa5] font-black text-xs tracking-widest uppercase">🌩️ Observer Weather Radar (ND)</span>
-          <span className="text-[#8fa0a6] text-[0.65rem] font-mono">Phase 1 · standalone, not yet scenario-linked</span>
+        <div className="flex-none px-4 py-2 border-b border-[#333] flex items-center justify-between gap-3">
+          <span className="text-[#00bfa5] font-black text-xs tracking-widest uppercase shrink-0">🌩️ Observer Weather Radar (ND)</span>
+          <AirborneTimeControl />
+          <span className="text-[#8fa0a6] text-[0.65rem] font-mono shrink-0">Phase 2 · SIGMETs/airborne live-synced</span>
         </div>
         <iframe
+          ref={iframeRef}
           src="/weather-nd/index.html"
           title="Observer Weather Radar ND"
           className="flex-1 w-full border-0 bg-white"

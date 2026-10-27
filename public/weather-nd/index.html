@@ -185,7 +185,11 @@ function tcXY(tH) {
 }
 
 /* ---- SIGMET polygons (at obs time) and movement ---- */
-const SIGMETS = [
+// 🌟 let 唔係 const——Phase 2 要俾 applyScenarioSigmets() 拎 EFF 嗰邊真正 parse
+// 咗嘅 SIGMET 覆寫晒呢個 fallback 示範數組。TC 中心（颱風路徑本身）唔算入呢度，
+// 同原本設計一致——嗰個由 TC_PTS 另外控制，呢度淨係管 EMBD TS/SEV TURB 呢類
+// polygon cell
+let SIGMETS = [
   { id: 'S2', label: '2', name: 'EMBD TS', t0: 150, vdir: 292.5, vkt: 15, color: '#d97706',
     poly: [[112.5, 20.9], [115.8, 22.2], [117.8, 21.2], [116.2, 19.6], [113.8, 19.9]] },
   { id: 'S3', label: '3', name: 'SEV TURB', t0: 150, vdir: 292.5, vkt: 15, color: '#3b82f6',
@@ -234,16 +238,41 @@ function polyCentroid(s) {
   let sx = 0, sy = 0; for (const p of s.poly) { const q = toXY(p[1], p[0]); sx += q[0]; sy += q[1]; }
   return [sx / s.poly.length, sy / s.poly.length];
 }
-const CLUSTERS = [
-  { sig: 'S2', sx: 85, sy: 45, zMax: 55, zMid: 38, turb: false, seed: 21 },
-  { sig: 'S3', sx: 62, sy: 34, zMax: 47, zMid: 36, turb: true, seed: 31 },
-  { sig: 'S4', sx: 75, sy: 58, zMax: 54, zMid: 36, turb: false, seed: 41 },
-  { fixed: 'RCKH', sx: 42, sy: 40, zMax: 41, zMid: 30, turb: false, seed: 51 }
-];
-for (const c of CLUSTERS) {
-  if (c.sig) { c.s = SIGMETS.find(s => s.id === c.sig); c.c0 = polyCentroid(c.s); }
-  else { c.c0 = APTXY[c.fixed]; }
+// 🌟 Phase 2：由一組 SIGMETS entry 砌返 CLUSTERS（天氣 field 畫圖用嘅紋理參數）。
+// zMax/zMid/turb/sx/sy/seed 呢啲嘢本身唔係 SIGMET 電報入面有嘅資料——電報淨係
+// 話你知 polygon/移動方向/頂高，冇話你知個雲團「睇落應該幾濃」。呢度用返個
+// polygon 本身嘅大細（sx/sy）同 hazard 類型（EMBD TS/SEV TURB）推一組合理嘅
+// 預設質感參數，等教官隨便 paste 一條新電報都有得睇，唔使逐條再手調
+function hazardColor(name) { return /TURB/.test(name) ? '#3b82f6' : '#d97706'; }
+function hazardZ(name) { return /TURB/.test(name) ? { zMax: 47, zMid: 36 } : { zMax: 55, zMid: 38 }; }
+function strHash(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  return (Math.abs(h) % 90) + 10;
 }
+function polyExtentXY(poly) {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of poly) {
+    const q = toXY(p[1], p[0]);
+    minX = Math.min(minX, q[0]); maxX = Math.max(maxX, q[0]);
+    minY = Math.min(minY, q[1]); maxY = Math.max(maxY, q[1]);
+  }
+  return { sx: Math.max(20, (maxX - minX) / 2), sy: Math.max(20, (maxY - minY) / 2) };
+}
+function buildClustersFromSigmets(sigmetsArr) {
+  const clusters = sigmetsArr.map((s) => {
+    const { zMax, zMid } = hazardZ(s.name);
+    const { sx, sy } = polyExtentXY(s.poly);
+    return { sig: s.id, sx, sy, zMax, zMid, turb: /TURB/.test(s.name), seed: strHash(s.id) };
+  });
+  clusters.push({ fixed: 'RCKH', sx: 42, sy: 40, zMax: 41, zMid: 30, turb: false, seed: 51 }); // 🌟 固定嘅場景裝飾雲團，同任何 SIGMET 無關，一直都有
+  for (const c of clusters) {
+    if (c.sig) { c.s = SIGMETS.find(s => s.id === c.sig); c.c0 = polyCentroid(c.s); }
+    else { c.c0 = APTXY[c.fixed]; }
+  }
+  return clusters;
+}
+let CLUSTERS = buildClustersFromSigmets(SIGMETS);
 let FZ = 0, FTOP = 0, FTURB = 0;
 function field(x, y, tMin, P) {
   const tE = tMin + P.shift;
@@ -884,7 +913,65 @@ function applyTraineeMode() {
   updatePlayLabels();
   dirty = true;
 }
-(document.fonts && document.fonts.ready ? document.fonts.ready.then(init) : Promise.resolve(init())).then(applyTraineeMode);
+(document.fonts && document.fonts.ready ? document.fonts.ready.then(init) : Promise.resolve(init())).then(applyTraineeMode).then(() => {
+  // 🌟 等埋 init()/applyTraineeMode 都行完先 send "ready"——parent 收到呢個先
+  // postMessage 真正嘅 scenario 資料過嚟，確保 $('inAir') 呢類 DOM 已經齊晒
+  try { window.parent.postMessage({ type: 'eff-nd-ready' }, '*'); } catch (e) { }
+});
+
+// 🌟 Phase 2：EFF 嗰邊真正 parse 咗嘅 SIGMET/airborne time，由 parent page
+// postMessage 過嚟呢個 iframe，覆寫返呢個檔案自己嗰份示範用嘅 hard-coded
+// 常數。用 postMessage 唔用 query string——SIGMET 可以有成幾條、每條都帶
+// 埋 polygon 座標，塞落 URL 唔啱，而且 EFF 嗰邊已經有一份測試過嘅
+// parseSigmetBulletin()（睇 src/lib/weather/sigmetParser.ts），呢個 iframe
+// 唔使重新再寫一次 parsing 邏輯，淨係接收 parse 好嘅結果
+const COMPASS_DEG = { N: 0, NNE: 22.5, NE: 45, ENE: 67.5, E: 90, ESE: 112.5, SE: 135, SSE: 157.5, S: 180, SSW: 202.5, SW: 225, WSW: 247.5, W: 270, WNW: 292.5, NW: 315, NNW: 337.5 };
+function hhmmToMin(hhmm) {
+  const h = parseInt(String(hhmm).slice(0, 2), 10) || 0, m = parseInt(String(hhmm).slice(2, 4), 10) || 0;
+  return h * 60 + m;
+}
+// 🌟 list 入面嘅 poly 用 [lat, lon]（同 sigmetParser.ts 一致），呢個檔案自己
+// 一路用緊 [lon, lat]（睇 sigPolyXY/polyCentroid 點用 toXY(p[1], p[0])）——
+// 入嚟呢度即刻反轉，唔好將呢個分歧帶入 SIGMETS 數組入面
+function applyScenarioSigmets(list) {
+  const polysOnly = (list || []).filter((s) => s && s.type === 'polygon' && Array.isArray(s.poly) && s.poly.length >= 3);
+  if (polysOnly.length === 0) return; // 冇真正 polygon SIGMET 就保持而家個 fallback 示範數據，唔清空個 radar
+  SIGMETS = polysOnly.map((s) => ({
+    id: s.firCode + '-' + s.sigmetNumber,
+    label: s.sigmetNumber,
+    name: s.hazard,
+    t0: hhmmToMin(s.refTime),
+    vdir: COMPASS_DEG[String(s.movDir || 'W').toUpperCase()] ?? 270,
+    vkt: s.movSpdKt || 15,
+    color: hazardColor(s.hazard),
+    poly: s.poly.map((p) => [p[1], p[0]]),
+  }));
+  CLUSTERS = buildClustersFromSigmets(SIGMETS);
+  dirty = true;
+}
+function applyScenarioAirborne(hhmm_) {
+  const m = hhmmToMin(hhmm_);
+  if (!Number.isFinite(m) || m < 0 || m >= 1440) return;
+  S.airborne = m;
+  S.rep.t = Math.max(S.rep.t, m);
+  if ($('inAir')) $('inAir').value = hhmm(S.airborne);
+  if (S.tab === 'inter') { S.int.ac = null; startInteractive(Math.max(S.airborne + 20, 380)); }
+  dirty = true;
+}
+window.addEventListener('message', (e) => {
+  const data = e.data;
+  if (!data || typeof data !== 'object') return;
+  if (data.type === 'eff-scenario-sigmets') applyScenarioSigmets(data.sigmets);
+  if (data.type === 'eff-scenario-airborne' && typeof data.airborneZ === 'string') applyScenarioAirborne(data.airborneZ);
+});
+// 🌟 debug 用：top-level `let`/`const` 喺呢種 classic script 入面唔會自動變
+// 成 window.X（唔似 `var`），開發者工具 console 入面冇得直接睇到 SIGMETS/S
+// 行緊乜嘢值。曝露一個細細嘅 getter 落 window，方便人手喺瀏覽器 debug，亦都
+// 俾 EFF 嗰邊嘅自動化測試可以直接讀返 live 嘅 state
+window.__nd = {
+  get SIGMETS() { return SIGMETS; },
+  get S() { return S; },
+};
 
 </script>
 </body>
