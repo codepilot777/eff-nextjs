@@ -128,7 +128,8 @@ ul.log{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
           <div class="row" id="rowLateral"><span class="lbl">Lateral</span><button class="b" id="fLnav" type="button">LNAV</button><button class="b" id="fHdg" type="button">HDG SEL</button><button class="b" id="fHold" type="button">Hold HLD01</button></div>
           <div class="row" id="rowHeading" style="margin-top:6px"><span class="lbl">Heading</span><button class="b" type="button" data-hd="-10">−10</button><button class="b" type="button" data-hd="-5">−5</button><button class="b" type="button" data-hd="5">+5</button><button class="b" type="button" data-hd="10">+10</button></div>
           <div class="row" id="rowDirect" style="margin-top:6px"><span class="lbl">Direct</span><button class="b" type="button" data-dct="VHHH">VHHH</button><button class="b" type="button" data-dct="RCKH">RCKH</button><button class="b" type="button" data-dct="RPLL">RPLL</button><button class="b" type="button" data-dct="RCTP">RCTP</button></div>
-          <div class="row" style="margin-top:6px"><span class="lbl">Altitude</span><button class="b" id="altAutoBtn" type="button"><span id="altMode">AUTO</span></button><button class="b" id="altDn" type="button">− 1000</button><button class="b" id="altUp" type="button">+ 1000</button></div>
+          <div class="row" id="rowAltitude" style="margin-top:6px"><span class="lbl">Altitude</span><button class="b" id="altAutoBtn" type="button"><span id="altMode">AUTO</span></button><button class="b" id="altDn" type="button">− 1000</button><button class="b" id="altUp" type="button">+ 1000</button></div>
+          <div class="row" id="rowAltitudePresets" style="margin-top:6px" hidden><span class="lbl">Altitude</span><button class="b" type="button" data-altpreset="5000">5000</button><button class="b" type="button" data-altpreset="10000">10000</button><button class="b" type="button" data-altpreset="15000">15000</button><button class="b" type="button" data-altpreset="20000">20000</button></div>
         </div>
 
         <div id="blkObserver">
@@ -858,19 +859,51 @@ function init() {
 
   /* flight controls */
   const A = () => S.int.ac;
-  $('fLnav').onclick = () => { const a = A(); if (a.mode === 'HOLD') { a.nextIdx = VHHH_IDX; a.atcHold = false; } a.mode = 'LNAV'; if (a.nextIdx > VHHH_IDX) a.nextIdx = VHHH_IDX; logEv('LNAV selected'); dirty = true; };
-  $('fHdg').onclick = () => { const a = A(); a.mode = 'HDG'; a.selHdg = Math.round(a.hdg); logEv('HDG SEL ' + a.selHdg); dirty = true; };
-  $('fHold').onclick = () => { const a = A(); a.mode = 'LNAV'; a.nextIdx = HLD_IDX; a.atcHold = true; logEv('Routed to hold at HLD01'); dirty = true; };
-  document.querySelectorAll('[data-hd]').forEach(b => b.onclick = () => { const a = A(); if (a.mode !== 'HDG') { a.mode = 'HDG'; a.selHdg = Math.round(a.hdg); } a.selHdg = (a.selHdg + +b.dataset.hd + 360) % 360; logEv('HDG SEL ' + String(a.selHdg).padStart(3, '0')); dirty = true; });
+  // 🌟 教官喺 IOS 自己個 iframe 度撳呢幾個 Flight 掣嗰陣，連埋將呢個「意圖」
+  // postMessage 返出去俾 parent（睇 WxRadarTab.tsx），等 parent 寫落
+  // scenario_aircraft_override，trainee 嗰邊個 iframe 先至會跟住做同一個決定。
+  // Trainee 自己嗰邊（?mode=trainee）嘅 handler 都係用緊呢套 wiring（因為
+  // Lateral/Heading/Direct 掣本身已經喺 applyTraineeMode() 度 hidden 咗，根本
+  // 撳唔到），所以呢度淨係要防 trainee 嗰邊剩低嘅 Altitude preset 掣唔好
+  // 逆向覆寫返教官嘅權威狀態
+  const isTraineeMode = new URLSearchParams(location.search).get('mode') === 'trainee';
+  function broadcastAircraftOverride() {
+    if (isTraineeMode) return;
+    const a = A();
+    if (!a) return;
+    try {
+      window.parent.postMessage({
+        type: 'eff-aircraft-action',
+        override: { mode: a.mode, selHdg: a.selHdg, tgtName: a.tgt ? a.tgt.name : null, atcHold: a.atcHold, nextIdx: a.nextIdx, altMode: a.altMode, altSel: a.altSel },
+      }, '*');
+    } catch (e) { }
+  }
+  $('fLnav').onclick = () => { const a = A(); if (a.mode === 'HOLD') { a.nextIdx = VHHH_IDX; a.atcHold = false; } a.mode = 'LNAV'; if (a.nextIdx > VHHH_IDX) a.nextIdx = VHHH_IDX; logEv('LNAV selected'); broadcastAircraftOverride(); dirty = true; };
+  $('fHdg').onclick = () => { const a = A(); a.mode = 'HDG'; a.selHdg = Math.round(a.hdg); logEv('HDG SEL ' + a.selHdg); broadcastAircraftOverride(); dirty = true; };
+  $('fHold').onclick = () => { const a = A(); a.mode = 'LNAV'; a.nextIdx = HLD_IDX; a.atcHold = true; logEv('Routed to hold at HLD01'); broadcastAircraftOverride(); dirty = true; };
+  document.querySelectorAll('[data-hd]').forEach(b => b.onclick = () => { const a = A(); if (a.mode !== 'HDG') { a.mode = 'HDG'; a.selHdg = Math.round(a.hdg); } a.selHdg = (a.selHdg + +b.dataset.hd + 360) % 360; logEv('HDG SEL ' + String(a.selHdg).padStart(3, '0')); broadcastAircraftOverride(); dirty = true; });
   document.querySelectorAll('[data-dct]').forEach(b => b.onclick = () => {
     const a = A(), k = b.dataset.dct;
     if (k === 'VHHH') { a.mode = 'LNAV'; a.nextIdx = VHHH_IDX; a.atcHold = false; }
     else { a.mode = 'DIRECT'; a.tgt = { name: k, x: APTXY[k][0], y: APTXY[k][1] }; }
-    logEv('Direct to ' + k); dirty = true;
+    logEv('Direct to ' + k); broadcastAircraftOverride(); dirty = true;
   });
-  $('altAutoBtn').onclick = () => { const a = A(); a.altMode = a.altMode === 'AUTO' ? 'MAN' : 'AUTO'; if (a.altMode === 'MAN') a.altSel = Math.round(a.alt / 1000) * 1000; $('altMode').textContent = a.altMode; dirty = true; };
-  const altAdj = d => { const a = A(); if (a.altMode !== 'MAN') { a.altMode = 'MAN'; a.altSel = Math.round(a.alt / 1000) * 1000; } a.altSel = Math.max(1000, Math.min(41000, a.altSel + d)); $('altMode').textContent = 'MAN ' + a.altSel / 1000 + 'k'; dirty = true; };
+  $('altAutoBtn').onclick = () => { const a = A(); a.altMode = a.altMode === 'AUTO' ? 'MAN' : 'AUTO'; if (a.altMode === 'MAN') a.altSel = Math.round(a.alt / 1000) * 1000; $('altMode').textContent = a.altMode; broadcastAircraftOverride(); dirty = true; };
+  const altAdj = d => { const a = A(); if (a.altMode !== 'MAN') { a.altMode = 'MAN'; a.altSel = Math.round(a.alt / 1000) * 1000; } a.altSel = Math.max(1000, Math.min(41000, a.altSel + d)); $('altMode').textContent = 'MAN ' + a.altSel / 1000 + 'k'; broadcastAircraftOverride(); dirty = true; };
   $('altDn').onclick = () => altAdj(-1000); $('altUp').onclick = () => altAdj(1000);
+
+  // 🌟 trainee 嘅簡化 Altitude 掣：5000/10000/15000/20000，一撳就同時改埋
+  // altitude 同 tilt——trainee 唔使識點樣自己搵啱個 tilt 先睇到前面嘅天氣，
+  // 揀個飛行高度，系統自動幫佢揀返個合理嘅 tilt（高度愈低，tilt 要愈向上揚）
+  const ALT_TILT_PRESETS = { 5000: 4, 10000: 3, 15000: 2, 20000: 1 };
+  document.querySelectorAll('[data-altpreset]').forEach(b => b.onclick = () => {
+    const a = A(), alt = +b.dataset.altpreset, tilt = ALT_TILT_PRESETS[alt] ?? 0;
+    a.altMode = 'MAN'; a.altSel = alt; $('altMode').textContent = 'MAN ' + (alt / 1000) + 'k';
+    S.view.tiltAuto = false; S.view.tilt = tilt;
+    document.querySelectorAll('[data-altpreset]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    logEv('Altitude ' + (alt / 1000) + 'k, Tilt ' + (tilt >= 0 ? '+' : '') + tilt + '°');
+    dirty = true;
+  });
 
   $('inAir').value = hhmm(S.airborne);
   const h = (location.hash || '').replace('#', '');
@@ -904,10 +937,12 @@ let setTabRef = setTab;
 // 模式一入嚟就自動 play，用返個 15x 速度（同而家 IOS 側試過嘅預設一樣）
 function applyTraineeMode() {
   if (new URLSearchParams(location.search).get('mode') !== 'trainee') return;
-  ['blkClock', 'blkObserver', 'rowTilt', 'rowLateral', 'rowHeading', 'rowDirect'].forEach((id) => {
+  ['blkClock', 'blkObserver', 'rowTilt', 'rowLateral', 'rowHeading', 'rowDirect', 'rowAltitude'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.hidden = true;
   });
+  const presets = document.getElementById('rowAltitudePresets');
+  if (presets) presets.hidden = false;
   S.int.playing = true;
   S.int.speed = 15;
   updatePlayLabels();
@@ -958,11 +993,29 @@ function applyScenarioAirborne(hhmm_) {
   if (S.tab === 'inter') { S.int.ac = null; startInteractive(Math.max(S.airborne + 20, 380)); }
   dirty = true;
 }
+// 🌟 教官喺 IOS 自己個 iframe 度撳 LNAV/HDG/Hold/Direct/Altitude 嗰刻嘅「意圖」
+// （睇上面 broadcastAircraftOverride），parent 寫落 scenario_aircraft_override
+// 之後會 postMessage 落呢個 iframe。呢度淨係覆寫 mode/target/altitude 呢幾樣
+// 「決定」，x/y/alt/hdg 等實際物理狀態繼續由自己嗰份 S.int.ac 用返
+// stepAircraft() 計落去——咁樣兩邊（教官/trainee）各自行緊自己條 clock，但
+// 跟住嘅係同一個決定，唔使逐 frame 強行對齊座標
+function applyScenarioAircraft(override) {
+  if (!override || S.tab !== 'inter' || !S.int.ac) return;
+  const a = S.int.ac;
+  a.mode = override.mode || a.mode;
+  if (typeof override.selHdg === 'number') a.selHdg = override.selHdg;
+  a.atcHold = !!override.atcHold;
+  if (typeof override.nextIdx === 'number') a.nextIdx = override.nextIdx;
+  if (override.tgtName && APTXY[override.tgtName]) a.tgt = { name: override.tgtName, x: APTXY[override.tgtName][0], y: APTXY[override.tgtName][1] };
+  if (override.altMode) { a.altMode = override.altMode; if (typeof override.altSel === 'number') a.altSel = override.altSel; if ($('altMode')) $('altMode').textContent = a.altMode === 'MAN' ? 'MAN ' + (a.altSel / 1000) + 'k' : 'AUTO'; }
+  dirty = true;
+}
 window.addEventListener('message', (e) => {
   const data = e.data;
   if (!data || typeof data !== 'object') return;
   if (data.type === 'eff-scenario-sigmets') applyScenarioSigmets(data.sigmets);
   if (data.type === 'eff-scenario-airborne' && typeof data.airborneZ === 'string') applyScenarioAirborne(data.airborneZ);
+  if (data.type === 'eff-scenario-aircraft') applyScenarioAircraft(data.override);
 });
 // 🌟 debug 用：top-level `let`/`const` 喺呢種 classic script 入面唔會自動變
 // 成 window.X（唔似 `var`），開發者工具 console 入面冇得直接睇到 SIGMETS/S

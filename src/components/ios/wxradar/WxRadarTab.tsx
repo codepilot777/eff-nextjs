@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
-import { useWxRadarSync } from "@/hooks/useWxRadarSync";
+import { useWxRadarSync, type AircraftOverride } from "@/hooks/useWxRadarSync";
 import { parseSigmetBulletin } from "@/lib/weather/sigmetParser";
 import SigmetChart from "@/components/weather/SigmetChart";
 
@@ -148,16 +148,26 @@ function AirborneTimeControl() {
 // 🌟 Phase 2：教官呢度 save 低嘅 SIGMET/airborne time，而家會真係 postMessage
 // 落 iframe（睇 useWxRadarSync + weather-nd/index.html 嘅 applyScenarioSigmets/
 // applyScenarioAirborne），即時反映落個雷達畫面，唔使 Observer 自己手動對齊。
-// scenario_aircraft_override（教官手動 override 飛機位置）同埋真正跟 EFF OFP
-// route（而家 ND 用緊嘅 RCTP-VHHH route 仲係呢個 scenario 自己 hard-code 嗰套）
-// 仲未做，係呢個 Phase 2 之後嘅工夫
+// 教官喺呢個 iframe 度撳 LNAV/HDG/Hold/Direct/Altitude 嗰陣，個 iframe 會
+// postMessage 返「我撳咗咩」畀呢度（onAircraftAction），即刻寫落
+// scenario_aircraft_override，等 trainee 嗰邊個 iframe 跟住做同一個決定。
+// 真正跟 EFF OFP route（而家 ND 用緊嘅 RCTP-VHHH route 仲係呢個 scenario 自己
+// hard-code 嗰套）仲未做，係呢個 Phase 2 之後嘅工夫
 export default function WxRadarTab() {
-  const { flightData } = useFlightData();
+  const { flightData, updateFlightData } = useFlightData();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const rawText: string = flightData?.scenario_sigmets_raw || "";
   const parsed = parseSigmetBulletin(rawText);
-  useWxRadarSync(iframeRef, parsed, flightData?.scenario_airborne_time_z);
+
+  const handleAircraftAction = useCallback(
+    (override: AircraftOverride) => {
+      updateFlightData({ scenario_aircraft_override: override });
+    },
+    [updateFlightData]
+  );
+
+  useWxRadarSync(iframeRef, parsed, flightData?.scenario_airborne_time_z, flightData?.scenario_aircraft_override, handleAircraftAction);
 
   return (
     <div className="h-full flex flex-col gap-4 md:flex-row">
@@ -167,7 +177,7 @@ export default function WxRadarTab() {
         <div className="flex-none px-4 py-2 border-b border-[#333] flex items-center justify-between gap-3">
           <span className="text-[#00bfa5] font-black text-xs tracking-widest uppercase shrink-0">🌩️ Observer Weather Radar (ND)</span>
           <AirborneTimeControl />
-          <span className="text-[#8fa0a6] text-[0.65rem] font-mono shrink-0">Phase 2 · SIGMETs/airborne live-synced</span>
+          <span className="text-[#8fa0a6] text-[0.65rem] font-mono shrink-0">Phase 2 · SIGMETs/airborne/aircraft live-synced</span>
         </div>
         <iframe
           ref={iframeRef}

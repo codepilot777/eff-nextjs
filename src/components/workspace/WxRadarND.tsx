@@ -21,7 +21,7 @@ export default function WxRadarND() {
 
   const rawText: string = flightData?.scenario_sigmets_raw || "";
   const parsed = parseSigmetBulletin(rawText);
-  useWxRadarSync(iframeRef, parsed, flightData?.scenario_airborne_time_z);
+  useWxRadarSync(iframeRef, parsed, flightData?.scenario_airborne_time_z, flightData?.scenario_aircraft_override);
 
   return (
     <div className="flex-1 min-h-0 bg-[#1a1a1a] border border-[#333] rounded-xl overflow-hidden flex flex-col">
