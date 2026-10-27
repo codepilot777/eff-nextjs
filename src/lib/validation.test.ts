@@ -130,6 +130,12 @@ describe('requiresInstructorAuthForFlight', () => {
   it('gates writes to lesson_runsheet (the instructor-only IOS sidebar checklist)', () => {
     expect(requiresInstructorAuthForFlight({ data: { lesson_runsheet: '- [x] Fake tick' } })).toBe(true);
   });
+
+  it('gates writes to the Weather Radar scenario fields (SIGMETs, airborne time, aircraft override)', () => {
+    expect(requiresInstructorAuthForFlight({ data: { scenario_sigmets_raw: 'VHHK SIGMET 3 VALID...' } })).toBe(true);
+    expect(requiresInstructorAuthForFlight({ data: { scenario_airborne_time_z: '0600' } })).toBe(true);
+    expect(requiresInstructorAuthForFlight({ data: { scenario_aircraft_override: { mode: 'HOLD' } } })).toBe(true);
+  });
 });
 
 describe('flightDeleteBodySchema', () => {

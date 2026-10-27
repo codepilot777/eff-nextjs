@@ -21,14 +21,17 @@ import TechLogModal from "@/components/techlog/TechLogModal";
 // 🕹️ Sim Control 組件
 import SimControlTab from "@/components/ios/simcontrol/SimControlTab";
 
+// 🌩️ Observer Weather Radar (ND) 組件
+import WxRadarTab from "@/components/ios/wxradar/WxRadarTab";
+
 // 📋 Lesson Runsheet Sidebar
 import LessonRunsheetSidebar from "@/components/ios/LessonRunsheetSidebar";
 
 function IOSPanelContent() {
   const router = useRouter();
-  
+
   // 🌟 頂層三大主模組狀態切換
-  const [activeModule, setActiveModule] = useState<"EFB" | "TECHLOG" | "SIM">("EFB");
+  const [activeModule, setActiveModule] = useState<"EFB" | "TECHLOG" | "SIM" | "WXRADAR">("EFB");
   
   // EFB 內部嘅 Workflow Tab 切換
   const [efbTab, setEfbTab] = useState("Config");
@@ -117,6 +120,14 @@ function IOSPanelContent() {
         >
           🕹️ SIM CONTROL
         </button>
+        <button
+          onClick={() => setActiveModule("WXRADAR")}
+          className={`flex-1 py-3 rounded-xl font-black tracking-widest text-[0.65rem] md:text-sm transition-all ${
+            activeModule === "WXRADAR" ? "bg-[#4cb4e8] text-black shadow-[0_0_15px_rgba(76,180,232,0.3)]" : "bg-[#1a1a1a] text-gray-400 hover:bg-[#2a2a2a] border border-[#333]"
+          }`}
+        >
+          🌩️ WX RADAR
+        </button>
       </div>
 
       {/* ========================================== */}
@@ -177,14 +188,17 @@ function IOSPanelContent() {
 
         {/* 🕹️ 模組 3: Sim Control (我們剛重構的傑作) */}
         {activeModule === "SIM" && (
-          <SimControlTab 
-            isConnected={isConnected} 
-            telemetry={telemetry} 
-            readSimData={readSimData} 
-            sendToFSUIPC={sendToFSUIPC} 
+          <SimControlTab
+            isConnected={isConnected}
+            telemetry={telemetry}
+            readSimData={readSimData}
+            sendToFSUIPC={sendToFSUIPC}
           />
         )}
-        
+
+        {/* 🌩️ 模組 4: Observer Weather Radar (ND) */}
+        {activeModule === "WXRADAR" && <WxRadarTab />}
+
       </div>
 
       {/* 🌟 保留 TechLog Modal 彈出邏輯：當 activeModule 切換至 TECHLOG 時，觸發開啟 */}
