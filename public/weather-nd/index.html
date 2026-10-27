@@ -33,7 +33,6 @@ nav button{font:inherit;font-weight:600;color:var(--muted);background:none;borde
 nav button[aria-selected=true]{color:var(--fg);border-bottom-color:var(--accent)}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .note{color:var(--muted);font-size:13px;margin:0;max-width:90ch}
-.snapGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:16px}
 .snap{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .snap canvas{display:block;width:100%;height:auto;background:var(--nd)}
 .snap figcaption{padding:10px 12px;display:flex;flex-direction:column;gap:2px;font-size:13px}
@@ -80,18 +79,7 @@ ul.log{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
     </div>
   </header>
 
-  <nav role="tablist" aria-label="Demo views" hidden>
-    <button role="tab" id="tab-snap" aria-selected="true">Snapshots</button>
-    <button role="tab" id="tab-rep" aria-selected="false">Replay</button>
-    <button role="tab" id="tab-inter" aria-selected="false">Interactive</button>
-  </nav>
-
-  <section id="paneSnap">
-    <p class="note">Six ND pictures along the planned flight, in the colours and layout of a 777 ARC display. Change the airborne time above and the aircraft moves against the same weather. Printable as briefing material.</p>
-    <div class="snapGrid" id="snapGrid" style="margin-top:12px"></div>
-  </section>
-
-  <section id="paneScope" hidden>
+  <section id="paneScope">
     <div class="scope">
       <div>
         <div class="ndBox">
@@ -107,12 +95,10 @@ ul.log{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
           <h2>Clock</h2>
           <div class="row" style="justify-content:space-between"><span class="clock" id="clock">27 0000:00Z</span>
             <span class="row"><button class="b pri" id="btnPlay" type="button">Play</button><span class="seg" id="spdSeg"></span></span></div>
-          <div class="onlyRep" style="margin-top:8px"><input type="range" id="tl" min="360" max="510" step="0.25" aria-label="Replay time"></div>
           <div class="row" style="margin-top:8px">
             <span class="lbl">Jump</span>
             <button class="b" type="button" data-jump="380">0620</button><button class="b" type="button" data-jump="400">0640</button><button class="b" type="button" data-jump="420">0700</button><button class="b" type="button" data-jump="440">0720</button><button class="b" type="button" data-jump="460">0740</button><button class="b" type="button" data-jump="480">0800</button>
           </div>
-          <div class="row onlyRep" style="margin-top:8px"><button class="b pri" id="btnTake" type="button">Take control here</button></div>
           <div class="row onlyInt" style="margin-top:8px"><button class="b" id="btnReset" type="button">Restart from plan at current time</button></div>
         </div>
 
@@ -626,7 +612,12 @@ function drawND(cv, ac, tMin, P, o) {
   };
   for (let i = 1; i < ROUTE.length - 1; i++) if (i >= ac.nextIdx - 0) drawFix(ROUTE[i].name, ROUTE[i].x, ROUTE[i].y, i === ac.nextIdx ? MAGENTA : '#fff');
   /* airports */
-  for (const k of ['VHHH', 'RCKH', 'RPLL', 'RCTP']) {
+  // 🌟 唔可以再 hard-code 嗰 4 個demo機場code——真實 OFP 套用咗之後 APTXY
+  // 得返 dep/arr 兩個鍵，用返呢 4 個死 code 會 APTXY[k] undefined 再爆錯，
+  // 成個 render loop（靠 requestAnimationFrame 自己再 call 自己）就會喺嗰刻
+  // 死硬，連之前已經畫好嘅天氣都唔會再 update。改用 `for...in` 動態走晒
+  // APTXY 現存嘅機場
+  for (const k in APTXY) {
     const q = sp(APTXY[k][0], APTXY[k][1]); if (q[1] > CY + 4) continue;
     ctx.strokeStyle = CYAN; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(q[0], q[1], 6, 0, 7); ctx.moveTo(q[0] - 9, q[1]); ctx.lineTo(q[0] + 9, q[1]); ctx.moveTo(q[0], q[1] - 9); ctx.lineTo(q[0], q[1] + 9); ctx.stroke();
@@ -693,7 +684,7 @@ function drawND(cv, ac, tMin, P, o) {
   T(o.gainAuto ? 'GAIN AUTO' : 'GAIN M ' + (o.gain > 0 ? '+' : '') + o.gain, 16, H - 28, GREEN, 16, 'left', true);
   T('RNG ' + o.range, W - 16, H - 50, CYAN, 16, 'right', true);
   T(ac.alt >= 18000 ? 'FL' + Math.round(ac.alt / 100) : Math.round(ac.alt / 100) * 100 + ' FT', W - 16, H - 28, '#fff', 16, 'right', true);
-  if (ac.alt < 200 && ac.gs < 5) T('ON GROUND RCTP', CX, 130, '#fff', 20, 'center', true);
+  if (ac.alt < 200 && ac.gs < 5) T('ON GROUND ' + ROUTE[0].name, CX, 130, '#fff', 20, 'center', true);
 }
 
 /* ---- observer map ---- */
@@ -752,34 +743,10 @@ const P = () => ({ shift: S.fast ? 100 : 0 });
 let dirty = true;
 function acAt(tMin) { return plannedAt((tMin - S.airborne) * 60); }
 const rangeList = [10, 20, 40, 80, 160, 320];
-const SNAPS = [
-  { t: 380, range: 320, note: 'Cruise over the Taiwan Strait. Long-range look ahead.' },
-  { t: 400, range: 160, note: 'Runsheet time of the fuel pump failure.' },
-  { t: 420, range: 160, note: 'Runsheet 0700Z checkpoint.' },
-  { t: 440, range: 80, note: 'Short range, close look at the nearest cells.' },
-  { t: 460, range: 160, note: 'Runsheet 0740Z checkpoint.' },
-  { t: 460, range: 160, tiltAuto: false, tilt: 2, note: 'Same moment as the card on the left with tilt +2 manual. Less weather is displayed because the beam overshoots the lower cells.' }
-];
 function posText(ac) {
-  if (ac.alt < 200 && ac.gs < 5) return 'On the ground, RCTP';
-  if (ac.mode === 'HOLD') return 'Holding at HLD01';
+  if (ac.alt < 200 && ac.gs < 5) return 'On the ground, ' + ROUTE[0].name;
+  if (ac.mode === 'HOLD') return 'Holding at HOLD01';
   const n = nextFixInfo(ac); return 'To ' + n.name + ' ' + Math.round(n.d) + ' NM';
-}
-function renderSnaps() {
-  const grid = $('snapGrid');
-  if (!grid.children.length) {
-    SNAPS.forEach((s, i) => {
-      const c = document.createElement('figure'); c.className = 'snap';
-      c.innerHTML = '<canvas width="' + W + '" height="' + H + '" id="sn' + i + '" aria-label="Weather ND snapshot ' + (i + 1) + '"></canvas><figcaption><b id="snh' + i + '"></b><span id="snc' + i + '"></span><em>' + s.note + '</em></figcaption>';
-      grid.appendChild(c);
-    });
-  }
-  SNAPS.forEach((s, i) => {
-    const ac = acAt(s.t);
-    drawND($('sn' + i), ac, s.t, P(), { range: s.range, tiltAuto: s.tiltAuto !== false, tilt: s.tilt || 0, gainAuto: true, gain: 0 });
-    $('snh' + i).textContent = hhmm(s.t) + 'Z · range ' + s.range + ' NM';
-    $('snc' + i).textContent = posText(ac) + ' · ' + (ac.alt >= 18000 ? 'FL' + Math.round(ac.alt / 100) : Math.round(ac.alt / 100) * 100 + ' ft');
-  });
 }
 
 /* ===== scope (replay / interactive) ===== */
@@ -791,7 +758,6 @@ function renderScope() {
   const trail = S.tab === 'inter' ? S.int.trail : (function () { const a = []; for (let m = S.airborne; m <= t; m += 1) { const q = acAt(m); a.push([q.x, q.y]); } return a; })();
   drawMap($('map'), ac, t, p, trail, S.showWx);
   $('clock').textContent = '27 ' + hhmm(t) + ':' + String(Math.floor(((t % 1) * 60))).padStart(2, '0') + 'Z';
-  if (S.tab === 'rep') $('tl').value = t;
   const n = nextFixInfo(ac);
   const kv = {
     kPos: posText(ac), kMode: ac.mode === 'HDG' ? 'HDG SEL ' + Math.round(ac.selHdg) : ac.mode === 'DIRECT' ? 'DIRECT ' + ac.tgt.name : ac.mode === 'HOLD' ? 'HOLD ' + ac.hold.phase : 'LNAV',
@@ -834,18 +800,13 @@ function startInteractive(t) {
   logEv('Started from the planned flight at ' + hhmm(t) + 'Z');
   if (t >= S.airborne) { /* keep log tidy */ }
 }
+// 🌟 Snapshots/Replay tab 已經刪走（instructor 同 trainee 都淨係用
+// Interactive）——setTab() 而家只會俾 'inter' call 過，留低呢個 function
+// 淨係等 startInteractive/dirty 嗰套初始化邏輯唔使拆散
 function setTab(tab) {
   S.tab = tab;
-  for (const t of ['snap', 'rep', 'inter']) {
-    $('tab-' + t).setAttribute('aria-selected', String(t === tab));
-    $('tab-' + t).tabIndex = t === tab ? 0 : -1;
-  }
-  $('paneSnap').hidden = tab !== 'snap'; $('paneScope').hidden = tab === 'snap';
-  document.querySelectorAll('.onlyRep').forEach(e => e.hidden = tab !== 'rep');
-  document.querySelectorAll('.onlyInt').forEach(e => e.hidden = tab !== 'inter');
-  if (tab === 'inter' && !S.int.ac) startInteractive(Math.max(S.airborne + 20, 380));
-  S.rep.playing = false; S.int.playing = false; updatePlayLabels();
-  try { history.replaceState(null, '', '#' + tab); } catch (e) { }
+  if (!S.int.ac) startInteractive(Math.max(S.airborne + 20, 380));
+  S.int.playing = false; updatePlayLabels();
   dirty = true;
 }
 function updatePlayLabels() {
@@ -859,14 +820,13 @@ function seg(id, values, cur, cb, fmt) {
   values.forEach(v => { const b = document.createElement('button'); b.type = 'button'; b.textContent = fmt ? fmt(v) : v; b.dataset.v = v; b.setAttribute('aria-pressed', String(v === cur)); b.onclick = () => { cb(v); Array.from(el.children).forEach(c => c.setAttribute('aria-pressed', String(c.dataset.v == v))); dirty = true; }; el.appendChild(b); });
 }
 function init() {
-  ['snap', 'rep', 'inter'].forEach(t => $('tab-' + t).onclick = () => setTab(t));
   $('inAir').onchange = () => {
     const v = $('inAir').value.replace(/\D/g, '').padStart(4, '0');
     const m = Math.min(23, +v.slice(0, 2)) * 60 + Math.min(59, +v.slice(2));
-    if (m >= 0 && m < 1440) { S.airborne = m; S.rep.t = Math.max(S.rep.t, m); S.int.ac = null; if (S.tab === 'inter') startInteractive(Math.max(m + 20, 380)); renderSnaps(); dirty = true; }
+    if (m >= 0 && m < 1440) { S.airborne = m; S.int.ac = null; startInteractive(Math.max(m + 20, 380)); dirty = true; }
     $('inAir').value = hhmm(S.airborne);
   };
-  $('inPace').onchange = () => { S.fast = $('inPace').value === 'fast'; renderSnaps(); dirty = true; };
+  $('inPace').onchange = () => { S.fast = $('inPace').value === 'fast'; dirty = true; };
   seg('rngSeg', rangeList, S.view.range, v => S.view.range = +v);
   $('tiltAutoBtn').onclick = () => { if (!S.view.tiltAuto) { S.view.tiltAuto = true; } else { S.view.tiltAuto = false; S.view.tilt = autoTilt(curAc().alt, S.view.range); } dirty = true; };
   $('tiltDn').onclick = () => { if (S.view.tiltAuto) { S.view.tilt = autoTilt(curAc().alt, S.view.range); S.view.tiltAuto = false; } S.view.tilt = Math.max(-15, S.view.tilt - 0.5); dirty = true; };
@@ -879,13 +839,8 @@ function init() {
   const spdVals = { rep: [5, 15, 60], inter: [1, 5, 15, 30] };
   function buildSpeed() { const k = S.tab === 'inter' ? 'inter' : 'rep'; const cur = k === 'inter' ? S.int.speed : S.rep.speed; seg('spdSeg', spdVals[k], cur, v => { if (S.tab === 'inter') S.int.speed = +v; else S.rep.speed = +v; }, v => v + '×'); }
   const origSetTab = setTab; setTab = function (t) { origSetTab(t); buildSpeed(); };
-  $('btnPlay').onclick = () => { if (S.tab === 'inter') S.int.playing = !S.int.playing; else S.rep.playing = !S.rep.playing; updatePlayLabels(); dirty = true; };
-  $('tl').oninput = () => { S.rep.t = +$('tl').value; dirty = true; };
-  document.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => {
-    const t = +b.dataset.jump;
-    if (S.tab === 'inter') startInteractive(t); else S.rep.t = t; dirty = true;
-  });
-  $('btnTake').onclick = () => { startInteractive(S.rep.t); setTab('inter'); };
+  $('btnPlay').onclick = () => { S.int.playing = !S.int.playing; updatePlayLabels(); dirty = true; };
+  document.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => { startInteractive(+b.dataset.jump); dirty = true; });
   $('btnReset').onclick = () => { startInteractive(S.int.t); dirty = true; };
 
   /* flight controls */
@@ -943,9 +898,7 @@ function init() {
   });
 
   $('inAir').value = hhmm(S.airborne);
-  const h = (location.hash || '').replace('#', '');
-  setTab('inter'); // Interactive-only build: Snapshots/Replay tabs hidden, always start here
-  renderSnaps();
+  setTab('inter'); // Interactive-only build: Snapshots/Replay tabs removed, always start here
   let last = performance.now(), acc = 0;
   function frame(ts) {
     const dt = Math.min(0.25, (ts - last) / 1000); last = ts; acc += dt;
