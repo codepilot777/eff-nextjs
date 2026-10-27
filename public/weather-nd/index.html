@@ -103,7 +103,7 @@ ul.log{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
         <p class="disc" style="margin-top:8px"><b>Not a real radar.</b> Fictional weather, simplified beam, tilt and attenuation model, generic colours and layout. Fix names are fictional. Distances use a flat chart, so treat them as approximate.</p>
       </div>
       <aside class="panel" aria-label="Controls">
-        <div>
+        <div id="blkClock">
           <h2>Clock</h2>
           <div class="row" style="justify-content:space-between"><span class="clock" id="clock">27 0000:00Z</span>
             <span class="row"><button class="b pri" id="btnPlay" type="button">Play</button><span class="seg" id="spdSeg"></span></span></div>
@@ -119,19 +119,19 @@ ul.log{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
         <div>
           <h2>Radar</h2>
           <div class="row"><span class="lbl">Range</span><span class="seg" id="rngSeg"></span><span class="val" id="vRange"></span></div>
-          <div class="row" style="margin-top:6px"><span class="lbl">Tilt</span><button class="b" id="tiltAutoBtn" type="button"><span id="tiltMode">AUTO</span></button><button class="b" id="tiltDn" type="button" aria-label="Tilt down">− 0.5°</button><button class="b" id="tiltUp" type="button" aria-label="Tilt up">+ 0.5°</button></div>
+          <div class="row" id="rowTilt" style="margin-top:6px"><span class="lbl">Tilt</span><button class="b" id="tiltAutoBtn" type="button"><span id="tiltMode">AUTO</span></button><button class="b" id="tiltDn" type="button" aria-label="Tilt down">− 0.5°</button><button class="b" id="tiltUp" type="button" aria-label="Tilt up">+ 0.5°</button></div>
           <div class="row" style="margin-top:6px"><span class="lbl">Gain</span><button class="b" id="gainAutoBtn" type="button"><span id="gainMode">AUTO</span></button><button class="b" id="gainDn" type="button" aria-label="Gain down">− 3 dB</button><button class="b" id="gainUp" type="button" aria-label="Gain up">+ 3 dB</button><span class="val" id="vGain"></span></div>
         </div>
 
         <div class="onlyInt">
           <h2>Flight</h2>
-          <div class="row"><span class="lbl">Lateral</span><button class="b" id="fLnav" type="button">LNAV</button><button class="b" id="fHdg" type="button">HDG SEL</button><button class="b" id="fHold" type="button">Hold HLD01</button></div>
-          <div class="row" style="margin-top:6px"><span class="lbl">Heading</span><button class="b" type="button" data-hd="-10">−10</button><button class="b" type="button" data-hd="-5">−5</button><button class="b" type="button" data-hd="5">+5</button><button class="b" type="button" data-hd="10">+10</button></div>
-          <div class="row" style="margin-top:6px"><span class="lbl">Direct</span><button class="b" type="button" data-dct="VHHH">VHHH</button><button class="b" type="button" data-dct="RCKH">RCKH</button><button class="b" type="button" data-dct="RPLL">RPLL</button><button class="b" type="button" data-dct="RCTP">RCTP</button></div>
+          <div class="row" id="rowLateral"><span class="lbl">Lateral</span><button class="b" id="fLnav" type="button">LNAV</button><button class="b" id="fHdg" type="button">HDG SEL</button><button class="b" id="fHold" type="button">Hold HLD01</button></div>
+          <div class="row" id="rowHeading" style="margin-top:6px"><span class="lbl">Heading</span><button class="b" type="button" data-hd="-10">−10</button><button class="b" type="button" data-hd="-5">−5</button><button class="b" type="button" data-hd="5">+5</button><button class="b" type="button" data-hd="10">+10</button></div>
+          <div class="row" id="rowDirect" style="margin-top:6px"><span class="lbl">Direct</span><button class="b" type="button" data-dct="VHHH">VHHH</button><button class="b" type="button" data-dct="RCKH">RCKH</button><button class="b" type="button" data-dct="RPLL">RPLL</button><button class="b" type="button" data-dct="RCTP">RCTP</button></div>
           <div class="row" style="margin-top:6px"><span class="lbl">Altitude</span><button class="b" id="altAutoBtn" type="button"><span id="altMode">AUTO</span></button><button class="b" id="altDn" type="button">− 1000</button><button class="b" id="altUp" type="button">+ 1000</button></div>
         </div>
 
-        <div>
+        <div id="blkObserver">
           <h2>Observer view</h2>
           <label class="chk" style="margin-bottom:6px"><input type="checkbox" id="showWx" checked> Show true weather on the map</label>
           <canvas id="map" width="540" height="540" aria-label="Plan view of the weather, SIGMETs, route and aircraft track"></canvas>
@@ -867,7 +867,24 @@ function init() {
   requestAnimationFrame(frame);
 }
 let setTabRef = setTab;
-document.fonts && document.fonts.ready ? document.fonts.ready.then(init) : init();
+
+// 🌟 ?mode=trainee（由 EFF trainee workspace 嗰個 iframe 加嘅）：trainee 淨係睇
+// Interactive 雷達畫面本身，唔應該有得手動跳時間/關 autopilot 改航向/用個
+// 「上帝視角」minimap 偷睇真實天氣——嗰啲控制留返俾教官喺 IOS 度搭景用。
+// Clock 畀拎走咗之後個 sim 都要郁得（唔係靠個已經冇咗嘅 Play 掣），所以 trainee
+// 模式一入嚟就自動 play，用返個 15x 速度（同而家 IOS 側試過嘅預設一樣）
+function applyTraineeMode() {
+  if (new URLSearchParams(location.search).get('mode') !== 'trainee') return;
+  ['blkClock', 'blkObserver', 'rowTilt', 'rowLateral', 'rowHeading', 'rowDirect'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.hidden = true;
+  });
+  S.int.playing = true;
+  S.int.speed = 15;
+  updatePlayLabels();
+  dirty = true;
+}
+(document.fonts && document.fonts.ready ? document.fonts.ready.then(init) : Promise.resolve(init())).then(applyTraineeMode);
 
 </script>
 </body>
