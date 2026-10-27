@@ -10,6 +10,7 @@ import Weather from "@/components/workspace/Weather";
 import Notam from "@/components/workspace/Notam";
 import Comms from "@/components/workspace/comms/Comms";
 import TechLog from "@/components/techlog/TechLog";
+import WxRadarND from "@/components/workspace/WxRadarND";
 import RefuelToast from "@/components/workspace/RefuelToast";
 import CathayLogo from "@/components/workspace/CathayLogo";
 
@@ -42,6 +43,7 @@ function WorkspaceContent() {
     { id: "NOTAM", label: "NOTAM", mobileLabel: "NOTAM" },
     { id: "COMMS", label: "COMMUNICATION", mobileLabel: "COMMS" },
     { id: "TECHLOG", label: "TECH LOG", mobileLabel: "TECH" },
+    { id: "ND", label: "ND", mobileLabel: "ND" },
   ];
 
   if (!flightId) return <div className="p-8 text-[#FF1744]">Error: Missing flight ID.</div>;
@@ -218,6 +220,7 @@ function WorkspaceContent() {
         {currentTab === "NOTAM" && flightData && <Notam />}
         {currentTab === "COMMS" && flightData && <Comms />}
         {currentTab === "TECHLOG" && flightData && <TechLog />}
+        {currentTab === "ND" && flightData && <WxRadarND />}
       </main>
 
       {/* 🌟 底部 Tabs — mobile 6 個掣塞唔晒一屏闊度，收窄 padding/字體，
