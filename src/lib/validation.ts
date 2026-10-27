@@ -200,16 +200,16 @@ export const PROTECTED_FLIGHT_PATCH_FIELDS = [
   // 🌟 lesson_runsheet：教官自己打嘅 lesson plan checklist（IOS sidebar），
   // 純粹教官用嚟提自己下一步做咩,同 atis_library 一樣唔應該俾 trainee 寫
   'lesson_runsheet',
-  // 🌟 scenario_sigmets_raw/scenario_airborne_time_z/scenario_aircraft_override：
+  // 🌟 scenario_sigmets_raw/scenario_airborne_time_z/scenario_active_snapshot_idx：
   // Observer Weather Radar (ND) scenario 嘅教官專屬設定——SIGMET 電報原文、模擬
-  // 起飛時間、同手動覆寫嘅 aircraft position，全部都係教官喺度搭景，trainee
-  // 完全唔應該寫得到（同其餘「扮 ATC/DISPATCH」欄位一樣嘅保護理由）。
+  // 起飛時間、同教官揀低畀 trainee 睇嘅 snapshot index，全部都係教官喺度搭景，
+  // trainee 完全唔應該寫得到（同其餘「扮 ATC/DISPATCH」欄位一樣嘅保護理由）。
   // scenario_sigmets_raw 淨係存原始 ICAO 電報文字，唔會額外存多一份 parse
   // 好嘅 structured copy——要用嗰陣再用 parseSigmetBulletin() 即時解析，
   // 兩份資料永遠唔會走樣
   'scenario_sigmets_raw',
   'scenario_airborne_time_z',
-  'scenario_aircraft_override',
+  'scenario_active_snapshot_idx',
 ] as const;
 
 export function hasProtectedFlightFields(patch: Record<string, unknown>): boolean {

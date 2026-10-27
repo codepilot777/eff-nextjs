@@ -131,10 +131,10 @@ describe('requiresInstructorAuthForFlight', () => {
     expect(requiresInstructorAuthForFlight({ data: { lesson_runsheet: '- [x] Fake tick' } })).toBe(true);
   });
 
-  it('gates writes to the Weather Radar scenario fields (SIGMETs, airborne time, aircraft override)', () => {
+  it('gates writes to the Weather Radar scenario fields (SIGMETs, airborne time, active snapshot)', () => {
     expect(requiresInstructorAuthForFlight({ data: { scenario_sigmets_raw: 'VHHK SIGMET 3 VALID...' } })).toBe(true);
     expect(requiresInstructorAuthForFlight({ data: { scenario_airborne_time_z: '0600' } })).toBe(true);
-    expect(requiresInstructorAuthForFlight({ data: { scenario_aircraft_override: { mode: 'HOLD' } } })).toBe(true);
+    expect(requiresInstructorAuthForFlight({ data: { scenario_active_snapshot_idx: 2 } })).toBe(true);
   });
 });
 

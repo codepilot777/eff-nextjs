@@ -35,6 +35,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .note{color:var(--muted);font-size:13px;margin:0;max-width:90ch}
 .snapGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:16px}
 .snap{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.snap.active{outline:3px solid var(--accent);outline-offset:-3px}
 .snap canvas{display:block;width:100%;height:auto;background:var(--nd)}
 .snap figcaption{padding:10px 12px;display:flex;flex-direction:column;gap:2px;font-size:13px}
 .snap figcaption b{font-family:var(--mono);font-weight:500;font-size:14px}
@@ -74,68 +75,28 @@ ul.log{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
       <h1>ORCHID Weather ND</h1>
       <p class="sub">Fictional 777 navigation display with weather radar returns for the RCTP to VHHH typhoon LOFT. Built from the same typhoon, SIGMETs and route as the runsheet.</p>
     </div>
-    <div class="setup">
+    <div class="setup" id="scenarioSetup">
       <label class="fld">Airborne (Z)<input id="inAir" inputmode="numeric" maxlength="4" value="0600" aria-label="Airborne time in Zulu, hhmm"></label>
       <label class="fld">Typhoon pace<select id="inPace"><option value="slow">Slow track</option><option value="fast">Fast track</option></select></label>
     </div>
   </header>
 
   <section id="paneSnap">
-    <p class="note">Six ND pictures along the planned flight, in the colours and layout of a 777 ARC display. Change the airborne time above and the pictures move against the same weather. Both IOS and trainee read the same planned trajectory, so the position in every picture is always identical on both sides — no live simulation to drift out of sync.</p>
+    <p class="note">Six ND pictures along the planned flight, in the colours and layout of a 777 ARC display. Change the airborne time above and the pictures move against the same weather. Pick one as the trainee's return — both sides read the same planned trajectory, so the position is always identical, no live simulation to drift out of sync.</p>
+    <p class="disc" style="margin-top:4px"><b>Not a real radar.</b> Fictional weather, simplified beam, tilt and attenuation model, generic colours and layout. Fix names are fictional. Distances use a flat chart, so treat them as approximate.</p>
     <div class="snapGrid" id="snapGrid" style="margin-top:12px"></div>
   </section>
 
-  <section id="paneScope" hidden>
-    <div class="scope">
-      <div>
-        <div class="ndBox">
-          <canvas id="nd" width="800" height="620" aria-label="Simulated 777 navigation display with weather radar"></canvas>
-          <div class="ndBar">
-            <span>Pos<b id="kPos"></b></span><span>Mode<b id="kMode"></b></span><span>Alt<b id="kAlt"></b></span><span>GS<b id="kGs"></b></span><span>Tilt<b id="kTilt"></b></span>
-          </div>
-        </div>
-        <p class="disc" style="margin-top:8px"><b>Not a real radar.</b> Fictional weather, simplified beam, tilt and attenuation model, generic colours and layout. Fix names are fictional. Distances use a flat chart, so treat them as approximate.</p>
-      </div>
-      <aside class="panel" aria-label="Controls">
-        <div id="blkClock">
-          <h2>Clock</h2>
-          <div class="row" style="justify-content:space-between"><span class="clock" id="clock">27 0000:00Z</span>
-            <span class="row"><button class="b pri" id="btnPlay" type="button">Play</button><span class="seg" id="spdSeg"></span></span></div>
-          <div class="row" style="margin-top:8px">
-            <span class="lbl">Jump</span>
-            <button class="b" type="button" data-jump="380">0620</button><button class="b" type="button" data-jump="400">0640</button><button class="b" type="button" data-jump="420">0700</button><button class="b" type="button" data-jump="440">0720</button><button class="b" type="button" data-jump="460">0740</button><button class="b" type="button" data-jump="480">0800</button>
-          </div>
-          <div class="row onlyInt" style="margin-top:8px"><button class="b" id="btnReset" type="button">Restart from plan at current time</button></div>
-        </div>
-
-        <div>
-          <h2>Radar</h2>
-          <div class="row"><span class="lbl">Range</span><span class="seg" id="rngSeg"></span><span class="val" id="vRange"></span></div>
-          <div class="row" id="rowTilt" style="margin-top:6px"><span class="lbl">Tilt</span><button class="b" id="tiltAutoBtn" type="button"><span id="tiltMode">AUTO</span></button><button class="b" id="tiltDn" type="button" aria-label="Tilt down">− 0.5°</button><button class="b" id="tiltUp" type="button" aria-label="Tilt up">+ 0.5°</button></div>
-          <div class="row" style="margin-top:6px"><span class="lbl">Gain</span><button class="b" id="gainAutoBtn" type="button"><span id="gainMode">AUTO</span></button><button class="b" id="gainDn" type="button" aria-label="Gain down">− 3 dB</button><button class="b" id="gainUp" type="button" aria-label="Gain up">+ 3 dB</button><span class="val" id="vGain"></span></div>
-        </div>
-
-        <div class="onlyInt">
-          <h2>Flight</h2>
-          <div class="row" id="rowLateral"><span class="lbl">Lateral</span><button class="b" id="fLnav" type="button">LNAV</button><button class="b" id="fHdg" type="button">HDG SEL</button><button class="b" id="fHold" type="button">Hold HLD01</button></div>
-          <div class="row" id="rowHeading" style="margin-top:6px"><span class="lbl">Heading</span><button class="b" type="button" data-hd="-10">−10</button><button class="b" type="button" data-hd="-5">−5</button><button class="b" type="button" data-hd="5">+5</button><button class="b" type="button" data-hd="10">+10</button></div>
-          <div class="row" id="rowDirect" style="margin-top:6px"><span class="lbl">Direct</span><button class="b" type="button" data-dct="VHHH">VHHH</button><button class="b" type="button" data-dct="RCKH">RCKH</button><button class="b" type="button" data-dct="RPLL">RPLL</button><button class="b" type="button" data-dct="RCTP">RCTP</button></div>
-          <div class="row" id="rowAltitude" style="margin-top:6px"><span class="lbl">Altitude</span><button class="b" id="altAutoBtn" type="button"><span id="altMode">AUTO</span></button><button class="b" id="altDn" type="button">− 1000</button><button class="b" id="altUp" type="button">+ 1000</button></div>
-          <div class="row" id="rowAltitudePresets" style="margin-top:6px" hidden><span class="lbl">Altitude</span><button class="b" type="button" data-altpreset="5000">5000</button><button class="b" type="button" data-altpreset="10000">10000</button><button class="b" type="button" data-altpreset="15000">15000</button><button class="b" type="button" data-altpreset="20000">20000</button></div>
-        </div>
-
-        <div id="blkObserver">
-          <h2>Observer view</h2>
-          <label class="chk" style="margin-bottom:6px"><input type="checkbox" id="showWx" checked> Show true weather on the map</label>
-          <canvas id="map" width="540" height="540" aria-label="Plan view of the weather, SIGMETs, route and aircraft track"></canvas>
-          <dl class="kv onlyInt" style="margin-top:8px">
-            <dt>Nearest 46+ dBZ</dt><dd id="sRed">–</dd>
-            <dt>Closest so far</dt><dd id="sRedMin">–</dd>
-          </dl>
-          <ul class="log onlyInt" id="sLog"></ul>
-        </div>
-      </aside>
-    </div>
+  <section id="paneActive" hidden>
+    <p class="note">The instructor's selected ND picture. Range is yours to adjust — position and weather come from the planned flight, so it always matches what the instructor sees.</p>
+    <figure class="snap" style="max-width:620px;margin:12px auto 0">
+      <canvas id="ndActive" width="800" height="620" aria-label="Active weather ND picture"></canvas>
+      <figcaption>
+        <b id="activeHdr"></b><span id="activeSub"></span>
+        <span class="row" style="margin-top:6px;justify-content:center"><span class="lbl">Range</span><span class="seg" id="activeRngSeg"></span></span>
+      </figcaption>
+    </figure>
+    <p class="disc" style="margin-top:8px;max-width:620px;margin-inline:auto"><b>Not a real radar.</b> Fictional weather, simplified beam, tilt and attenuation model, generic colours and layout. Fix names are fictional. Distances use a flat chart, so treat them as approximate.</p>
   </section>
 </div>
 <script>
@@ -503,18 +464,7 @@ function nextFixInfo(a) {
   const f = ROUTE[Math.min(a.nextIdx, ROUTE.length - 1)];
   return { name: f.name, d: distTo(a, f), x: f.x, y: f.y };
 }
-function nearestRed(a, tMin, P, thr) {
-  let best = 999, brg = 0;
-  for (let k = 0; k < 24; k++) {
-    const az = k * 15 * D2R, sa = Math.sin(az), ca = Math.cos(az);
-    for (let r = 0; r <= 90; r += 3) {
-      field(a.x + r * sa, a.y + r * ca, tMin, P);
-      if (FZ >= thr) { if (r < best) { best = r; brg = k * 15; } break; }
-    }
-  }
-  return { d: best, brg };
-}
-if (false) module.exports = { ROUTE, PLAN, plannedAt, field, computeWx, autoTilt, newAircraft, stepAircraft, hhmm, nearestRed, WX, NAZ, NRG, toLL, toXY, HOLD_INBOUND, ROUTE_LEN, nextFixInfo, APTXY, tcXY, SIGMETS, sigPolyXY, pointInPoly, getF: () => [FZ, FTOP, FTURB] };
+if (false) module.exports = { ROUTE, PLAN, plannedAt, field, computeWx, autoTilt, newAircraft, stepAircraft, hhmm, WX, NAZ, NRG, toLL, toXY, HOLD_INBOUND, ROUTE_LEN, nextFixInfo, APTXY, tcXY, SIGMETS, sigPolyXY, pointInPoly, getF: () => [FZ, FTOP, FTURB] };
 
 /* ===== UI: ND renderer, observer map, tabs, controls ===== */
 const $ = id => document.getElementById(id);
@@ -693,60 +643,17 @@ function drawND(cv, ac, tMin, P, o) {
   if (ac.alt < 200 && ac.gs < 5) T('ON GROUND ' + ROUTE[0].name, CX, 130, '#fff', 20, 'center', true);
 }
 
-/* ---- observer map ---- */
-const COAST = [[121.7,29.0,121.73,28.94,121.51,28.94,121.68,28.86,121.66,28.72,121.35,28.71,121.51,28.66,121.59,28.37,121.67,28.35,121.63,28.27,121.46,28.34,121.34,28.14,121.21,28.33,121.28,28.36,121.17,28.39,121.12,28.29,121.03,28.29,121.13,28.24,120.96,27.98,120.62,28.04,120.58,28.1,120.6,28.02,120.85,27.95,120.86,27.88,120.73,27.73,120.64,27.75,120.67,27.64,120.56,27.58,120.69,27.47,120.64,27.36,120.54,27.4,120.52,27.19,120.45,27.22,120.42,27.16,120.35,27.25,120.35,27.18,120.44,27.15,120.39,27.09,120.25,27.12,120.27,27.0,120.16,26.97,120.23,26.92,120.04,26.9,120.04,26.82,120.14,26.8,120.12,26.64,119.83,26.52,120.08,26.8,119.93,26.8,119.87,26.65,119.79,26.71,119.85,26.86,119.74,26.73,119.65,26.89,119.73,26.7,119.54,26.81,119.61,26.66,119.54,26.63,119.6,26.56,119.67,26.62,119.78,26.59,119.83,26.45,119.77,26.41,119.65,26.51,119.58,26.42,119.66,26.44,119.71,26.31,119.82,26.42,119.86,26.35,119.96,26.38,119.59,26.24,119.67,26.24,119.51,26.07,119.72,26.01,119.68,25.9,119.57,25.88,119.6,25.69,119.44,25.7,119.5,25.56,119.6,25.59,119.55,25.5,119.64,25.48,119.65,25.36,119.59,25.34,119.59,25.46,119.49,25.37,119.46,25.51,119.36,25.53,119.33,25.61,119.09,25.42,119.22,25.36,119.21,25.27,119.25,25.33,119.37,25.27,119.28,25.17,119.13,25.27,119.09,25.19,119.16,25.13,119.06,25.12,119.08,25.26,118.98,25.23,119.07,25.29,118.87,25.25,118.98,25.2,118.97,25.12,118.85,25.09,118.95,25.01,119.02,25.05,119.02,24.96,118.9,24.94,118.99,24.88,118.7,24.85,118.74,24.91,118.64,24.99,118.67,24.87,118.56,24.91,118.63,24.77,118.78,24.77,118.65,24.68,118.65,24.56,118.57,24.51,118.59,24.57,118.44,24.63,118.44,24.73,118.42,24.6,118.27,24.61,118.24,24.54,118.19,24.68,118.1,24.57,118.05,24.62,118.05,24.56,117.97,24.56,118.07,24.51,118.04,24.45,117.78,24.51,117.89,24.34,118.06,24.41,118.01,24.32,118.1,24.36,118.13,24.26,117.97,24.15,117.94,24.22,117.9,24.04,117.86,24.07,117.77,23.91,117.72,23.94,117.79,24.03,117.69,24.05,117.59,23.72,117.57,23.9,117.35,23.95,117.48,23.91,117.49,23.83,117.43,23.76,117.27,23.78,117.24,23.6,117.19,23.68,117.22,23.62,117.08,23.54,117.06,23.65,116.94,23.61,116.92,23.66,116.83,23.56,116.89,23.56,116.81,23.55,116.88,23.55,116.81,23.5,116.87,23.47,116.79,23.47,116.86,23.41,116.7,23.5,116.8,23.42,116.76,23.34,116.46,23.45,116.74,23.25,116.64,23.16,116.48,23.26,116.58,23.19,116.5,22.94,116.29,22.99,116.09,22.82,116.14,22.9,116.04,22.93,116.07,22.85,115.82,22.74,115.82,22.82,115.6,22.88,115.52,22.75,115.6,22.76,115.57,22.66,115.35,22.71,115.42,22.79,115.23,22.78,115.31,22.9,115.18,22.78,115.04,22.8,114.98,22.69,114.87,22.77,114.97,22.68,114.88,22.54,114.89,22.6,114.74,22.59,114.74,22.73,114.82,22.79,114.78,22.84,114.52,22.71,114.49,22.65,114.59,22.65,114.49,22.56,114.61,22.5,114.5,22.45,114.39,22.62,114.21,22.54,114.34,22.51,114.17,22.46,114.19,22.38,114.32,22.48,114.4,22.44,114.39,22.37,114.25,22.36,114.3,22.26,114.11,22.37,113.92,22.37,114.08,22.52,113.93,22.53,113.88,22.47,113.78,22.75,113.61,22.8,113.64,22.95,113.56,22.93,113.55,23.08,113.37,23.11,113.51,23.0,113.51,22.89,113.38,22.9,113.5,22.89,113.62,22.76,113.48,22.79,113.6,22.66,113.5,22.69,113.58,22.6,113.49,22.57,113.57,22.55,113.53,22.4,113.62,22.37,113.55,22.19,113.51,22.24,113.52,22.18,113.43,22.18,113.28,22.37,113.34,22.25,113.27,22.05,113.11,22.07,113.1,22.42,112.92,22.51,113.05,22.43,113.09,22.21,113.0,22.1,113.03,21.95,112.91,21.85,112.84,21.99,112.55,21.75,112.42,21.84,112.5,21.94,112.36,22.0,112.41,21.77,112.34,21.71,112.19,21.74,112.19,21.84,112.07,21.78,112.0,21.83,112.01,21.77,111.86,21.67,111.84,21.78,111.68,21.8,111.78,21.71,111.78,21.62,111.64,21.51,111.58,21.58,111.63,21.53,111.47,21.5,111.44,21.6,111.45,21.53,111.34,21.53,111.41,21.52,111.25,21.41,111.29,21.5,111.1,21.46,111.03,21.54,111.01,21.46,111.07,21.46,110.8,21.41,110.65,21.25,110.63,21.35,110.63,21.22,110.45,21.19,110.42,21.27,110.48,21.29,110.38,21.41,110.41,21.18,110.15,21.0,110.17,20.84,110.37,20.82,110.39,20.72,110.34,20.79,110.3,20.67,110.54,20.48,110.28,20.24,110.05,20.3,109.93,20.23,109.86,20.4,109.97,20.4,109.99,20.35,110.02,20.45,109.83,20.51,109.74,20.67,109.85,20.71,109.77,20.71,109.76,20.86,109.72,20.81,109.67,20.94,109.68,21.12,109.74,21.2,109.77,21.16,109.76,21.35,109.94,21.35,109.91,21.46,109.97,21.48,109.84,21.51,109.81,21.46,109.75,21.59,109.78,21.48,109.68,21.5,109.69,21.61,109.64,21.56,109.56,21.69,109.61,21.76,109.48,21.67,109.59,21.58,109.55,21.5,109.29,21.44,109.24,21.49,109.16,21.41,109.04,21.45,109.17,21.53,109.15,21.62,108.91,21.62,108.85,21.8,108.87,21.63,108.74,21.6,108.66,21.81,108.6,21.72,108.56,21.79,108.63,21.88,108.59,21.85,108.55,21.92,108.46,21.87,108.54,21.75,108.5,21.71,108.57,21.69,108.48,21.56,108.4,21.56,108.43,21.69,108.34,21.61,108.34,21.72,108.33,21.59,108.22,21.5,108.24,21.65,108.13,21.53,108.01,21.56,108.04,21.5,107.94,21.43,107.92,21.53,107.84,21.47,107.78,21.52,107.75,21.4,107.64,21.39,107.61,21.29,107.4,21.33,107.46,21.28,107.36,21.22,107.44,21.26,107.35,21.0,107.16,20.92,107.07,20.96,107.18,21.03,107.0,20.99],[107.0,17.18,107.12,17.08,107.2,16.91,107.13,16.85,107.2,16.9,107.63,16.57,107.43,16.66,107.63,16.55,107.58,16.53,107.69,16.52,107.83,16.37,107.78,16.37,107.82,16.29,108.04,16.34,108.1,16.23,108.05,16.23,108.2,16.21,108.13,16.12,108.23,16.08,108.22,16.02,108.23,16.15,108.33,16.14,108.27,16.02,108.6,15.48,108.67,15.43,108.69,15.48,108.78,15.35,108.83,15.42,108.94,15.24,108.86,15.15,109.08,14.7,109.08,14.47,109.23,14.13,109.15,14.17,109.3,13.9,109.26,13.76,109.23,13.92,109.29,13.53,109.23,13.57,109.34,13.46,109.3,13.4,109.23,13.49,109.22,13.39,109.3,13.36,109.25,13.29,109.32,13.26,109.32,13.07,109.46,12.91,109.36,12.82,109.47,12.65,109.44,12.56,109.4,12.68,109.33,12.66,109.35,12.8,109.2,12.63,109.35,12.4,109.29,12.34,109.14,12.44,109.25,12.3,109.18,12.21,109.29,11.88,109.21,11.88,109.21,11.98,109.13,11.91,109.13,11.82,109.2,11.87,109.24,11.73,109.13,11.56,109.01,11.63,109.02,11.36,108.79,11.31,108.71,11.16,108.53,11.16,108.38,11.0],[124.0,12.97,123.88,12.98,123.73,12.85,123.43,13.04,123.32,13.01,123.32,13.2,123.19,13.43,122.89,13.58,122.8,13.65,122.83,13.74,122.53,13.96,122.42,13.95,122.52,13.82,122.5,13.65,122.63,13.53,122.56,13.56,122.68,13.38,122.7,13.22,122.6,13.16,122.4,13.53,121.75,13.97,121.48,13.84,121.47,13.69,121.29,13.6,121.03,13.63,121.0,13.78,120.89,13.68,120.88,13.9,120.71,13.93,120.67,13.78,120.62,13.81,120.59,14.23,120.9,14.49,120.98,14.49,120.96,14.64,120.83,14.77,120.55,14.82,120.61,14.48,120.47,14.41,120.38,14.48,120.37,14.63,120.25,14.69,120.26,14.85,120.2,14.87,120.18,14.74,120.08,14.79,120.02,15.26,119.89,15.43,119.97,15.51,119.87,15.74,119.91,15.85,119.85,15.97,119.77,15.91,119.75,15.96,119.78,16.31,119.88,16.4,119.9,16.24,120.09,16.17,120.15,16.04,120.33,16.07,120.42,16.17,120.28,16.62,120.45,17.0,120.4,17.22,120.46,17.41,120.34,17.57,120.35,17.69,120.43,17.74,120.62,18.55,120.76,18.54,120.84,18.65,120.94,18.56,121.17,18.62,121.6,18.38,121.67,18.25,121.63,18.37,122.01,18.29,122.13,18.38,122.16,18.52,122.32,18.38,122.32,18.25,122.16,18.08,122.14,17.78,122.25,17.37,122.41,17.34,122.41,17.15,122.52,17.13,122.46,16.89,122.2,16.44,122.2,16.24,122.05,16.07,121.99,16.03,122.14,16.26,121.74,16.07,121.55,15.9,121.55,15.78,121.64,15.71,121.37,15.34,121.6,14.83,121.73,14.7,121.6,14.65,121.66,14.4,121.76,14.13,121.95,13.99,122.23,13.9,122.18,14.0,122.3,13.96,122.32,14.02,122.16,14.14,122.25,14.25,122.31,14.1,122.47,14.34,122.65,14.28,122.67,14.34,122.77,14.32,123.04,14.1,123.1,13.89,123.05,13.78,123.11,13.68,123.32,13.8,123.28,13.91,123.34,13.97,123.23,13.97,123.25,14.08,123.32,14.04,123.34,14.11,123.42,13.93,123.45,13.97,123.68,13.88,123.71,13.94,123.97,13.72,123.58,13.73,123.53,13.57,123.87,13.24,123.77,13.23,123.76,13.06,123.88,13.15,124.07,13.01,124.19,13.07,124.08,12.54,123.97,12.56,123.85,12.73,123.84,12.86,124.01,12.88,124.0,12.97],[120.86,22.0,120.86,21.9,120.71,21.94,120.63,22.31,120.33,22.54,120.13,22.99,120.18,23.04,120.03,23.08,120.12,23.11,120.07,23.17,120.16,23.33,120.13,23.63,120.23,23.82,120.37,23.83,120.26,23.85,120.32,23.99,120.51,24.18,120.71,24.61,120.85,24.67,121.03,25.03,121.44,25.16,121.44,25.25,121.57,25.3,121.74,25.13,121.92,25.13,122.0,25.01,121.82,24.85,121.86,24.48,121.61,24.09,121.41,23.12,120.97,22.56,120.86,22.0],[109.0,18.36,108.68,18.51,108.63,19.27,108.69,19.38,109.21,19.72,109.3,19.69,109.28,19.79,109.16,19.71,109.26,19.9,109.54,19.84,109.53,19.95,109.71,20.01,109.83,19.93,109.94,19.99,109.99,19.9,110.16,20.07,110.28,20.03,110.37,20.09,110.58,20.0,110.61,19.92,110.57,20.09,110.68,20.16,110.79,20.02,110.93,20.02,111.04,19.64,110.86,19.52,110.82,19.6,110.88,19.62,110.79,19.61,110.83,19.54,110.53,19.15,110.57,19.05,110.43,18.84,110.51,18.8,110.51,18.88,110.54,18.78,110.41,18.66,110.32,18.67,110.39,18.7,110.2,18.62,110.05,18.38,109.96,18.39,110.01,18.45,109.75,18.4,109.74,18.27,109.67,18.28,109.73,18.21,109.63,18.23,109.57,18.16,109.57,18.26,109.48,18.19,109.46,18.28,109.0,18.36],[125.0,11.27,125.0,11.43,124.82,11.52,125.0,11.62],[125.0,11.75,124.88,11.75,124.7,12.01,124.39,12.2,124.28,12.58,124.64,12.5,124.86,12.54,124.86,12.59,125.0,12.54],[119.3,11.0,119.37,11.0,119.32,11.11,119.41,11.04,119.37,11.18,119.5,11.42,119.57,11.29,119.5,11.13,119.57,11.01,119.5,11.0],[122.04,11.0,122.1,11.7,121.84,11.76,121.95,11.94,122.38,11.74,122.49,11.61,122.45,11.56,122.57,11.57,122.57,11.5,122.71,11.62,122.83,11.61,122.93,11.52,122.87,11.42,123.15,11.6,123.09,11.5,123.17,11.47,123.1,11.33,123.13,11.17,123.03,11.18,122.95,11.03,122.86,11.0],[120.76,13.0,120.65,13.19,120.52,13.23,120.46,13.42,120.31,13.42,120.34,13.51,120.76,13.47,120.99,13.52,121.04,13.42,121.2,13.44,121.44,13.23,121.44,13.14,121.56,13.12,121.47,12.77,121.56,12.61,121.44,12.52,121.39,12.29,121.34,12.33,121.24,12.21,121.11,12.25,121.12,12.34,120.98,12.43,120.92,12.62,120.79,12.73,120.76,13.0],[124.4,11.0,124.31,11.57,124.48,11.35,124.46,11.45,124.54,11.43,124.58,11.31,124.71,11.31,124.81,11.43,124.98,11.4,125.0,11.23],[123.93,11.0,123.94,11.19,124.06,11.29,123.97,11.08,124.04,11.0],[124.0,11.8,123.94,11.89,123.72,11.93,123.75,11.98,123.6,12.08,123.53,12.22,123.43,12.2,123.16,11.91,123.3,12.21,123.21,12.24,123.28,12.42,123.23,12.6,123.38,12.54,123.33,12.44,123.44,12.52,123.78,12.2,123.89,12.21,124.05,11.97,124.0,12.02,124.07,11.72,124.0,11.8],[124.28,14.0,124.42,13.85,124.41,13.67,124.34,13.64,124.34,13.55,124.26,13.6,124.19,13.52,124.02,13.66,124.13,13.8,124.12,14.06,124.21,14.1,124.28,14.0],[116.48,29.0,116.55,28.88,116.52,28.77,116.42,28.85,116.45,28.9,116.37,28.82,116.42,28.96,116.33,28.84,116.31,29.0],[111.38,23.47,110.86,23.36,110.77,23.45,110.54,23.42,110.22,23.58,110.09,23.4,110.22,23.6,110.54,23.44,110.78,23.48,110.87,23.37,111.06,23.46,111.39,23.48,111.48,23.45,111.54,23.22,111.65,23.16,112.17,23.09,112.32,23.17,112.44,23.06,112.62,23.19,112.79,23.16,112.92,22.85,113.09,22.78,113.17,22.57,113.05,22.78,112.9,22.85,112.78,23.15,112.61,23.16,112.46,23.04,112.31,23.16,112.17,23.07,111.65,23.14,111.52,23.21,111.38,23.47],[108.37,15.85,108.39,15.78,108.3,15.82,108.35,15.86,108.37,15.85]];
-const MAPB = { lon0: 107, lon1: 125, lat0: 11, lat1: 29 };
-function drawMap(cv, ac, tMin, P, trail, showWx) {
-  const ctx = cv.getContext('2d'), w = cv.width, h = cv.height;
-  const X = lon => (lon - MAPB.lon0) / (MAPB.lon1 - MAPB.lon0) * w, Y = lat => (MAPB.lat1 - lat) / (MAPB.lat1 - MAPB.lat0) * h;
-  ctx.fillStyle = '#0c1822'; ctx.fillRect(0, 0, w, h);
-  if (showWx) {
-    const n = 90, cw = w / n, ch = h / n;
-    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-      const lon = MAPB.lon0 + (i + .5) / n * (MAPB.lon1 - MAPB.lon0), lat = MAPB.lat1 - (j + .5) / n * (MAPB.lat1 - MAPB.lat0);
-      const q = toXY(lat, lon); field(q[0], q[1], tMin, P);
-      const z = FZ; if (z < 22) continue;
-      ctx.fillStyle = z >= 46 ? '#ff2a2a' : z >= 40 ? '#ffe000' : z >= 30 ? '#18d860' : '#0b7a34';
-      ctx.fillRect(i * cw, j * ch, cw + .5, ch + .5);
-    }
-  }
-  ctx.strokeStyle = '#8aa0b4'; ctx.lineWidth = 1;
-  for (const s of COAST) { ctx.beginPath(); for (let i = 0; i < s.length; i += 2) i ? ctx.lineTo(X(s[i]), Y(s[i + 1])) : ctx.moveTo(X(s[i]), Y(s[i + 1])); ctx.stroke(); }
-  /* SIGMETs */
-  ctx.lineWidth = 1.6; ctx.font = '700 12px "IBM Plex Sans", sans-serif'; ctx.textAlign = 'center';
-  for (const s of SIGMETS) {
-    const pl = sigPolyXY(s, tMin).map(p => toLL(p[0], p[1]));
-    ctx.strokeStyle = s.color; ctx.setLineDash(s.id === 'S3' ? [5, 3] : []);
-    ctx.beginPath(); pl.forEach((p, i) => i ? ctx.lineTo(X(p[1]), Y(p[0])) : ctx.moveTo(X(p[1]), Y(p[0]))); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
-    let cx = 0, cy = 0; pl.forEach(p => { cx += p[1]; cy += p[0]; }); cx /= pl.length; cy /= pl.length;
-    ctx.fillStyle = s.color; ctx.fillText('SIGMET ' + s.label, X(cx), Y(cy));
-  }
-  /* TC */
-  const tc = toLL(...tcXY((tMin + P.shift) / 60));
-  ctx.strokeStyle = '#ff5050'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(X(tc[1]), Y(tc[0]), 7, 0, 7); ctx.stroke();
-  ctx.fillStyle = '#ff9a9a'; ctx.fillText(TC_LABEL, X(tc[1]), Y(tc[0]) + 22);
-  /* route + airports */
-  ctx.strokeStyle = '#ff4fff'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.beginPath();
-  ROUTE.forEach((f, i) => { const q = toLL(f.x, f.y); i ? ctx.lineTo(X(q[1]), Y(q[0])) : ctx.moveTo(X(q[1]), Y(q[0])); }); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle = '#38d9ff'; ctx.textAlign = 'left';
-  for (const k in APT) { ctx.fillRect(X(APT[k][1]) - 3, Y(APT[k][0]) - 3, 6, 6); ctx.fillText(k, X(APT[k][1]) + 6, Y(APT[k][0]) - 5); }
-  /* trail + aircraft */
-  if (trail.length > 1) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); trail.forEach((p, i) => { const q = toLL(p[0], p[1]); i ? ctx.lineTo(X(q[1]), Y(q[0])) : ctx.moveTo(X(q[1]), Y(q[0])); }); ctx.stroke(); }
-  const a = toLL(ac.x, ac.y), ax = X(a[1]), ay = Y(a[0]), hh = ac.hdg * D2R;
-  ctx.fillStyle = '#fff'; ctx.beginPath();
-  ctx.moveTo(ax + 11 * Math.sin(hh), ay - 11 * Math.cos(hh));
-  ctx.lineTo(ax + 7 * Math.sin(hh + 2.5), ay - 7 * Math.cos(hh + 2.5)); ctx.lineTo(ax + 7 * Math.sin(hh - 2.5), ay - 7 * Math.cos(hh - 2.5)); ctx.closePath(); ctx.fill();
-}
-
-/* ===== state ===== */
+/* ===== state =====
+   🌟 冇哂 S.tab/S.rep/S.int（Interactive 自己行嘅 simulation + instructor
+   override broadcast）——position 唔靠任何即時同步，淨係由 S.activeIdx
+   （教官喺 6 張 snapshot 入面揀低邊一張做trainee return）+ 固定嘅 PLAN
+   decide，trainee 自己淨係揀 Range（純粹畫面顯示，唔影響 position） */
 const S = {
-  airborne: 360, fast: false, tab: 'snap', showWx: true,
-  view: { range: 160, tiltAuto: true, tilt: 0, gainAuto: true, gain: 0 },
-  rep: { t: 400, playing: false, speed: 15 },
-  int: { ac: null, t: 400, playing: false, speed: 15, trail: [], redMin: 999, red: { d: 999, brg: 0 }, inS: {}, log: [], lastRed: 0, lastTrail: 0, acc: 0 }
+  airborne: 360, fast: false, showWx: true,
+  activeIdx: 0,
+  activeView: { range: 160 },
 };
 const P = () => ({ shift: S.fast ? 100 : 0 });
-let dirty = true;
 function acAt(tMin) { return plannedAt((tMin - S.airborne) * 60); }
 const rangeList = [10, 20, 40, 80, 160, 320];
 function posText(ac) {
@@ -783,207 +690,85 @@ function renderSnaps() {
     grid.innerHTML = '';
     snaps.forEach((s, i) => {
       const c = document.createElement('figure'); c.className = 'snap';
-      c.innerHTML = '<canvas width="' + W + '" height="' + H + '" id="sn' + i + '" aria-label="Weather ND snapshot ' + (i + 1) + '"></canvas><figcaption><b id="snh' + i + '"></b><span id="snc' + i + '"></span><em>' + s.note + '</em></figcaption>';
+      c.innerHTML = '<canvas width="' + W + '" height="' + H + '" id="sn' + i + '" aria-label="Weather ND snapshot ' + (i + 1) + '"></canvas><figcaption><b id="snh' + i + '"></b><span id="snc' + i + '"></span><em>' + s.note + '</em><button class="b" type="button" style="margin-top:6px;align-self:flex-start" data-setactive="' + i + '">Set as trainee return</button></figcaption>';
       grid.appendChild(c);
     });
+    grid.querySelectorAll('[data-setactive]').forEach((b) => b.onclick = () => setActive(+b.dataset.setactive));
   }
   snaps.forEach((s, i) => {
     const ac = acAt(s.t);
     drawND($('sn' + i), ac, s.t, P(), { range: s.range, tiltAuto: s.tiltAuto !== false, tilt: s.tilt || 0, gainAuto: true, gain: 0 });
     $('snh' + i).textContent = hhmm(s.t) + 'Z · range ' + s.range + ' NM';
     $('snc' + i).textContent = posText(ac) + ' · ' + (ac.alt >= 18000 ? 'FL' + Math.round(ac.alt / 100) : Math.round(ac.alt / 100) * 100 + ' ft');
+    grid.children[i].classList.toggle('active', i === S.activeIdx);
   });
 }
 
-/* ===== scope (replay / interactive) ===== */
-function curAc() { return S.tab === 'inter' ? S.int.ac : acAt(S.rep.t); }
-function curT() { return S.tab === 'inter' ? S.int.t : S.rep.t; }
-function renderScope() {
-  const ac = curAc(), t = curT(), p = P();
-  drawND($('nd'), ac, t, p, S.view);
-  const trail = S.tab === 'inter' ? S.int.trail : (function () { const a = []; for (let m = S.airborne; m <= t; m += 1) { const q = acAt(m); a.push([q.x, q.y]); } return a; })();
-  drawMap($('map'), ac, t, p, trail, S.showWx);
-  $('clock').textContent = '27 ' + hhmm(t) + ':' + String(Math.floor(((t % 1) * 60))).padStart(2, '0') + 'Z';
-  const n = nextFixInfo(ac);
-  const kv = {
-    kPos: posText(ac), kMode: ac.mode === 'HDG' ? 'HDG SEL ' + Math.round(ac.selHdg) : ac.mode === 'DIRECT' ? 'DIRECT ' + ac.tgt.name : ac.mode === 'HOLD' ? 'HOLD ' + ac.hold.phase : 'LNAV',
-    kAlt: ac.alt >= 18000 ? 'FL' + Math.round(ac.alt / 100) : Math.round(ac.alt) + ' ft', kGs: Math.round(ac.gs) + ' kt', kTilt: ($('nd').dataset.tilt || '')
-  };
-  for (const k in kv) $(k).textContent = kv[k];
-  const tl = S.view.tiltAuto ? autoTilt(ac.alt, S.view.range) : S.view.tilt;
-  $('kTilt').textContent = (S.view.tiltAuto ? 'AUTO ' : 'MAN ') + (tl > 0 ? '+' : '') + tl.toFixed(1) + '°';
-  $('vRange').textContent = S.view.range + ' NM';
-  $('vGain').textContent = S.view.gainAuto ? 'AUTO' : (S.view.gain > 0 ? '+' : '') + S.view.gain + ' dB';
-  $('tiltMode').textContent = S.view.tiltAuto ? 'AUTO' : 'MAN';
-  $('gainMode').textContent = S.view.gainAuto ? 'AUTO' : 'MAN';
-  if (S.tab === 'inter') {
-    const I = S.int;
-    $('sRed').textContent = I.red.d >= 90 ? 'none within 90 NM' : I.red.d + ' NM, bearing ' + String(I.red.brg).padStart(3, '0');
-    $('sRedMin').textContent = I.redMin >= 90 ? '–' : I.redMin + ' NM';
-    $('sLog').innerHTML = I.log.length ? I.log.map(l => '<li>' + l + '</li>').join('') : '<li>No events yet.</li>';
+/* ===== active view (the instructor's pick, shown to trainee with their own Range) ===== */
+// 🌟 淨係由 buildSnaps()[S.activeIdx] 嗰刻嘅 planned position 畫——同
+// renderSnaps() 用緊一樣嘅 acAt()/PLAN，所以 trainee 揀嘅 Range 點變都好，
+// 個位置同教官個格一定一致
+function renderActive() {
+  const cv = $('ndActive');
+  if (!cv) return;
+  const snaps = buildSnaps();
+  const idx = Math.max(0, Math.min(snaps.length - 1, S.activeIdx));
+  const s = snaps[idx];
+  const ac = acAt(s.t);
+  drawND(cv, ac, s.t, P(), { range: S.activeView.range, tiltAuto: s.tiltAuto !== false, tilt: s.tilt || 0, gainAuto: true, gain: 0 });
+  if ($('activeHdr')) $('activeHdr').textContent = hhmm(s.t) + 'Z · range ' + S.activeView.range + ' NM';
+  if ($('activeSub')) $('activeSub').textContent = posText(ac) + ' · ' + (ac.alt >= 18000 ? 'FL' + Math.round(ac.alt / 100) : Math.round(ac.alt / 100) * 100 + ' ft');
+}
+// 🌟 教官喺某張 snapshot 卡撳「Set as trainee return」——呢個就係而家取代咗
+// 原本 broadcastAircraftOverride() 嘅做法：唔再係廣播緊「教官即刻撳咗乜嘢
+// 決定」咁易出錯，淨係送一個 index，trainee 嗰邊讀返同一份 PLAN 計出同一
+// 張畫面，保證 100% 一致
+const isTraineeMode = new URLSearchParams(location.search).get('mode') === 'trainee';
+function setActive(idx) {
+  S.activeIdx = idx;
+  renderSnaps();
+  renderActive();
+  if (!isTraineeMode) {
+    try { window.parent.postMessage({ type: 'eff-active-snapshot-action', idx }, '*'); } catch (e) { }
   }
 }
-function logEv(txt) { const I = S.int; I.log.unshift(hhmm(I.t) + 'Z ' + txt); if (I.log.length > 8) I.log.pop(); }
-function simStep(secs) {
-  const I = S.int, p = P();
-  for (let k = 0; k < secs; k++) {
-    stepAircraft(I.ac, 1); I.t += 1 / 60; I.acc += 1;
-    if (I.acc - I.lastTrail >= 20) { I.trail.push([I.ac.x, I.ac.y]); I.lastTrail = I.acc; }
-    if (I.acc - I.lastRed >= 15) {
-      I.lastRed = I.acc; I.red = nearestRed(I.ac, I.t, p, 46); if (I.red.d < I.redMin) I.redMin = I.red.d;
-      for (const s of SIGMETS.slice(0, 2)) {
-        const inside = pointInPoly(I.ac.x, I.ac.y, sigPolyXY(s, I.t));
-        if (inside !== !!I.inS[s.id]) { I.inS[s.id] = inside; logEv((inside ? 'Entered' : 'Left') + ' SIGMET ' + s.label + ' area (' + s.name + ') at ' + (I.ac.alt >= 18000 ? 'FL' + Math.round(I.ac.alt / 100) : Math.round(I.ac.alt) + ' ft')); }
-      }
-    }
-  }
-}
-function startInteractive(t) {
-  const I = S.int;
-  I.t = t; I.ac = cloneAc(acAt(t)); I.trail = []; I.redMin = 999; I.red = { d: 999, brg: 0 }; I.inS = {}; I.log = []; I.acc = 0; I.lastRed = -99; I.lastTrail = 0; I.playing = false;
-  for (let m = S.airborne; m <= t; m += 1) { const q = acAt(m); I.trail.push([q.x, q.y]); }
-  I.ac.altMode = 'AUTO';
-  logEv('Started from the planned flight at ' + hhmm(t) + 'Z');
-  if (t >= S.airborne) { /* keep log tidy */ }
-}
-// 🌟 Snapshots/Replay tab 已經刪走（instructor 同 trainee 都淨係用
-// Interactive）——setTab() 而家只會俾 'inter' call 過，留低呢個 function
-// 淨係等 startInteractive/dirty 嗰套初始化邏輯唔使拆散
-function setTab(tab) {
-  S.tab = tab;
-  if (!S.int.ac) startInteractive(Math.max(S.airborne + 20, 380));
-  S.int.playing = false; updatePlayLabels();
-  dirty = true;
-}
-function updatePlayLabels() {
-  const pl = S.tab === 'inter' ? S.int.playing : S.rep.playing;
-  $('btnPlay').textContent = pl ? 'Pause' : 'Play';
+function applyScenarioActiveSnapshot(idx) {
+  if (typeof idx !== 'number' || !Number.isFinite(idx)) return;
+  S.activeIdx = Math.max(0, Math.min(5, Math.round(idx)));
+  renderSnaps();
+  renderActive();
 }
 
 /* ===== wiring ===== */
 function seg(id, values, cur, cb, fmt) {
   const el = $(id); el.innerHTML = '';
-  values.forEach(v => { const b = document.createElement('button'); b.type = 'button'; b.textContent = fmt ? fmt(v) : v; b.dataset.v = v; b.setAttribute('aria-pressed', String(v === cur)); b.onclick = () => { cb(v); Array.from(el.children).forEach(c => c.setAttribute('aria-pressed', String(c.dataset.v == v))); dirty = true; }; el.appendChild(b); });
+  values.forEach(v => { const b = document.createElement('button'); b.type = 'button'; b.textContent = fmt ? fmt(v) : v; b.dataset.v = v; b.setAttribute('aria-pressed', String(v === cur)); b.onclick = () => { cb(v); Array.from(el.children).forEach(c => c.setAttribute('aria-pressed', String(c.dataset.v == v))); }; el.appendChild(b); });
 }
 function init() {
   $('inAir').onchange = () => {
     const v = $('inAir').value.replace(/\D/g, '').padStart(4, '0');
     const m = Math.min(23, +v.slice(0, 2)) * 60 + Math.min(59, +v.slice(2));
-    if (m >= 0 && m < 1440) { S.airborne = m; S.int.ac = null; startInteractive(Math.max(m + 20, 380)); renderSnaps(); dirty = true; }
+    if (m >= 0 && m < 1440) { S.airborne = m; renderSnaps(); renderActive(); }
     $('inAir').value = hhmm(S.airborne);
   };
-  $('inPace').onchange = () => { S.fast = $('inPace').value === 'fast'; renderSnaps(); dirty = true; };
-  seg('rngSeg', rangeList, S.view.range, v => S.view.range = +v);
-  $('tiltAutoBtn').onclick = () => { if (!S.view.tiltAuto) { S.view.tiltAuto = true; } else { S.view.tiltAuto = false; S.view.tilt = autoTilt(curAc().alt, S.view.range); } dirty = true; };
-  $('tiltDn').onclick = () => { if (S.view.tiltAuto) { S.view.tilt = autoTilt(curAc().alt, S.view.range); S.view.tiltAuto = false; } S.view.tilt = Math.max(-15, S.view.tilt - 0.5); dirty = true; };
-  $('tiltUp').onclick = () => { if (S.view.tiltAuto) { S.view.tilt = autoTilt(curAc().alt, S.view.range); S.view.tiltAuto = false; } S.view.tilt = Math.min(15, S.view.tilt + 0.5); dirty = true; };
-  $('gainAutoBtn').onclick = () => { S.view.gainAuto = !S.view.gainAuto; if (S.view.gainAuto) S.view.gain = 0; dirty = true; };
-  $('gainDn').onclick = () => { S.view.gainAuto = false; S.view.gain = Math.max(-12, S.view.gain - 3); dirty = true; };
-  $('gainUp').onclick = () => { S.view.gainAuto = false; S.view.gain = Math.min(6, S.view.gain + 3); dirty = true; };
-  $('showWx').onchange = () => { S.showWx = $('showWx').checked; dirty = true; };
-
-  const spdVals = { rep: [5, 15, 60], inter: [1, 5, 15, 30] };
-  function buildSpeed() { const k = S.tab === 'inter' ? 'inter' : 'rep'; const cur = k === 'inter' ? S.int.speed : S.rep.speed; seg('spdSeg', spdVals[k], cur, v => { if (S.tab === 'inter') S.int.speed = +v; else S.rep.speed = +v; }, v => v + '×'); }
-  const origSetTab = setTab; setTab = function (t) { origSetTab(t); buildSpeed(); };
-  $('btnPlay').onclick = () => { S.int.playing = !S.int.playing; updatePlayLabels(); dirty = true; };
-  document.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => { startInteractive(+b.dataset.jump); dirty = true; });
-  $('btnReset').onclick = () => { startInteractive(S.int.t); dirty = true; };
-
-  /* flight controls */
-  const A = () => S.int.ac;
-  // 🌟 教官喺 IOS 自己個 iframe 度撳呢幾個 Flight 掣嗰陣，連埋將呢個「意圖」
-  // postMessage 返出去俾 parent（睇 WxRadarTab.tsx），等 parent 寫落
-  // scenario_aircraft_override，trainee 嗰邊個 iframe 先至會跟住做同一個決定。
-  // Trainee 自己嗰邊（?mode=trainee）嘅 handler 都係用緊呢套 wiring（因為
-  // Lateral/Heading/Direct 掣本身已經喺 applyTraineeMode() 度 hidden 咗，根本
-  // 撳唔到），所以呢度淨係要防 trainee 嗰邊剩低嘅 Altitude preset 掣唔好
-  // 逆向覆寫返教官嘅權威狀態
-  const isTraineeMode = new URLSearchParams(location.search).get('mode') === 'trainee';
-  function broadcastAircraftOverride() {
-    if (isTraineeMode) return;
-    const a = A();
-    if (!a) return;
-    try {
-      window.parent.postMessage({
-        type: 'eff-aircraft-action',
-        override: { mode: a.mode, selHdg: a.selHdg, tgtName: a.tgt ? a.tgt.name : null, atcHold: a.atcHold, nextIdx: a.nextIdx, altMode: a.altMode, altSel: a.altSel },
-      }, '*');
-    } catch (e) { }
-  }
-  $('fLnav').onclick = () => { const a = A(); if (a.mode === 'HOLD') { a.nextIdx = VHHH_IDX; a.atcHold = false; } a.mode = 'LNAV'; if (a.nextIdx > VHHH_IDX) a.nextIdx = VHHH_IDX; logEv('LNAV selected'); broadcastAircraftOverride(); dirty = true; };
-  $('fHdg').onclick = () => { const a = A(); a.mode = 'HDG'; a.selHdg = Math.round(a.hdg); logEv('HDG SEL ' + a.selHdg); broadcastAircraftOverride(); dirty = true; };
-  $('fHold').onclick = () => { const a = A(); a.mode = 'LNAV'; a.nextIdx = HLD_IDX; a.atcHold = true; logEv('Routed to hold at HLD01'); broadcastAircraftOverride(); dirty = true; };
-  document.querySelectorAll('[data-hd]').forEach(b => b.onclick = () => { const a = A(); if (a.mode !== 'HDG') { a.mode = 'HDG'; a.selHdg = Math.round(a.hdg); } a.selHdg = (a.selHdg + +b.dataset.hd + 360) % 360; logEv('HDG SEL ' + String(a.selHdg).padStart(3, '0')); broadcastAircraftOverride(); dirty = true; });
-  // 🌟 用事件代理（click 聽喺成個 row 度）唔係逐個掣 onclick——applyScenarioRoute()
-  // 會喺換咗真實 OFP 之後用 rebuildDirectButtons() 重新生成呢幾粒掣，代理式
-  // 聽法先至唔使每次換航路都要重新逐個 bind 一次
-  const rowDirectEl = $('rowDirect');
-  if (rowDirectEl) rowDirectEl.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-dct]');
-    if (!b) return;
-    const a = A(), k = b.dataset.dct;
-    if (k === ARR_NAME) { a.mode = 'LNAV'; a.nextIdx = VHHH_IDX; a.atcHold = false; }
-    else { a.mode = 'DIRECT'; a.tgt = { name: k, x: APTXY[k][0], y: APTXY[k][1] }; }
-    logEv('Direct to ' + k); broadcastAircraftOverride(); dirty = true;
-  });
-  $('altAutoBtn').onclick = () => { const a = A(); a.altMode = a.altMode === 'AUTO' ? 'MAN' : 'AUTO'; if (a.altMode === 'MAN') a.altSel = Math.round(a.alt / 1000) * 1000; $('altMode').textContent = a.altMode; broadcastAircraftOverride(); dirty = true; };
-  const altAdj = d => { const a = A(); if (a.altMode !== 'MAN') { a.altMode = 'MAN'; a.altSel = Math.round(a.alt / 1000) * 1000; } a.altSel = Math.max(1000, Math.min(41000, a.altSel + d)); $('altMode').textContent = 'MAN ' + a.altSel / 1000 + 'k'; broadcastAircraftOverride(); dirty = true; };
-  $('altDn').onclick = () => altAdj(-1000); $('altUp').onclick = () => altAdj(1000);
-
-  // 🌟 trainee 嘅簡化 Altitude 掣：5000/10000/15000/20000，一撳就同時改埋
-  // altitude 同 tilt——trainee 唔使識點樣自己搵啱個 tilt 先睇到前面嘅天氣，
-  // 揀個飛行高度，系統自動幫佢揀返個合理嘅 tilt（高度愈低，tilt 要愈向上揚）
-  const ALT_TILT_PRESETS = { 5000: 4, 10000: 3, 15000: 2, 20000: 1 };
-  document.querySelectorAll('[data-altpreset]').forEach(b => b.onclick = () => {
-    const a = A(), alt = +b.dataset.altpreset, tilt = ALT_TILT_PRESETS[alt] ?? 0;
-    a.altMode = 'MAN'; a.altSel = alt; $('altMode').textContent = 'MAN ' + (alt / 1000) + 'k';
-    S.view.tiltAuto = false; S.view.tilt = tilt;
-    document.querySelectorAll('[data-altpreset]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-    logEv('Altitude ' + (alt / 1000) + 'k, Tilt ' + (tilt >= 0 ? '+' : '') + tilt + '°');
-    dirty = true;
-  });
+  $('inPace').onchange = () => { S.fast = $('inPace').value === 'fast'; renderSnaps(); renderActive(); };
+  seg('activeRngSeg', rangeList, S.activeView.range, (v) => { S.activeView.range = +v; renderActive(); });
 
   $('inAir').value = hhmm(S.airborne);
-  setTab('inter');
-  renderSnaps(); // 🌟 Snapshot（唔係 Interactive）而家係主要畫面，見返上面 paneSnap/paneScope
-  let last = performance.now(), acc = 0;
-  function frame(ts) {
-    const dt = Math.min(0.25, (ts - last) / 1000); last = ts; acc += dt;
-    if (S.tab === 'rep' && S.rep.playing) {
-      S.rep.t += dt * S.rep.speed / 60;
-      if (S.rep.t >= S.airborne + 150) { S.rep.t = S.airborne + 150; S.rep.playing = false; updatePlayLabels(); }
-      dirty = true;
-    }
-    if (S.tab === 'inter' && S.int.playing) {
-      S.int.accSim = (S.int.accSim || 0) + dt * S.int.speed;
-      const n = Math.floor(S.int.accSim); S.int.accSim -= n;
-      if (n > 0) simStep(Math.min(n, 120));
-      dirty = true;
-    }
-    if (dirty && S.tab !== 'snap' && acc > 0.08) { acc = 0; dirty = false; renderScope(); }
-    requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
+  renderSnaps();
+  renderActive();
 }
-let setTabRef = setTab;
 
-// 🌟 ?mode=trainee（由 EFF trainee workspace 嗰個 iframe 加嘅）：trainee 淨係睇
-// Interactive 雷達畫面本身，唔應該有得手動跳時間/關 autopilot 改航向/用個
-// 「上帝視角」minimap 偷睇真實天氣——嗰啲控制留返俾教官喺 IOS 度搭景用。
-// Clock 畀拎走咗之後個 sim 都要郁得（唔係靠個已經冇咗嘅 Play 掣），所以 trainee
-// 模式一入嚟就自動 play，用返個 15x 速度（同而家 IOS 側試過嘅預設一樣）
+// 🌟 ?mode=trainee（由 EFF trainee workspace 嗰個 iframe 加嘅）：trainee 淨係
+// 睇教官揀低嗰張 ND picture（paneActive），唔應該見到成個 snapshot grid 或者
+// 搭景用嘅 Airborne/Typhoon pace 控制——嗰啲留返俾教官喺 IOS 度用
 function applyTraineeMode() {
   if (new URLSearchParams(location.search).get('mode') !== 'trainee') return;
-  ['blkClock', 'blkObserver', 'rowTilt', 'rowLateral', 'rowHeading', 'rowDirect', 'rowAltitude'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.hidden = true;
-  });
-  const presets = document.getElementById('rowAltitudePresets');
-  if (presets) presets.hidden = false;
-  S.int.playing = true;
-  S.int.speed = 15;
-  updatePlayLabels();
-  dirty = true;
+  const setup = $('scenarioSetup');
+  if (setup) setup.hidden = true;
+  $('paneSnap').hidden = true;
+  $('paneActive').hidden = false;
+  renderActive();
 }
 (document.fonts && document.fonts.ready ? document.fonts.ready.then(init) : Promise.resolve(init())).then(applyTraineeMode).then(() => {
   // 🌟 等埋 init()/applyTraineeMode 都行完先 send "ready"——parent 收到呢個先
@@ -1051,7 +836,7 @@ function applyScenarioSigmets(list) {
     TC_LABEL = String(tcSigmet.hazard || 'TC').replace(/^TC\s*/, '') || 'TC';
   }
   renderSnaps();
-  dirty = true;
+  renderActive();
 }
 let lastRouteSignature = null;
 // 🌟 route.fixes 由 EFF 嗰邊 extractRouteFixes() 揀過、簡化成最多 8 個點嘅
@@ -1092,51 +877,24 @@ function applyScenarioRoute(route) {
   const pts = fixes.map((f) => { const [x, y] = toXY(f.lat, f.lon); return { name: f.name, x, y }; });
   finalizeRoute(buildRouteFromPoints(pts));
   CLUSTERS = buildClustersFromSigmets(SIGMETS);
-  rebuildDirectButtons([depName, arrName]);
 
-  S.int.ac = null;
-  if (S.tab === 'inter') startInteractive(Math.max(S.airborne + 20, 380));
   renderSnaps();
-  dirty = true;
-}
-function rebuildDirectButtons(names) {
-  const row = $('rowDirect');
-  if (!row) return;
-  row.innerHTML = '<span class="lbl">Direct</span>' + names.map((n) => '<button class="b" type="button" data-dct="' + n + '">' + n + '</button>').join('');
+  renderActive();
 }
 function applyScenarioAirborne(hhmm_) {
   const m = hhmmToMin(hhmm_);
   if (!Number.isFinite(m) || m < 0 || m >= 1440) return;
   S.airborne = m;
-  S.rep.t = Math.max(S.rep.t, m);
   if ($('inAir')) $('inAir').value = hhmm(S.airborne);
-  if (S.tab === 'inter') { S.int.ac = null; startInteractive(Math.max(S.airborne + 20, 380)); }
   renderSnaps();
-  dirty = true;
-}
-// 🌟 教官喺 IOS 自己個 iframe 度撳 LNAV/HDG/Hold/Direct/Altitude 嗰刻嘅「意圖」
-// （睇上面 broadcastAircraftOverride），parent 寫落 scenario_aircraft_override
-// 之後會 postMessage 落呢個 iframe。呢度淨係覆寫 mode/target/altitude 呢幾樣
-// 「決定」，x/y/alt/hdg 等實際物理狀態繼續由自己嗰份 S.int.ac 用返
-// stepAircraft() 計落去——咁樣兩邊（教官/trainee）各自行緊自己條 clock，但
-// 跟住嘅係同一個決定，唔使逐 frame 強行對齊座標
-function applyScenarioAircraft(override) {
-  if (!override || S.tab !== 'inter' || !S.int.ac) return;
-  const a = S.int.ac;
-  a.mode = override.mode || a.mode;
-  if (typeof override.selHdg === 'number') a.selHdg = override.selHdg;
-  a.atcHold = !!override.atcHold;
-  if (typeof override.nextIdx === 'number') a.nextIdx = override.nextIdx;
-  if (override.tgtName && APTXY[override.tgtName]) a.tgt = { name: override.tgtName, x: APTXY[override.tgtName][0], y: APTXY[override.tgtName][1] };
-  if (override.altMode) { a.altMode = override.altMode; if (typeof override.altSel === 'number') a.altSel = override.altSel; if ($('altMode')) $('altMode').textContent = a.altMode === 'MAN' ? 'MAN ' + (a.altSel / 1000) + 'k' : 'AUTO'; }
-  dirty = true;
+  renderActive();
 }
 window.addEventListener('message', (e) => {
   const data = e.data;
   if (!data || typeof data !== 'object') return;
   if (data.type === 'eff-scenario-sigmets') applyScenarioSigmets(data.sigmets);
   if (data.type === 'eff-scenario-airborne' && typeof data.airborneZ === 'string') applyScenarioAirborne(data.airborneZ);
-  if (data.type === 'eff-scenario-aircraft') applyScenarioAircraft(data.override);
+  if (data.type === 'eff-scenario-active-snapshot' && typeof data.idx === 'number') applyScenarioActiveSnapshot(data.idx);
   if (data.type === 'eff-scenario-route') applyScenarioRoute(data.route);
 });
 // 🌟 debug 用：top-level `let`/`const` 喺呢種 classic script 入面唔會自動變
