@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
 import { useWxRadarSync, type AircraftOverride } from "@/hooks/useWxRadarSync";
 import { parseSigmetBulletin } from "@/lib/weather/sigmetParser";
+import { extractRouteFixes } from "@/lib/weather/routeFixes";
 import SigmetChart from "@/components/weather/SigmetChart";
 
 // 🌟 教官（或者 Claude 傾好劇本之後）將原始 ICAO SIGMET 電報 paste 落呢度，save
@@ -151,14 +152,18 @@ function AirborneTimeControl() {
 // 教官喺呢個 iframe 度撳 LNAV/HDG/Hold/Direct/Altitude 嗰陣，個 iframe 會
 // postMessage 返「我撳咗咩」畀呢度（onAircraftAction），即刻寫落
 // scenario_aircraft_override，等 trainee 嗰邊個 iframe 跟住做同一個決定。
-// 真正跟 EFF OFP route（而家 ND 用緊嘅 RCTP-VHHH route 仲係呢個 scenario 自己
-// hard-code 嗰套）仲未做，係呢個 Phase 2 之後嘅工夫
+// 🌟 真正跟 EFF OFP route：routeFixes 由呢個 flight 嘅 raw_simbrief.navlog
+// 攞返嚟（睇 lib/weather/routeFixes.ts），postMessage 落 iframe 之後會換走
+// 佣個檔案自己 hard-code 嗰套虛構 RCTP-VHHH 地理（連埋 TC centre 嘅風眼位置
+// 都跟住 SIGMET 文字入面嗰個 TC centre 換走）——未有 SimBrief OFP 嗰陣（少
+// 過 2 個有效座標）就保持而家嘅示範航路，唔會令個 radar 冇咗畫面
 export default function WxRadarTab() {
   const { flightData, updateFlightData } = useFlightData();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const rawText: string = flightData?.scenario_sigmets_raw || "";
   const parsed = parseSigmetBulletin(rawText);
+  const routeFixes = useMemo(() => extractRouteFixes(flightData?.raw_simbrief), [flightData?.raw_simbrief]);
 
   const handleAircraftAction = useCallback(
     (override: AircraftOverride) => {
@@ -167,7 +172,7 @@ export default function WxRadarTab() {
     [updateFlightData]
   );
 
-  useWxRadarSync(iframeRef, parsed, flightData?.scenario_airborne_time_z, flightData?.scenario_aircraft_override, handleAircraftAction);
+  useWxRadarSync(iframeRef, parsed, flightData?.scenario_airborne_time_z, flightData?.scenario_aircraft_override, handleAircraftAction, routeFixes);
 
   return (
     <div className="h-full flex flex-col gap-4 md:flex-row">

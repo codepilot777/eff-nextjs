@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
 import { useWxRadarSync } from "@/hooks/useWxRadarSync";
 import { parseSigmetBulletin } from "@/lib/weather/sigmetParser";
+import { extractRouteFixes } from "@/lib/weather/routeFixes";
 
 // 🌟 Trainee/Observer 嘅 ND 雷達畫面——同 IOS 嗰個 WX RADAR tab 用緊同一個
 // weather_nd_standalone.html，但呢度冇 SIGMET 編輯 UI（嗰個係教官專屬資料，
@@ -21,7 +22,8 @@ export default function WxRadarND() {
 
   const rawText: string = flightData?.scenario_sigmets_raw || "";
   const parsed = parseSigmetBulletin(rawText);
-  useWxRadarSync(iframeRef, parsed, flightData?.scenario_airborne_time_z, flightData?.scenario_aircraft_override);
+  const routeFixes = useMemo(() => extractRouteFixes(flightData?.raw_simbrief), [flightData?.raw_simbrief]);
+  useWxRadarSync(iframeRef, parsed, flightData?.scenario_airborne_time_z, flightData?.scenario_aircraft_override, undefined, routeFixes);
 
   return (
     <div className="flex-1 min-h-0 bg-[#1a1a1a] border border-[#333] rounded-xl overflow-hidden flex flex-col">

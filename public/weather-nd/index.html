@@ -149,33 +149,58 @@ ul.log{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
 <script>
 /* ===== CORE MODEL: fictional typhoon ORCHID weather field, radar beam model, flight sim ===== */
 const D2R = Math.PI / 180, R2D = 180 / Math.PI;
-const LAT0 = 21, LON0 = 114, KX = 60 * Math.cos(LAT0 * D2R);
+// 🌟 LAT0/LON0/KX、APT/APTXY、ROUTE 呢幾樣全部由 `let` 聲明——Phase 2 嘅
+// applyScenarioRoute() 要喺收到 EFF 真正 OFP 航路嗰陣，將呢個檔案本身
+// RCTP-VHHH 嗰套 fallback 示範地理（連同台灣海峽呢個 centre）完全換走，
+// 等個 radar 畫面唔論跟住邊個真實航段都啱好擺中間
+let LAT0 = 21, LON0 = 114, KX = 60 * Math.cos(LAT0 * D2R);
 function toXY(lat, lon) { return [(lon - LON0) * KX, (lat - LAT0) * 60]; }
 function toLL(x, y) { return [LAT0 + y / 60, LON0 + x / KX]; }
-const APT = {
+let APT = {
   RCTP: [25.0777, 121.2325], VHHH: [22.3089, 113.9185],
   RCKH: [22.5771, 120.3503], RPLL: [14.5086, 121.0197]
 };
-const APTXY = {}; for (const k in APT) APTXY[k] = toXY(APT[k][0], APT[k][1]);
+let APTXY = {}; for (const k in APT) APTXY[k] = toXY(APT[k][0], APT[k][1]);
 
-/* ---- route (fictional fixes on the straight line RCTP-VHHH) ---- */
-const ROUTE = (function () {
+/* ---- route (rebuilt from the real OFP via applyScenarioRoute(); falls back
+   to a straight RCTP-VHHH demo line with 3 fictional waypoints otherwise) ---- */
+let ROUTE, HLD_IDX, VHHH_IDX, ARR_NAME, HOLD_INBOUND, ROUTE_LEN, PLAN;
+function buildRouteFromPoints(pts) {
+  // 🌟 淨係喺最後一腳（第二尾個 fix 去 arrival）嗰段，距離 arrival 40NM嗰點
+  // 插一個虛構嘅 HOLD fix，等 instructor 可以搭「落 hold」嗰段劇本——真實
+  // OFP 本身唔會有呢個 fix，純粹為咗 sim 需要先加
+  const n = pts.length;
+  const h0 = pts[n - 2], v = pts[n - 1];
+  const L = Math.hypot(v.x - h0.x, v.y - h0.y);
+  const HOLD_OFFSET_NM = 40;
+  const hf = L > HOLD_OFFSET_NM ? 1 - HOLD_OFFSET_NM / L : 0.5;
+  const hold = { name: 'HOLD01', x: h0.x + (v.x - h0.x) * hf, y: h0.y + (v.y - h0.y) * hf };
+  return pts.slice(0, n - 1).concat([hold, pts[n - 1]]);
+}
+function finalizeRoute(route) {
+  ROUTE = route;
+  HLD_IDX = ROUTE.length - 2;
+  VHHH_IDX = ROUTE.length - 1;
+  ARR_NAME = ROUTE[VHHH_IDX].name;
+  HOLD_INBOUND = (function () {
+    const h = ROUTE[HLD_IDX], v = ROUTE[VHHH_IDX];
+    return (Math.atan2(v.x - h.x, v.y - h.y) * R2D + 360) % 360;
+  })();
+  ROUTE_LEN = Math.hypot(ROUTE[VHHH_IDX].x - ROUTE[0].x, ROUTE[VHHH_IDX].y - ROUTE[0].y);
+  PLAN = buildPlan();
+}
+(function initDefaultRoute() {
   const a = APTXY.RCTP, b = APTXY.VHHH;
-  const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
   const at = f => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
-  const hf = 1 - 40 / L;
   const mk = (n, p) => ({ name: n, x: p[0], y: p[1] });
-  return [mk('RCTP', a), mk('KALEN', at(0.22)), mk('MORAX', at(0.50)), mk('SELIN', at(0.78)), mk('HLD01', at(hf)), mk('VHHH', b)];
+  finalizeRoute(buildRouteFromPoints([mk('RCTP', a), mk('KALEN', at(0.22)), mk('MORAX', at(0.50)), mk('SELIN', at(0.78)), mk('VHHH', b)]));
 })();
-const HLD_IDX = 4, VHHH_IDX = 5;
-const HOLD_INBOUND = (function () {
-  const h = ROUTE[HLD_IDX], v = ROUTE[VHHH_IDX];
-  return (Math.atan2(v.x - h.x, v.y - h.y) * R2D + 360) % 360;
-})();
-const ROUTE_LEN = Math.hypot(ROUTE[5].x - ROUTE[0].x, ROUTE[5].y - ROUTE[0].y);
 
-/* ---- typhoon track (matches the schematic chart, 270000Z = hour 0) ---- */
-const TC_PTS = [[0, 18.5, 115.6], [6, 19.3, 113.9], [12, 20.2, 112.3], [18, 21.1, 110.8], [24, 22.0, 109.3]];
+/* ---- typhoon track (defaults to the fictional ORCHID track; replaced by
+   applyScenarioSigmets() with the real TC-type SIGMET centre/forecast when
+   the instructor pastes one) ---- */
+let TC_LABEL = 'ORCHID';
+let TC_PTS = [[0, 18.5, 115.6], [6, 19.3, 113.9], [12, 20.2, 112.3], [18, 21.1, 110.8], [24, 22.0, 109.3]];
 function tcXY(tH) {
   let i = 0;
   if (tH <= TC_PTS[0][0]) i = 0; else if (tH >= TC_PTS[TC_PTS.length - 1][0]) i = TC_PTS.length - 2;
@@ -266,7 +291,11 @@ function buildClustersFromSigmets(sigmetsArr) {
     const { sx, sy } = polyExtentXY(s.poly);
     return { sig: s.id, sx, sy, zMax, zMid, turb: /TURB/.test(s.name), seed: strHash(s.id) };
   });
-  clusters.push({ fixed: 'RCKH', sx: 42, sy: 40, zMax: 41, zMid: 30, turb: false, seed: 51 }); // 🌟 固定嘅場景裝飾雲團，同任何 SIGMET 無關，一直都有
+  // 🌟 固定嘅場景裝飾雲團，同任何 SIGMET 無關——但淨係喺 APTXY 重有 RCKH
+  // 嗰陣先加（即係仲用緊 fallback 示範地理）。applyScenarioRoute() 換咗真
+  // 實 OFP 之後 APTXY 淨係剩低 dep/arr，呢嚿裝飾雲就應該自動消失，唔好掛喺
+  // 一個同新航路完全冧冇關係嘅舊地點
+  if (APTXY.RCKH) clusters.push({ fixed: 'RCKH', sx: 42, sy: 40, zMax: 41, zMid: 30, turb: false, seed: 51 });
   for (const c of clusters) {
     if (c.sig) { c.s = SIGMETS.find(s => s.id === c.sig); c.c0 = polyCentroid(c.s); }
     else { c.c0 = APTXY[c.fixed]; }
@@ -452,12 +481,14 @@ function stepAircraft(a, dt) {
 }
 function cloneAc(a) { const c = Object.assign({}, a); c.hold = Object.assign({}, a.hold); return c; }
 
-/* ---- planned flight (LNAV, ATC hold at HLD01), stored every 5 s ---- */
-const PLAN = (function () {
+/* ---- planned flight (LNAV, ATC hold at HOLD01), stored every 5 s ----
+   🌟 function 聲明唔係 const IIFE——finalizeRoute() 要喺 ROUTE 換咗之後
+   重新 call 呢個嚿，等個 planned trajectory 跟返新航路，唔再係舊個 */
+function buildPlan() {
   const a = newAircraft(), out = [], STEP = 5, N = 9000;
   for (let s = 0; s <= N; s++) { if (s % STEP === 0) out.push(cloneAc(a)); stepAircraft(a, 1); }
   return { step: STEP, st: out, secs: N };
-})();
+}
 function plannedAt(sec) {
   if (sec <= 0) { const g = cloneAc(PLAN.st[0]); g.alt = 0; g.gs = 0; g.tas = 0; return g; }
   const f = Math.min(PLAN.st.length - 1.001, sec / PLAN.step), i = Math.floor(f), u = f - i;
@@ -696,7 +727,7 @@ function drawMap(cv, ac, tMin, P, trail, showWx) {
   /* TC */
   const tc = toLL(...tcXY((tMin + P.shift) / 60));
   ctx.strokeStyle = '#ff5050'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(X(tc[1]), Y(tc[0]), 7, 0, 7); ctx.stroke();
-  ctx.fillStyle = '#ff9a9a'; ctx.fillText('ORCHID', X(tc[1]), Y(tc[0]) + 22);
+  ctx.fillStyle = '#ff9a9a'; ctx.fillText(TC_LABEL, X(tc[1]), Y(tc[0]) + 22);
   /* route + airports */
   ctx.strokeStyle = '#ff4fff'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.beginPath();
   ROUTE.forEach((f, i) => { const q = toLL(f.x, f.y); i ? ctx.lineTo(X(q[1]), Y(q[0])) : ctx.moveTo(X(q[1]), Y(q[0])); }); ctx.stroke(); ctx.setLineDash([]);
@@ -882,9 +913,15 @@ function init() {
   $('fHdg').onclick = () => { const a = A(); a.mode = 'HDG'; a.selHdg = Math.round(a.hdg); logEv('HDG SEL ' + a.selHdg); broadcastAircraftOverride(); dirty = true; };
   $('fHold').onclick = () => { const a = A(); a.mode = 'LNAV'; a.nextIdx = HLD_IDX; a.atcHold = true; logEv('Routed to hold at HLD01'); broadcastAircraftOverride(); dirty = true; };
   document.querySelectorAll('[data-hd]').forEach(b => b.onclick = () => { const a = A(); if (a.mode !== 'HDG') { a.mode = 'HDG'; a.selHdg = Math.round(a.hdg); } a.selHdg = (a.selHdg + +b.dataset.hd + 360) % 360; logEv('HDG SEL ' + String(a.selHdg).padStart(3, '0')); broadcastAircraftOverride(); dirty = true; });
-  document.querySelectorAll('[data-dct]').forEach(b => b.onclick = () => {
+  // 🌟 用事件代理（click 聽喺成個 row 度）唔係逐個掣 onclick——applyScenarioRoute()
+  // 會喺換咗真實 OFP 之後用 rebuildDirectButtons() 重新生成呢幾粒掣，代理式
+  // 聽法先至唔使每次換航路都要重新逐個 bind 一次
+  const rowDirectEl = $('rowDirect');
+  if (rowDirectEl) rowDirectEl.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-dct]');
+    if (!b) return;
     const a = A(), k = b.dataset.dct;
-    if (k === 'VHHH') { a.mode = 'LNAV'; a.nextIdx = VHHH_IDX; a.atcHold = false; }
+    if (k === ARR_NAME) { a.mode = 'LNAV'; a.nextIdx = VHHH_IDX; a.atcHold = false; }
     else { a.mode = 'DIRECT'; a.tgt = { name: k, x: APTXY[k][0], y: APTXY[k][1] }; }
     logEv('Direct to ' + k); broadcastAircraftOverride(); dirty = true;
   });
@@ -968,21 +1005,102 @@ function hhmmToMin(hhmm) {
 // 🌟 list 入面嘅 poly 用 [lat, lon]（同 sigmetParser.ts 一致），呢個檔案自己
 // 一路用緊 [lon, lat]（睇 sigPolyXY/polyCentroid 點用 toXY(p[1], p[0])）——
 // 入嚟呢度即刻反轉，唔好將呢個分歧帶入 SIGMETS 數組入面
+// 🌟 由一個 TC centre（lat/lon）、移動方向/速度，推算 distNm 之後嗰點嘅
+// lat/lon——同 toXY/toLL 一樣用返扁平近似（1° lat = 60NM，1° lon = 60*cos(lat)NM），
+// 唔使搬成個地球橢圓公式嚟做呢個細節
+function destPointLatLon(lat, lon, dirDeg, distNm) {
+  const dLat = distNm * Math.cos(dirDeg * D2R) / 60;
+  const dLon = distNm * Math.sin(dirDeg * D2R) / (60 * Math.cos(lat * D2R));
+  return [lat + dLat, lon + dLon];
+}
 function applyScenarioSigmets(list) {
   const polysOnly = (list || []).filter((s) => s && s.type === 'polygon' && Array.isArray(s.poly) && s.poly.length >= 3);
-  if (polysOnly.length === 0) return; // 冇真正 polygon SIGMET 就保持而家個 fallback 示範數據，唔清空個 radar
-  SIGMETS = polysOnly.map((s) => ({
-    id: s.firCode + '-' + s.sigmetNumber,
-    label: s.sigmetNumber,
-    name: s.hazard,
-    t0: hhmmToMin(s.refTime),
-    vdir: COMPASS_DEG[String(s.movDir || 'W').toUpperCase()] ?? 270,
-    vkt: s.movSpdKt || 15,
-    color: hazardColor(s.hazard),
-    poly: s.poly.map((p) => [p[1], p[0]]),
-  }));
-  CLUSTERS = buildClustersFromSigmets(SIGMETS);
+  if (polysOnly.length > 0) {
+    SIGMETS = polysOnly.map((s) => ({
+      id: s.firCode + '-' + s.sigmetNumber,
+      label: s.sigmetNumber,
+      name: s.hazard,
+      t0: hhmmToMin(s.refTime),
+      vdir: COMPASS_DEG[String(s.movDir || 'W').toUpperCase()] ?? 270,
+      vkt: s.movSpdKt || 15,
+      color: hazardColor(s.hazard),
+      poly: s.poly.map((p) => [p[1], p[0]]),
+    }));
+    CLUSTERS = buildClustersFromSigmets(SIGMETS);
+  } // 冇真正 polygon SIGMET 就保持而家個 fallback 示範數據，唔清空個 radar
+
+  // 🌟 TC 中心嘅 SIGMET（type:'centre'，例如「TC ORCHID」嗰種）攞嚟 drive 個
+  // radar 最主要嗰嚿颱風回波位置（tcXY/TC_PTS）——以前呢樣同教官自己 paste
+  // 嘅 SIGMET 電報完全冧冇關係，係另一套獨立 hard-code 常數，而家先真係一致：
+  // 教官寫乜嘢 TC centre/移動，個雷達個「風眼」就跟住出現喺嗰度
+  const tcSigmet = (list || []).find((s) => s && s.type === 'centre' && Array.isArray(s.centre));
+  if (tcSigmet) {
+    const obsH = hhmmToMin(tcSigmet.refTime) / 60;
+    const pts = [[obsH, tcSigmet.centre[0], tcSigmet.centre[1]]];
+    if (tcSigmet.forecastCentre && Array.isArray(tcSigmet.forecastCentre.centre)) {
+      let fH = hhmmToMin(tcSigmet.forecastCentre.time) / 60;
+      if (fH <= obsH) fH += 24; // 跨過午夜
+      pts.push([fH, tcSigmet.forecastCentre.centre[0], tcSigmet.forecastCentre.centre[1]]);
+    } else {
+      const dir = COMPASS_DEG[String(tcSigmet.movDir || 'W').toUpperCase()] ?? 270;
+      const spd = tcSigmet.movSpdKt || 10;
+      const [lat2, lon2] = destPointLatLon(tcSigmet.centre[0], tcSigmet.centre[1], dir, spd * 6);
+      pts.push([obsH + 6, lat2, lon2]);
+    }
+    TC_PTS = pts;
+    TC_LABEL = String(tcSigmet.hazard || 'TC').replace(/^TC\s*/, '') || 'TC';
+  }
   dirty = true;
+}
+let lastRouteSignature = null;
+// 🌟 route.fixes 由 EFF 嗰邊 extractRouteFixes() 揀過、簡化成最多 8 個點嘅
+// 真實 OFP 航路（SimBrief navlog 嘅 pos_lat/pos_long）。少過 2 個有效點就
+// 代表呢個 flight 重未有 SimBrief OFP 或者 navlog 冇座標——保持而家嘅
+// fallback 示範航路（RCTP-VHHH），唔好將個 radar 弄崩。
+// 🌟 呢個 hook（同 useWxRadarSync）會跟住 flightData 每次 poll 都重送一次
+// 訊息，即使內容完全冇變——所以呢度要自己判斷「真係轉咗航路」先重新起飛機
+// 位置，否則飛機會每 3 秒就彈返去起點一次，永遠都飛唔到
+function applyScenarioRoute(route) {
+  const fixes = (route && Array.isArray(route.fixes))
+    ? route.fixes.filter((f) => f && Number.isFinite(f.lat) && Number.isFinite(f.lon))
+    : [];
+  if (fixes.length < 2) return;
+
+  const sig = fixes.map((f) => f.name + ':' + f.lat.toFixed(4) + ',' + f.lon.toFixed(4)).join('|');
+  if (sig === lastRouteSignature) return;
+  lastRouteSignature = sig;
+
+  // 🌟 recentre LAT0/LON0 做個 bounding box 中心，等個 route 唔論去到邊個
+  // 地區都啱好擺中間，而唔係一路錨死喺台灣海峽嗰個 fallback 示範地理
+  let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+  for (const f of fixes) {
+    minLat = Math.min(minLat, f.lat); maxLat = Math.max(maxLat, f.lat);
+    minLon = Math.min(minLon, f.lon); maxLon = Math.max(maxLon, f.lon);
+  }
+  LAT0 = (minLat + maxLat) / 2;
+  LON0 = (minLon + maxLon) / 2;
+  KX = 60 * Math.cos(LAT0 * D2R);
+
+  const depName = fixes[0].name, arrName = fixes[fixes.length - 1].name;
+  APT = {
+    [depName]: [fixes[0].lat, fixes[0].lon],
+    [arrName]: [fixes[fixes.length - 1].lat, fixes[fixes.length - 1].lon],
+  };
+  APTXY = {}; for (const k in APT) APTXY[k] = toXY(APT[k][0], APT[k][1]);
+
+  const pts = fixes.map((f) => { const [x, y] = toXY(f.lat, f.lon); return { name: f.name, x, y }; });
+  finalizeRoute(buildRouteFromPoints(pts));
+  CLUSTERS = buildClustersFromSigmets(SIGMETS);
+  rebuildDirectButtons([depName, arrName]);
+
+  S.int.ac = null;
+  if (S.tab === 'inter') startInteractive(Math.max(S.airborne + 20, 380));
+  dirty = true;
+}
+function rebuildDirectButtons(names) {
+  const row = $('rowDirect');
+  if (!row) return;
+  row.innerHTML = '<span class="lbl">Direct</span>' + names.map((n) => '<button class="b" type="button" data-dct="' + n + '">' + n + '</button>').join('');
 }
 function applyScenarioAirborne(hhmm_) {
   const m = hhmmToMin(hhmm_);
@@ -1016,6 +1134,7 @@ window.addEventListener('message', (e) => {
   if (data.type === 'eff-scenario-sigmets') applyScenarioSigmets(data.sigmets);
   if (data.type === 'eff-scenario-airborne' && typeof data.airborneZ === 'string') applyScenarioAirborne(data.airborneZ);
   if (data.type === 'eff-scenario-aircraft') applyScenarioAircraft(data.override);
+  if (data.type === 'eff-scenario-route') applyScenarioRoute(data.route);
 });
 // 🌟 debug 用：top-level `let`/`const` 喺呢種 classic script 入面唔會自動變
 // 成 window.X（唔似 `var`），開發者工具 console 入面冇得直接睇到 SIGMETS/S
@@ -1024,6 +1143,8 @@ window.addEventListener('message', (e) => {
 window.__nd = {
   get SIGMETS() { return SIGMETS; },
   get S() { return S; },
+  get ROUTE() { return ROUTE; },
+  get TC_PTS() { return TC_PTS; },
 };
 
 </script>

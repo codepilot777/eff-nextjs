@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { ParsedSigmet } from "@/lib/weather/sigmetParser";
+import type { RouteFix } from "@/lib/weather/routeFixes";
 
 export interface AircraftOverride {
   mode?: string;
@@ -27,20 +28,26 @@ export interface AircraftOverride {
 // 🌟 "ready" 嘅 listener 淨係 mount 一次就夠（個 iframe 本身冇重新 load 過，
 // 唔會再送多次 "eff-nd-ready"）——如果跟住啲 prop 嘅 effect 一齊重新 run，
 // 會將 readyRef 錯誤咁reset 返 false，之後嘅更新就send 唔到出去
+// 🌟 routeFixes（睇 lib/weather/routeFixes.ts）係由真實 SimBrief navlog
+// 揀出嚟嘅航路座標——iframe 嗰邊會用嚟換走自己 hard-code 嗰套示範地理。
+// 呢個 array 每次 poll 都會係新 reference（flightData 一路 refetch），但
+// iframe 入面 applyScenarioRoute() 自己有做 signature 比對，唔會因為不斷
+// 重送而不斷將飛機 reset 返去起點
 export function useWxRadarSync(
   iframeRef: React.RefObject<HTMLIFrameElement | null>,
   sigmets: ParsedSigmet[],
   airborneZ: string | undefined,
   aircraftOverride?: AircraftOverride | null,
-  onAircraftAction?: (override: AircraftOverride) => void
+  onAircraftAction?: (override: AircraftOverride) => void,
+  routeFixes?: RouteFix[]
 ) {
   const readyRef = useRef(false);
-  const latestRef = useRef({ sigmets, airborneZ, aircraftOverride });
+  const latestRef = useRef({ sigmets, airborneZ, aircraftOverride, routeFixes });
   const onAircraftActionRef = useRef(onAircraftAction);
 
   useEffect(() => {
-    latestRef.current = { sigmets, airborneZ, aircraftOverride };
-  }, [sigmets, airborneZ, aircraftOverride]);
+    latestRef.current = { sigmets, airborneZ, aircraftOverride, routeFixes };
+  }, [sigmets, airborneZ, aircraftOverride, routeFixes]);
 
   useEffect(() => {
     onAircraftActionRef.current = onAircraftAction;
@@ -54,6 +61,7 @@ export function useWxRadarSync(
       win.postMessage({ type: "eff-scenario-sigmets", sigmets: latest.sigmets }, "*");
       if (latest.airborneZ) win.postMessage({ type: "eff-scenario-airborne", airborneZ: latest.airborneZ }, "*");
       if (latest.aircraftOverride) win.postMessage({ type: "eff-scenario-aircraft", override: latest.aircraftOverride }, "*");
+      if (latest.routeFixes) win.postMessage({ type: "eff-scenario-route", route: { fixes: latest.routeFixes } }, "*");
     };
     const onMessage = (e: MessageEvent) => {
       if (e.source !== iframeRef.current?.contentWindow) return;
@@ -77,6 +85,7 @@ export function useWxRadarSync(
     win.postMessage({ type: "eff-scenario-sigmets", sigmets }, "*");
     if (airborneZ) win.postMessage({ type: "eff-scenario-airborne", airborneZ }, "*");
     if (aircraftOverride) win.postMessage({ type: "eff-scenario-aircraft", override: aircraftOverride }, "*");
+    if (routeFixes) win.postMessage({ type: "eff-scenario-route", route: { fixes: routeFixes } }, "*");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sigmets, airborneZ, aircraftOverride]);
+  }, [sigmets, airborneZ, aircraftOverride, routeFixes]);
 }
