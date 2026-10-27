@@ -160,7 +160,12 @@ export function calculateFuelEngine(flightData: any) {
   // 實時重量計算 (Dynamic Weights)
   const currTow = (actualZfw > 0 ? actualZfw : ofpZfw) + (currTotal - currTaxi);
   const currLw = currTow - currTrip;
-  const showRevVal = isManual || hasTraineeZfwInput || (selectedAltn !== (altnOptions[0] || 'N/A')) || (autoExtra > 0);
+  // 🌟 修復：以前揀另一個 alternate、或者 OFP 本身帶住 extra fuel，都會自動
+  // 令 Revised 欄「彈」出嚟——但換 ALTN 淨係改緊 OFP 本身嘅目標（真實運作入面，
+  // 揀邊個 alternate 係 flight plan 嘅一部分，唔係「trainee 修訂」），應該淨係
+  // 更新 OFP 欄（baseAltnOfp 已經會跟住揀嘅 altn 變）。Revised 欄要模擬真實用法：
+  // trainee 真係打咗 Revised ZFW（或者揀咗 Manual）先會出現，先有意義
+  const showRevVal = isManual || hasTraineeZfwInput;
 
   // ==========================================
   // 6. 動態 In-Flight Engine (EFOB & Alternates)

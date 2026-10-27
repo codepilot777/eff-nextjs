@@ -99,14 +99,22 @@ describe('calculateFuelEngine', () => {
       expect(calc.showRevVal).toBe(true);
     });
 
-    it('becomes true when a non-default alternate is selected', () => {
+    it('stays false when switching ALTN alone (choosing an alternate is part of the plan, not a trainee revision) — only the OFP column should move', () => {
       const withAltns = {
         ...baseFlight,
         alternates: [{ icao: 'RJOO', burn: 2.0, time: 30 }, { icao: 'RJBB', burn: 2.5, time: 35 }],
         selected_altn: 'RJBB',
       };
       const calc = calculateFuelEngine(withAltns);
-      expect(calc.showRevVal).toBe(true);
+      expect(calc.baseAltnOfp).toBeCloseTo(2.5);
+      expect(calc.showRevVal).toBe(false);
+    });
+
+    it('stays false even when the OFP itself carries extra fuel, until the trainee actually revises ZFW', () => {
+      const withExtra = { ...baseFlight, fuel_extra_ofp: 1.5 };
+      const calc = calculateFuelEngine(withExtra);
+      expect(calc.ofpExtra).toBeCloseTo(1.5);
+      expect(calc.showRevVal).toBe(false);
     });
   });
 
