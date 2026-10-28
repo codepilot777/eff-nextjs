@@ -118,6 +118,17 @@ export const techlogPostBodySchema = z.object({
   tlEntriesReset: z.literal(true).optional(),
   flightsPrepend: z.record(z.string(), z.unknown()).optional(),
   signOffDefects: z.literal(true).optional(),
+  // 🌟 教官專屬：用教官自己打嘅 inbound sector 取代起機嗰陣自動生成嗰條假
+  // 「最新」歷史，睇 lib/techlog/techlogContinuity.ts 嘅 insertInstructorInboundSector()
+  instructorInsertInboundSector: z.object({
+    departureStation: nonEmptyString('instructorInsertInboundSector.departureStation').max(10),
+    defects: z.array(z.object({
+      status: z.enum(['OPEN', 'DEFERRED', 'CLEARED']),
+      description: nonEmptyString('instructorInsertInboundSector.defects[].description').max(500),
+    })).max(10),
+    flightNo: z.string().trim().max(20).optional(),
+    cmdr: z.string().trim().max(100).optional(),
+  }).optional(),
 });
 
 // 🌟 邊啲 techlog patch 一定要教官登入先可以送——淨係睇「意圖」（directive/明確值），
@@ -127,11 +138,13 @@ export function requiresInstructorAuth(patch: {
   data?: Record<string, unknown>;
   defectUpdate?: { changes: Record<string, unknown> };
   signOffDefects?: true;
+  instructorInsertInboundSector?: unknown;
 }): boolean {
   const d = patch.data || {};
   if (d.tl_release === true || d.tl_checks === true || d.tl_fluids === true) return true;
   if (typeof d.crs_id === 'string' && d.crs_id.length > 0) return true;
   if (patch.signOffDefects) return true;
+  if (patch.instructorInsertInboundSector) return true;
   if (patch.defectUpdate && ['CLEARED', 'DEFERRED'].includes(String(patch.defectUpdate.changes?.status))) return true;
   return false;
 }

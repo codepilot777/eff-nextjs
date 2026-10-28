@@ -1,6 +1,7 @@
 // 🌟 單一嘅 TechLog patch 合併邏輯，client (樂觀更新) 同 server (真正寫入) 都用返同一個
 // function，唔會有兩份各自維護嘅合併邏輯而慢慢走樣。純 function，冇 db/next/server 依賴，
 // 喺 "use client" component 入面 import 都安全。
+import { insertInstructorInboundSector, type InsertInboundSectorParams } from './techlogContinuity';
 
 export interface TechLogPatch {
   data?: Record<string, unknown>; // 扁平 scalar 覆寫（保留返原有行為）
@@ -10,6 +11,11 @@ export interface TechLogPatch {
   tlEntriesReset?: true;
   flightsPrepend?: Record<string, unknown>;
   signOffDefects?: true; // 教官專屬「Sign Off Defects Log」，睇 validation.ts 嘅 requiresInstructorAuth
+  // 🌟 教官專屬：用一條教官自己打嘅 inbound sector 取代起機嗰陣自動生成嗰條假
+  // 「最新」歷史，連埋背後嘅假歷史鏈一齊重新生成——同 flightsPrepend（trainee
+  // 嘅 Normal Close/Air Return）完全獨立，唔影響嗰條路徑。睇
+  // techlogContinuity.ts 嘅 insertInstructorInboundSector()
+  instructorInsertInboundSector?: InsertInboundSectorParams;
 }
 
 type TechLogRow = Record<string, unknown>;
@@ -45,6 +51,10 @@ export function applyTechLogDirectives(current: TechLogRow, patch: TechLogPatch)
 
   if (patch.signOffDefects) {
     merged.tl_defects = true;
+  }
+
+  if (patch.instructorInsertInboundSector) {
+    Object.assign(merged, insertInstructorInboundSector(current, patch.instructorInsertInboundSector));
   }
 
   return merged;

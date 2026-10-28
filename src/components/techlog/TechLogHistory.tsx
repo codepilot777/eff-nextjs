@@ -4,28 +4,35 @@ import { deriveHistoricalFuelRecord } from "@/lib/techlog/fuelRecord";
 import { MaintenanceWorkCard } from "@/components/techlog/shared/MaintenanceWorkCard";
 import { ServicingSummaryCard } from "@/components/techlog/shared/ServicingSummaryCard";
 import { FuelRecordCard } from "@/components/techlog/shared/FuelRecordCard";
+import InstructorInboundSectorPanel from "@/components/techlog/InstructorInboundSectorPanel";
 
 // 🌟 同 Commander's Acceptance 果句共用，純粹裝飾，冇對應嘅 data model 欄位
 const MAINTENANCE_NOTICE = "PITOT / STATIC PROBE COVERS — NIL FITTED, ACCOUNTED FOR";
 
-export default function TechLogHistory({ tlData }: any) {
+export default function TechLogHistory({ tlData, isInstructor, updateTechLogData }: any) {
   const realHistory = tlData?.flights || [];
 
   const [selectedHist, setSelectedHist] = useState<number | null>(null);
 
+  // 🌟 揀緊嗰條 sector 如果唔再存在（例如教官啱啱用 Instructor: Set Inbound
+  // Sector 整條新嘅換走咗舊嗰條），自動揀返最新一條，唔會停留喺一個已經
+  // 搵唔返嘅 id 度令右邊詳情空白
   useEffect(() => {
-    if (realHistory.length > 0 && !selectedHist) {
-      setSelectedHist(realHistory[0].id);
-    }
-  }, [realHistory]);
+    if (realHistory.length === 0) return;
+    const stillExists = realHistory.some((r: any) => r.id === selectedHist);
+    if (!stillExists) setSelectedHist(realHistory[0].id);
+  }, [realHistory, selectedHist]);
 
   if (realHistory.length === 0) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center text-[#555] bg-[#1E1E1E] rounded-2xl border border-[#333] shadow-lg">
-        <svg fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-24 h-24 mb-6 text-[#333]">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <span className="text-[0.8rem] font-bold tracking-widest uppercase">No history records found for this aircraft.</span>
+      <div className="w-full h-full flex flex-col gap-3">
+        {isInstructor && <InstructorInboundSectorPanel updateTechLogData={updateTechLogData} />}
+        <div className="flex-1 flex flex-col items-center justify-center text-[#555] bg-[#1E1E1E] rounded-2xl border border-[#333] shadow-lg">
+          <svg fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-24 h-24 mb-6 text-[#333]">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span className="text-[0.8rem] font-bold tracking-widest uppercase">No history records found for this aircraft.</span>
+        </div>
       </div>
     );
   }
@@ -44,6 +51,7 @@ export default function TechLogHistory({ tlData }: any) {
 
       {/* 👈 左側：歷史列表 */}
       <div className="md:flex-[3] bg-[#1E1E1E] border border-[#333] rounded-2xl p-5 shadow-lg md:overflow-y-auto flex flex-col gap-3 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent shrink-0 max-h-[40vh] md:max-h-none">
+        {isInstructor && <InstructorInboundSectorPanel updateTechLogData={updateTechLogData} />}
         <h4 className="text-[#8fa0a6] text-[0.65rem] font-bold uppercase tracking-widest mb-2 border-b border-[#333] pb-3 shrink-0 flex items-center gap-2">
           <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 011.875 1.875v11.25a1.875 1.875 0 01-1.875 1.875H5.625a1.875 1.875 0 01-1.875-1.875V6.375c0-1.036.84-1.875 1.875-1.875z" /></svg>
           Sector Logs

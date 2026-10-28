@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_TECHLOG, syncTechlogForNewFlight } from './techlogContinuity';
+import { DEFAULT_TECHLOG, insertInstructorInboundSector, syncTechlogForNewFlight } from './techlogContinuity';
 
 describe('syncTechlogForNewFlight', () => {
   it('always syncs tl_prep_flt/dep/arr to the new flight, regardless of continuity', () => {
@@ -109,7 +109,98 @@ describe('syncTechlogForNewFlight', () => {
       }
     }
   });
+});
 
+describe('insertInstructorInboundSector', () => {
+  // 🌟 起機之後嘅 base techlog（已經有 syncTechlogForNewFlight 生成嘅 10 條
+  // 假 sector，去到今次呢班機自己嘅出發站 HKG）
+  const baseTechlog = () => syncTechlogForNewFlight(null, { flightNo: 'CX500', depIata: 'HKG', arrIata: 'NRT' });
+
+  it('puts the instructor-authored sector at the very front, with the given defects attached', () => {
+    const result = insertInstructorInboundSector(baseTechlog(), {
+      departureStation: 'SIN',
+      defects: [{ status: 'OPEN', description: 'Pack 1 flow control valve fault' }],
+    });
+    const flights = result.flights as Array<Record<string, unknown>>;
+    expect(flights[0].route).toBe('SIN ➔ HKG');
+    expect(flights[0].action).toBe('Normal Close');
+    const def = flights[0].def as Array<Record<string, unknown>>;
+    expect(def).toHaveLength(1);
+    expect(def[0]).toMatchObject({ status: 'OPEN', description: 'Pack 1 flow control valve fault' });
+  });
+
+  it('regenerates the filler history so it connects backward from the instructor-given departure, not the flight’s own station', () => {
+    const result = insertInstructorInboundSector(baseTechlog(), {
+      departureStation: 'SIN',
+      defects: [{ status: 'DEFERRED', description: 'Hyd B qty low' }],
+    });
+    const flights = result.flights as Array<Record<string, unknown>>;
+    // 🌟 第二條(index 1，即係假歷史嘅最新一條)要 arrive 返 SIN，先至駁得起
+    // instructor 嗰條「SIN ➔ HKG」——唔可以再係舊嗰套去到 HKG 嘅鏈
+    expect(String(flights[1].route).endsWith('➔ SIN')).toBe(true);
+    for (let i = 1; i < flights.length - 1; i++) {
+      const dep = String(flights[i].route).split(' ➔ ')[0];
+      const olderArr = String(flights[i + 1].route).split(' ➔ ')[1];
+      expect(dep).toBe(olderArr);
+    }
+  });
+
+  it('supports multiple defects on the inbound sector', () => {
+    const result = insertInstructorInboundSector(baseTechlog(), {
+      departureStation: 'SIN',
+      defects: [
+        { status: 'OPEN', description: 'Defect A' },
+        { status: 'DEFERRED', description: 'Defect B' },
+      ],
+    });
+    const def = (result.flights as Array<Record<string, unknown>>)[0].def as Array<Record<string, unknown>>;
+    expect(def).toHaveLength(2);
+    expect(def.map((d) => d.description)).toEqual(['Defect A', 'Defect B']);
+  });
+
+  it('updates tl_prev_dep/tl_prev_fob to the instructor sector, not the old fake chain', () => {
+    const result = insertInstructorInboundSector(baseTechlog(), {
+      departureStation: 'SIN',
+      defects: [{ status: 'OPEN', description: 'x' }],
+    });
+    expect(result.tl_prev_dep).toBe('SIN');
+    expect(result.tl_prev_arr).toBe('HKG');
+    const flights = result.flights as Array<Record<string, unknown>>;
+    expect(result.tl_prev_fob).toBe(flights[0].fuelArr);
+  });
+
+  it('honours an explicit flight number / commander instead of generating one', () => {
+    const result = insertInstructorInboundSector(baseTechlog(), {
+      departureStation: 'SIN',
+      defects: [{ status: 'OPEN', description: 'x' }],
+      flightNo: 'CX888',
+      cmdr: 'TEST PILOT',
+    });
+    const flights = result.flights as Array<Record<string, unknown>>;
+    expect(flights[0].flt).toBe('CX888');
+    expect(flights[0].cmdr).toBe('TEST PILOT');
+  });
+
+  it('does not mutate the flights array that finalizeSector-style trainee actions would produce — it fully replaces flights', () => {
+    // 🌟 模擬 trainee 已經 Normal Close 咗一程（flightsPrepend 風格）先至輪到
+    // 教官用呢個 directive——教官嘅版本應該完全取代返 flights，唔會將 trainee
+    // 嗰條都保留低(呢個 directive 本身就係用嚟喺 trainee 用之前做嘅 setup 步驟）
+    const before = baseTechlog();
+    const withTraineeEntry = {
+      ...before,
+      flights: [{ id: 'SEC-TRAINEE', route: 'HKG ➔ NRT', action: 'Normal Close', def: [] }, ...(before.flights as unknown[])],
+    };
+    const result = insertInstructorInboundSector(withTraineeEntry, {
+      departureStation: 'SIN',
+      defects: [{ status: 'OPEN', description: 'x' }],
+    });
+    const flights = result.flights as Array<Record<string, unknown>>;
+    expect(flights[0].id).not.toBe('SEC-TRAINEE');
+    expect(flights.some((f) => f.id === 'SEC-TRAINEE')).toBe(false);
+  });
+});
+
+describe('syncTechlogForNewFlight (continued)', () => {
   it('repeated syncs keep growing the history by 10 sectors each time', () => {
     let techlog: Record<string, unknown> | null = null;
     for (let i = 0; i < 3; i++) {

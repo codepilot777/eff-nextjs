@@ -269,6 +269,80 @@ function buildChainedHistorySectors(count: number, startStation: string, endStat
 //    reset false，tl_flight_status 返做 SCHEDULED）——唔會因為上一個 session 遺留低嘅
 //    「已經 prepared/accepted 緊」狀態，令 trainee 打開嚟見唔到 Prepare Flight 呢個
 //    應該係第一步嘅 pending action
+export interface InboundSectorDefectInput {
+  status: 'OPEN' | 'DEFERRED' | 'CLEARED';
+  description: string;
+}
+
+export interface InsertInboundSectorParams {
+  departureStation: string;
+  defects: InboundSectorDefectInput[];
+  flightNo?: string;
+  cmdr?: string;
+}
+
+// 🌟 教官專屬：起機之後、trainee 未開始用之前，用一條教官自己打嘅「inbound
+// sector」（例如 SIN➔HKG，帶住想要嘅 defect）取代起機嗰陣自動生成嗰條假
+// 「最新」sector，連埋佢背後成條假歷史鏈都要重新生成——唔可以淨係擺喺舊歷史
+// 前面，否則舊歷史仲係駁去呢班機自己嘅出發站（例如都係 HKG），同呢條新
+// sector 嘅出發站（SIN）接唔返，變成兩程連續都去到 HKG 嘅斷鏈。
+// 🌟 同 finalizeSector()（trainee 嘅 Normal Close/Air Return）完全獨立、互不
+// 影響——trainee 自己 close 一程機唔應該觸發任何歷史重新生成，純粹 prepend
+// 返一條新紀錄就夠（睇 directives.ts 嘅 flightsPrepend）
+export function insertInstructorInboundSector(
+  current: Record<string, unknown>,
+  params: InsertInboundSectorParams
+): Record<string, unknown> {
+  const dep = params.departureStation.trim().toUpperCase();
+  const arr = String(current.tl_prep_dep || current.tl_prev_arr || HUB).toUpperCase();
+
+  const blocksOnTime = new Date();
+  const landingTime = new Date(blocksOnTime.getTime() - 10 * 60_000);
+  const flightDurMin = 60 + Math.floor(Math.random() * 180);
+  const takeOffTime = new Date(landingTime.getTime() - flightDurMin * 60_000);
+  const blocksOffTime = new Date(takeOffTime.getTime() - 15 * 60_000);
+
+  const cmdr = params.cmdr?.trim() || String(current.tl_cmdr || pickRandom(COMMANDER_POOL));
+  const fuelArr = (5 + Math.random() * 8).toFixed(1);
+
+  const customEntry: Record<string, unknown> = {
+    id: `SEC-${Date.now().toString().slice(-6)}`,
+    date: formatTechlogDate(blocksOffTime),
+    action: 'Normal Close',
+    flt: params.flightNo?.trim() || pickFlightNumber(dep, arr),
+    route: `${dep} ➔ ${arr}`,
+    cmdr,
+    fuelUp: (12 + Math.random() * 20).toFixed(1),
+    fuelArr,
+    checks: ['Transit Check'],
+    serv: ['Nil Servicing Required'],
+    def: params.defects.map((d) => ({
+      id: `DEF-${1000 + Math.floor(Math.random() * 9000)}`,
+      status: d.status,
+      description: d.description,
+    })),
+    blocksOff: hhmmFromDate(blocksOffTime),
+    takeOff: hhmmFromDate(takeOffTime),
+    landing: hhmmFromDate(landingTime),
+    blocksOn: hhmmFromDate(blocksOnTime),
+    landingsCount: '1', overshoots: '0', touchGo: '0',
+    edto: 'No', autoland: 'Not Attempted',
+  };
+
+  // 🌟 背後嗰條假歷史要重新生成——駁去 dep（customEntry 嘅出發站），唔係
+  // 呢班機自己嘅出發站（arr），等成條鏈(新至舊)順得落去
+  const chain = buildChainedHistorySectors(BRIDGE_HISTORY_DEPTH, dep, dep, blocksOffTime, cmdr);
+
+  return {
+    ...current,
+    flights: [customEntry, ...chain],
+    tl_prev_dep: dep,
+    tl_prev_arr: arr,
+    tl_prev_flt: customEntry.flt,
+    tl_prev_fob: fuelArr,
+  };
+}
+
 export function syncTechlogForNewFlight(
   existingTechlog: Record<string, unknown> | null,
   params: NewFlightContinuityParams
