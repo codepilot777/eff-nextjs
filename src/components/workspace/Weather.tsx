@@ -1,9 +1,14 @@
 "use client";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
+import { parseSigmetBulletin } from "@/lib/weather/sigmetParser";
+import { extractRouteFixes } from "@/lib/weather/routeFixes";
+import { extractLatLon } from "@/lib/weather/airportPositions";
+import RouteWeatherMap from "@/components/weather/RouteWeatherMap";
 
-// 🌟 將 WxCard 抽離主函數，效能更好，唔會重複 Render
-const WxCard = ({ type, icao, metar, taf }: { type: string, icao: string, metar: string, taf: string }) => {
+// 🌟 將 WxCard 抽離主函數，效能更好，唔會重複 Render。加咗 id／highlighted——
+// 畀個 map 度撳機場 marker 可以 scrollIntoView 跳過嚟、閃一閃俾 trainee 知撳中邊個
+const WxCard = ({ id, type, icao, metar, taf, highlighted }: { id: string, type: string, icao: string, metar: string, taf: string, highlighted?: boolean }) => {
   // 根據 Type 設定 Badge 顏色
   let badgeStyle = "";
   let typeLabel = "";
@@ -28,7 +33,12 @@ const WxCard = ({ type, icao, metar, taf }: { type: string, icao: string, metar:
   }
 
   return (
-    <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-5 mb-5 shrink-0 shadow-lg flex flex-col font-sans">
+    <div
+      id={id}
+      className={`bg-[#1E1E1E] border rounded-xl p-5 mb-5 shrink-0 shadow-lg flex flex-col font-sans transition-colors ${
+        highlighted ? "border-[#ff4fff] ring-2 ring-[#ff4fff]/50" : "border-[#333333]"
+      }`}
+    >
       {/* Header 區塊 */}
       <div className="flex justify-between items-center mb-4 border-b border-[#333] pb-3">
         <div className="flex items-center gap-3">
@@ -64,9 +74,21 @@ export default function Weather() {
   // 🌟 從天上直接抽取 Data
   const { flightData } = useFlightData();
 
-  // 🌟 Enroute Stations 呢個分類可以成十幾個機場，預設收埋，trainee 想睇先展開，
-  // 避免一入嚟就成頁都係機場卡片
-  const [enrouteExpanded, setEnrouteExpanded] = useState(false);
+  // 🌟 撳個 map 上面嘅機場 marker 之後，右邊卡片短暫 highlight 一下俾 trainee
+  // 知撳中邊個——幾秒後自動清返，唔使成個 session 都亮住。右邊欄依家係單一
+  // 滾動清單（Enroute Stations 都已經擺埋入去），唔使再摺疊展開先搵到
+  const [highlightedWxId, setHighlightedWxId] = useState<string | null>(null);
+  const scrollToAirport = (wxId: string) => {
+    setHighlightedWxId(wxId);
+    document.getElementById(wxId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => setHighlightedWxId((cur) => (cur === wxId ? null : cur)), 2500);
+  };
+
+  // 🌟 Demo：map view 用嘅 route/SIGMET 數據——同 WxRadar 果邊用緊同一套
+  // sigmetParser.ts/routeFixes.ts，唔使另外再揼一次邏輯。useMemo 要喺
+  // return null 之前 call（Hooks 規則），所以放喺呢度，入面自己做 optional chaining
+  const mapSigmets = useMemo(() => parseSigmetBulletin(flightData?.scenario_sigmets_raw || ""), [flightData?.scenario_sigmets_raw]);
+  const mapRouteFixes = useMemo(() => extractRouteFixes(flightData?.raw_simbrief), [flightData?.raw_simbrief]);
 
   // 防呆保護：未有 data 就唔 render
   if (!flightData) return null;
@@ -93,7 +115,8 @@ export default function Weather() {
       type: "DEP",
       icao: flightData.dep_icao,
       metar: getWx(flightData?.metar_dep, rawSb.origin?.metar),
-      taf: getWx(flightData?.taf_dep, rawSb.origin?.taf)
+      taf: getWx(flightData?.taf_dep, rawSb.origin?.taf),
+      pos: extractLatLon(rawSb.origin)
     });
     seenIcaos.add(flightData.dep_icao);
   }
@@ -105,7 +128,8 @@ export default function Weather() {
       type: "ARR",
       icao: flightData.arr_icao,
       metar: getWx(flightData?.metar_arr, rawSb.destination?.metar),
-      taf: getWx(flightData?.taf_arr, rawSb.destination?.taf)
+      taf: getWx(flightData?.taf_arr, rawSb.destination?.taf),
+      pos: extractLatLon(rawSb.destination)
     });
     seenIcaos.add(flightData.arr_icao);
   }
@@ -125,7 +149,8 @@ export default function Weather() {
         type: "ALTN",
         icao: icao,
         metar: getWx(alternates[idx]?.metar, altn.metar),
-        taf: getWx(alternates[idx]?.taf, altn.taf)
+        taf: getWx(alternates[idx]?.taf, altn.taf),
+        pos: extractLatLon(altn)
       });
       seenIcaos.add(icao);
     }
@@ -142,7 +167,8 @@ export default function Weather() {
       // 🌟 WxTab.tsx 教官編輯/AI 生成後寫入 flightData.metar_toff_altn/taf_toff_altn，
       // 同 DEP/ARR 一樣要優先讀 override，唔可以淨係讀死 raw data
       metar: getWx(flightData?.metar_toff_altn, toffAltn.metar),
-      taf: getWx(flightData?.taf_toff_altn, toffAltn.taf)
+      taf: getWx(flightData?.taf_toff_altn, toffAltn.taf),
+      pos: extractLatLon(toffAltn)
     });
     seenIcaos.add(toffAltn.icao_code);
   }
@@ -160,14 +186,15 @@ export default function Weather() {
         type: "ENR_ALTN",
         icao: icao,
         metar: getWx(enrouteAltnOverrides[idx]?.metar, ea.metar),
-        taf: getWx(enrouteAltnOverrides[idx]?.taf, ea.taf)
+        taf: getWx(enrouteAltnOverrides[idx]?.taf, ea.taf),
+        pos: extractLatLon(ea)
       });
       seenIcaos.add(icao);
     }
   });
 
   // 🌟 6. 航路沿途氣象站 (Enroute Stations)——SimBrief raw data 入面成十幾個機場，
-  // 淨係呢類先摺埋（collapsed）＋滾動清單顯示，避免一開頁就成版都係機場卡片
+  // 同其他機場一齊放落右邊嗰個獨立滾動嘅清單度，唔再分開摺疊
   const rawEnrouteStations = Array.isArray(rawSb.enroute_station) ? rawSb.enroute_station : [];
   const enrouteStationOverrides = flightData?.enroute_stations || [];
   const enrouteStationList = rawEnrouteStations
@@ -180,9 +207,22 @@ export default function Weather() {
         type: "ENR",
         icao,
         metar: getWx(enrouteStationOverrides[idx]?.metar, s.metar),
-        taf: getWx(enrouteStationOverrides[idx]?.taf, s.taf)
+        taf: getWx(enrouteStationOverrides[idx]?.taf, s.taf),
+        pos: extractLatLon(s)
       };
     });
+
+  // 🌟 右邊欄依家係單一清單，擺晒所有機場（dep/arr/altn/toff-altn/enr-altn/
+  // enr-station）嘅天氣，唔再分開一個摺疊嘅 Enroute Stations 區塊
+  const allAirports = [...renderList, ...enrouteStationList];
+
+  // 🌟 Map 上面要顯示嘅機場 marker——有真正 TAF（唔係 "NO METAR/TAF DATA
+  // AVAILABLE" 嗰句 placeholder）而且攞到座標先畫,撳落去右邊會跳去/閃一閃
+  // 返對應嗰張卡
+  const hasTaf = (taf: string) => taf !== "NO METAR/TAF DATA AVAILABLE";
+  const mapAirports = allAirports
+    .filter((wx) => wx.pos && hasTaf(wx.taf))
+    .map((wx) => ({ id: wx.id, icao: wx.icao, lat: wx.pos!.lat, lon: wx.pos!.lon }));
 
   return (
     <div className="h-full w-full overflow-y-auto pr-2 pb-10 animate-fade-in">
@@ -197,46 +237,41 @@ export default function Weather() {
          <h2 className="text-lg font-bold text-white tracking-wide">Weather Briefing</h2>
       </div>
 
-      {/* 依序渲染去重後的氣象卡片 */}
-      {renderList.map((wx) => (
-        <WxCard
-          key={wx.id}
-          type={wx.type}
-          icao={wx.icao}
-          metar={wx.metar}
-          taf={wx.taf}
-        />
-      ))}
-
-      {/* 🌟 Enroute Stations：摺埋嘅可展開區塊，展開先顯示滾動清單 */}
-      {enrouteStationList.length > 0 && (
-        <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl mb-5 shrink-0 shadow-lg overflow-hidden">
-          <button
-            onClick={() => setEnrouteExpanded((v) => !v)}
-            className="w-full px-5 py-4 flex justify-between items-center hover:bg-[#252525] transition-colors outline-none"
-          >
-            <span className="text-white font-bold tracking-widest uppercase text-[0.9rem]">
-              Enroute Weather Stations ({enrouteStationList.length})
-            </span>
-            <span className={`text-[#8fa0a6] text-2xl font-light transform transition-transform duration-200 ${enrouteExpanded ? 'rotate-180' : ''}`}>
-              ›
-            </span>
-          </button>
-          {enrouteExpanded && (
-            <div className="border-t border-[#333333] p-5 max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
-              {enrouteStationList.map((wx: any) => (
-                <WxCard
-                  key={wx.id}
-                  type={wx.type}
-                  icao={wx.icao}
-                  metar={wx.metar}
-                  taf={wx.taf}
-                />
-              ))}
-            </div>
-          )}
+      {/* 🌟 左右 2 col：左邊 route + SIGMET map view（layer 可以揀睇
+          Turbulence/SIGMET Weather，之後想加嘅 layer 就跟住
+          RouteWeatherMap.tsx 嘅 LAYER_DEFS 模式加）——fix 死喺度，唔跟住
+          成個 tab scroll 走；右邊係所有機場嘅 METAR/TAF 卡片清單（dep/arr/
+          altn/toff-altn/enr-altn/enr-station 全部擺埋一齊），獨立滾動 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5 items-start">
+        <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl shrink-0 shadow-lg overflow-hidden h-[560px] flex flex-col lg:sticky lg:top-2">
+          <div className="px-5 pt-4 pb-1 flex items-center justify-between shrink-0">
+            <h3 className="text-white font-bold tracking-widest uppercase text-[0.9rem]">Route &amp; Weather Map</h3>
+            <span className="text-[#555] text-[0.6rem] font-bold uppercase tracking-widest">Demo</span>
+          </div>
+          <div className="flex-1 min-h-0">
+            <RouteWeatherMap
+              sigmets={mapSigmets}
+              routeFixes={mapRouteFixes}
+              airports={mapAirports}
+              onAirportSelect={scrollToAirport}
+            />
+          </div>
         </div>
-      )}
+
+        <div className="h-[560px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
+          {allAirports.map((wx: any) => (
+            <WxCard
+              key={wx.id}
+              id={wx.id}
+              type={wx.type}
+              icao={wx.icao}
+              metar={wx.metar}
+              taf={wx.taf}
+              highlighted={highlightedWxId === wx.id}
+            />
+          ))}
+        </div>
+      </div>
 
     </div>
   );

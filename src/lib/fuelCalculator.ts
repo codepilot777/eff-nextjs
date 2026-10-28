@@ -36,10 +36,14 @@ export function calculateFuelEngine(flightData: any) {
   const ofpTrip = flightData?.fuel_trip_ofp || 0.0;
   const ofpCont = flightData?.fuel_cont_ofp || 0.0;
   const ofpRes = flightData?.fuel_reserve_ofp || 0.0;
-  
+  // 🌟 SimBrief 自己 OFP 派嘅 extra fuel（fuel.extra，睇 simbrief/route.ts 嘅
+  // import）——以前呢度完全冇讀呢個欄位，ofpTotal 淨係計到 reqd base，令
+  // dispatcher 喺 SimBrief 度派嘅 extra fuel 喺 EFF 度完全唔見咗
+  const ofpExtra = flightData?.fuel_extra_ofp || 0.0;
+
   // 確保 OFP 基礎變數有定義
   const ofpReqdBase = ofpTaxi + ofpTrip + ofpCont + baseAltnOfp + ofpRes;
-  const ofpTotal = ofpReqdBase; 
+  const ofpTotal = ofpReqdBase + ofpExtra;
   
   // ==========================================
   // 🌟 3. 完美修正引擎 (TOW / Weight Penalty Engine)
@@ -95,8 +99,11 @@ export function calculateFuelEngine(flightData: any) {
   const desiredFuelVal = flightData?.desired_fuel_value || 0.0;
   
   let autoTrip = minReqdTrip;
-  let autoExtra = 0.0;
-  let autoTotal = minReqdTotal;
+  // 🌟 預設跟返 SimBrief 自己 OFP 嘅 extra fuel（同 autoTaxi/autoCont 一樣，
+  // Revised 未改過之前都係等於 OFP 基準）——唔再預設 0，否則 dispatcher 派落
+  // 嘅 extra fuel 喺教官未set desired fuel 之前，Revised 都仲係睇唔到
+  let autoExtra = ofpExtra;
+  let autoTotal = minReqdTotal + ofpExtra;
 
   if (desiredFuelType === 'OFF_BLOCK' && desiredFuelVal > minReqdTotal) {
     // 💡 邏輯：目標是固定 Total Fuel
@@ -145,7 +152,7 @@ export function calculateFuelEngine(flightData: any) {
   const currCont = isManual ? (mf.cont ?? autoCont) : autoCont;
   const currTank = isManual ? (mf.tankering ?? 0.0) : 0.0;
   
-  const currExtra = isManual ? (mf.extra ?? 0.0) : autoExtra;
+  const currExtra = isManual ? (mf.extra ?? autoExtra) : autoExtra;
   const currReqdBase = currTaxi + currTrip + currCont + currAltnOfp + ofpRes;
   
   const currTotal = isManual ? (mf.total ?? (currReqdBase + currTank + currExtra)) : autoTotal;
@@ -153,7 +160,12 @@ export function calculateFuelEngine(flightData: any) {
   // 實時重量計算 (Dynamic Weights)
   const currTow = (actualZfw > 0 ? actualZfw : ofpZfw) + (currTotal - currTaxi);
   const currLw = currTow - currTrip;
-  const showRevVal = isManual || hasTraineeZfwInput || (selectedAltn !== (altnOptions[0] || 'N/A')) || (autoExtra > 0);
+  // 🌟 修復：以前揀另一個 alternate、或者 OFP 本身帶住 extra fuel，都會自動
+  // 令 Revised 欄「彈」出嚟——但換 ALTN 淨係改緊 OFP 本身嘅目標（真實運作入面，
+  // 揀邊個 alternate 係 flight plan 嘅一部分，唔係「trainee 修訂」），應該淨係
+  // 更新 OFP 欄（baseAltnOfp 已經會跟住揀嘅 altn 變）。Revised 欄要模擬真實用法：
+  // trainee 真係打咗 Revised ZFW（或者揀咗 Manual）先會出現，先有意義
+  const showRevVal = isManual || hasTraineeZfwInput;
 
   // ==========================================
   // 6. 動態 In-Flight Engine (EFOB & Alternates)
@@ -194,8 +206,8 @@ export function calculateFuelEngine(flightData: any) {
   });
 
   return {
-    isManual, ofpZfw, ofpTaxi, ofpTrip, ofpCont, ofpRes, baseAltnOfp, ofpReqdBase, ofpTotal,
-    actualZfw, hasTraineeZfwInput, deltaZfw, autoTaxi, autoCont, autoTrip, autoTotal, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
+    isManual, ofpZfw, ofpTaxi, ofpTrip, ofpCont, ofpRes, ofpExtra, baseAltnOfp, ofpReqdBase, ofpTotal,
+    actualZfw, hasTraineeZfwInput, deltaZfw, autoTaxi, autoCont, autoTrip, autoExtra, autoTotal, alternates, altnList, altnOptions, selectedAltn, currAltnOfp,
     mf, currTaxi, currTrip, currCont, currTank, currExtra, currReqdBase, currTotal, currTow, currLw, showRevVal,
     efobAtDest, processedAlternates, lndgCorrKg, rampCorrKg
   };

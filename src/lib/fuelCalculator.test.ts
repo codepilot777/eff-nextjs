@@ -39,6 +39,27 @@ describe('calculateFuelEngine', () => {
     expect(calc.autoTrip).toBeGreaterThan(baseFlight.fuel_trip_ofp);
   });
 
+  it('surfaces SimBrief OFP extra fuel (fuel_extra_ofp) instead of silently dropping it', () => {
+    const withExtra = { ...baseFlight, fuel_extra_ofp: 1.5 };
+    const calc = calculateFuelEngine(withExtra);
+
+    expect(calc.ofpExtra).toBeCloseTo(1.5);
+    // OFP total must include the extra, not just taxi+trip+cont+altn+reserve
+    expect(calc.ofpTotal).toBeCloseTo(calc.ofpReqdBase + 1.5);
+    // Untouched baseline: auto/current extra defaults to the real OFP figure, not 0
+    expect(calc.autoExtra).toBeCloseTo(1.5);
+    expect(calc.currExtra).toBeCloseTo(1.5);
+    expect(calc.currTotal).toBeCloseTo(calc.ofpReqdBase + 1.5);
+  });
+
+  it('preserves the OFP extra fuel baseline when switching into manual mode without an explicit override', () => {
+    const withExtra = { ...baseFlight, fuel_extra_ofp: 1.5, fuel_manual_mode: true, manual_fuel: { taxi: 1.0, trip: 20.0, cont: 1.0 } };
+    const calc = calculateFuelEngine(withExtra);
+
+    // manual_fuel.extra was never set -> should fall back to the OFP baseline, not 0
+    expect(calc.currExtra).toBeCloseTo(1.5);
+  });
+
   it('lets manual fuel entry override the computed values entirely', () => {
     const manual = {
       ...baseFlight,
@@ -78,14 +99,22 @@ describe('calculateFuelEngine', () => {
       expect(calc.showRevVal).toBe(true);
     });
 
-    it('becomes true when a non-default alternate is selected', () => {
+    it('stays false when switching ALTN alone (choosing an alternate is part of the plan, not a trainee revision) — only the OFP column should move', () => {
       const withAltns = {
         ...baseFlight,
         alternates: [{ icao: 'RJOO', burn: 2.0, time: 30 }, { icao: 'RJBB', burn: 2.5, time: 35 }],
         selected_altn: 'RJBB',
       };
       const calc = calculateFuelEngine(withAltns);
-      expect(calc.showRevVal).toBe(true);
+      expect(calc.baseAltnOfp).toBeCloseTo(2.5);
+      expect(calc.showRevVal).toBe(false);
+    });
+
+    it('stays false even when the OFP itself carries extra fuel, until the trainee actually revises ZFW', () => {
+      const withExtra = { ...baseFlight, fuel_extra_ofp: 1.5 };
+      const calc = calculateFuelEngine(withExtra);
+      expect(calc.ofpExtra).toBeCloseTo(1.5);
+      expect(calc.showRevVal).toBe(false);
     });
   });
 
