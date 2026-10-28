@@ -1037,7 +1037,14 @@ function init() {
     const v = +$('inGs').value;
     if (!Number.isFinite(v) || v <= 0) return;
     const a = A(); a.gsOverride = v;
-    logEv('GS override ' + v + ' kt'); dirty = true;
+    // 🌟 S.int.speed 預設 15x——嗰個係為咗快進成程 LNAV 航班搵「啱嘅
+    // 一刻」先設咁快，GS override 係想教官真係用手動速度「飛」,一直
+    // 用緊 15x 嘅話，300kt 睇落都好似飆緊咁快(15x 即係每真實一秒郁咗
+    // 15 個模擬秒，300kt 嘅話即每真實秒郁 1.25 NM)。撳 Set 就强制切返
+    // 1x，等呢次飛行真係貼近真實速度；想快進都可以之後自己揀返
+    S.int.speed = 1;
+    document.querySelectorAll('#spdSeg button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.v === 1)));
+    logEv('GS override ' + v + ' kt (speed reset to 1×)'); dirty = true;
   };
   $('btnGsClear').onclick = () => {
     const a = A(); a.gsOverride = null; $('inGs').value = '';
