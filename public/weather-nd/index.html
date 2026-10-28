@@ -114,8 +114,21 @@ ul.log{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
           <h2>Flight</h2>
           <div class="row" id="rowLateral"><span class="lbl">Lateral</span><button class="b" id="fLnav" type="button">LNAV</button><button class="b" id="fHdg" type="button">HDG SEL</button><button class="b" id="fHold" type="button">Hold HLD01</button></div>
           <div class="row" id="rowHeading" style="margin-top:6px"><span class="lbl">Heading</span><button class="b" type="button" data-hd="-10">−10</button><button class="b" type="button" data-hd="-5">−5</button><button class="b" type="button" data-hd="5">+5</button><button class="b" type="button" data-hd="10">+10</button></div>
+          <div class="row" id="rowHeadingInput" style="margin-top:6px">
+            <span class="lbl">HDG</span>
+            <input id="inHdg" type="number" min="0" max="359" step="1" inputmode="numeric" style="width:64px" aria-label="Exact heading, degrees">
+            <button class="b" id="btnHdgSet" type="button">Set</button>
+          </div>
           <div class="row" id="rowDirect" style="margin-top:6px"><span class="lbl">Direct</span><button class="b" type="button" data-dct="VHHH">VHHH</button><button class="b" type="button" data-dct="RCKH">RCKH</button><button class="b" type="button" data-dct="RPLL">RPLL</button><button class="b" type="button" data-dct="RCTP">RCTP</button></div>
           <div class="row" id="rowAltitude" style="margin-top:6px"><span class="lbl">Altitude</span><button class="b" id="altAutoBtn" type="button"><span id="altMode">AUTO</span></button><button class="b" id="altDn" type="button">− 1000</button><button class="b" id="altUp" type="button">+ 1000</button></div>
+          <div class="row" id="rowGs" style="margin-top:6px">
+            <span class="lbl">GS override</span>
+            <input id="inGs" type="number" min="0" max="600" step="1" inputmode="numeric" placeholder="kt" style="width:64px" aria-label="Ground speed override, knots">
+            <button class="b" id="btnGsSet" type="button">Set</button>
+            <button class="b" id="btnGsClear" type="button">Clear</button>
+            <span class="val" id="gsStatus"></span>
+          </div>
+          <p class="disc" style="margin:4px 0 0">GS override keeps the aircraft moving at a fixed ground speed/heading instead of the normal climb/speed profile — it stays on after you reposition, until you set a new value or Clear it. Altitude still follows the normal profile/manual control.</p>
         </div>
 
         <div id="blkObserver">
@@ -418,7 +431,11 @@ function distTo(ac, p) { return Math.hypot(p.x - ac.x, p.y - ac.y); }
 function newAircraft() {
   const f = ROUTE[1];
   return { x: ROUTE[0].x, y: ROUTE[0].y, hdg: bearingTo(ROUTE[0], f), trk: bearingTo(ROUTE[0], f), gs: 0, alt: 0, tas: 160,
-    mode: 'LNAV', selHdg: 245, tgt: null, nextIdx: 1, hold: { phase: 'in', timer: 0 }, altMode: 'AUTO', altSel: 35000, atcHold: true, ended: false };
+    mode: 'LNAV', selHdg: 245, tgt: null, nextIdx: 1, hold: { phase: 'in', timer: 0 }, altMode: 'AUTO', altSel: 35000, atcHold: true, ended: false,
+    // 🌟 GS override——null = 正常跟返高度 profile/風嚟計 GS；有數值就直接
+    // 當呢個係地速,沿住 a.hdg 郁，唔理 altitude/wind。擺位置(撳地圖/拖)唔會
+    // 清呢個欄，keep 住直至教官打新數值或者撳 Clear
+    gsOverride: null };
 }
 function stepAircraft(a, dt) {
   /* heading demand */
@@ -474,18 +491,25 @@ function stepAircraft(a, dt) {
   a.alt += Math.max(-vs, Math.min(vs, tgtAlt - a.alt));
   if (a.alt < 0) a.alt = 0;
 
-  /* speed */
-  let tasT = tasFor(a.alt);
-  if (a.alt < 12000) tasT = Math.min(tasT, 270);
-  if (a.mode === 'HOLD') tasT = Math.min(tasT, 260);
-  a.tas += Math.max(-3 * dt, Math.min(3 * dt, tasT - a.tas));
+  /* speed + motion — GS override(教官自己打嘅地速)就直接沿住 a.hdg 郁，
+     唔理高度 profile/風；冇 override 就照舊跟返高度查 TAS 表、加風先算 GS */
+  if (a.gsOverride != null) {
+    a.gs = a.gsOverride; a.tas = a.gsOverride;
+    const hr = a.hdg * D2R;
+    a.x += a.gs * Math.sin(hr) * dt / 3600; a.y += a.gs * Math.cos(hr) * dt / 3600;
+    a.trk = a.hdg;
+  } else {
+    let tasT = tasFor(a.alt);
+    if (a.alt < 12000) tasT = Math.min(tasT, 270);
+    if (a.mode === 'HOLD') tasT = Math.min(tasT, 260);
+    a.tas += Math.max(-3 * dt, Math.min(3 * dt, tasT - a.tas));
 
-  /* motion */
-  const w = windAt(a.alt), hr = a.hdg * D2R;
-  const vx = a.tas * Math.sin(hr) + w[0], vy = a.tas * Math.cos(hr) + w[1];
-  a.x += vx * dt / 3600; a.y += vy * dt / 3600;
-  a.gs = Math.hypot(vx, vy);
-  a.trk = (Math.atan2(vx, vy) * R2D + 360) % 360;
+    const w = windAt(a.alt), hr = a.hdg * D2R;
+    const vx = a.tas * Math.sin(hr) + w[0], vy = a.tas * Math.cos(hr) + w[1];
+    a.x += vx * dt / 3600; a.y += vy * dt / 3600;
+    a.gs = Math.hypot(vx, vy);
+    a.trk = (Math.atan2(vx, vy) * R2D + 360) % 360;
+  }
 }
 function cloneAc(a) { const c = Object.assign({}, a); c.hold = Object.assign({}, a.hold); return c; }
 
@@ -814,6 +838,7 @@ function renderScope() {
     kAlt: ac.alt >= 18000 ? 'FL' + Math.round(ac.alt / 100) : Math.round(ac.alt) + ' ft', kGs: Math.round(ac.gs) + ' kt', kTilt: ($('nd').dataset.tilt || '')
   };
   for (const k in kv) $(k).textContent = kv[k];
+  if ($('gsStatus')) $('gsStatus').textContent = ac.gsOverride != null ? ('OVERRIDE ' + ac.gsOverride + ' kt') : '';
   const tl = S.view.tiltAuto ? autoTilt(ac.alt, S.view.range) : S.view.tilt;
   $('kTilt').textContent = (S.view.tiltAuto ? 'AUTO ' : 'MAN ') + (tl > 0 ? '+' : '') + tl.toFixed(1) + '°';
   $('vRange').textContent = S.view.range + ' NM';
@@ -998,6 +1023,26 @@ function init() {
   $('fHdg').onclick = () => { const a = A(); a.mode = 'HDG'; a.selHdg = Math.round(a.hdg); logEv('HDG SEL ' + a.selHdg); dirty = true; };
   $('fHold').onclick = () => { const a = A(); a.mode = 'LNAV'; a.nextIdx = HLD_IDX; a.atcHold = true; logEv('Routed to hold'); dirty = true; };
   document.querySelectorAll('[data-hd]').forEach(b => b.onclick = () => { const a = A(); if (a.mode !== 'HDG') { a.mode = 'HDG'; a.selHdg = Math.round(a.hdg); } a.selHdg = (a.selHdg + +b.dataset.hd + 360) % 360; logEv('HDG SEL ' + String(a.selHdg).padStart(3, '0')); dirty = true; });
+  // 🌟 直接打個確實 heading 數字(唔止 +/-5/+/-10 咁撳)
+  $('btnHdgSet').onclick = () => {
+    const v = Math.round(+$('inHdg').value);
+    if (!Number.isFinite(v)) return;
+    const a = A(); a.mode = 'HDG'; a.selHdg = ((v % 360) + 360) % 360;
+    logEv('HDG SEL ' + String(a.selHdg).padStart(3, '0')); dirty = true;
+  };
+  // 🌟 GS override——打個地速,架機就沿住而家嘅 heading 直接以呢個速度郁,
+  // 唔理高度 profile/風(睇 stepAircraft 嘅 speed+motion 段)。擺位置(撳
+  // 地圖/拖)唔會自動清呢個欄，keep 住直至教官打新數值或者撳 Clear
+  $('btnGsSet').onclick = () => {
+    const v = +$('inGs').value;
+    if (!Number.isFinite(v) || v <= 0) return;
+    const a = A(); a.gsOverride = v;
+    logEv('GS override ' + v + ' kt'); dirty = true;
+  };
+  $('btnGsClear').onclick = () => {
+    const a = A(); a.gsOverride = null; $('inGs').value = '';
+    logEv('GS override cleared'); dirty = true;
+  };
   // 🌟 用事件代理（click 聽喺成個 row 度）唔係逐個掣 onclick——applyScenarioRoute()
   // 會喺換咗真實 OFP 之後用 rebuildDirectButtons() 重新生成呢幾粒掣，代理式
   // 聽法先至唔使每次換航路都要重新逐個 bind 一次
