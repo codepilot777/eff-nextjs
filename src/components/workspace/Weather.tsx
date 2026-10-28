@@ -206,29 +206,33 @@ export default function Weather() {
          <h2 className="text-lg font-bold text-white tracking-wide">Weather Briefing</h2>
       </div>
 
-      {/* 🌟 Demo：route + SIGMET map view，layer 可以揀睇 Turbulence/SIGMET
-          Weather——之後想加嘅 layer（TC track、enroute stations……）就跟住
-          RouteWeatherMap.tsx 嘅 LAYER_DEFS 模式加 */}
-      <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl mb-5 shrink-0 shadow-lg overflow-hidden h-[420px] flex flex-col">
-        <div className="px-5 pt-4 pb-1 flex items-center justify-between shrink-0">
-          <h3 className="text-white font-bold tracking-widest uppercase text-[0.9rem]">Route &amp; Weather Map</h3>
-          <span className="text-[#555] text-[0.6rem] font-bold uppercase tracking-widest">Demo</span>
+      {/* 🌟 左右 2 col：左邊 route + SIGMET map view（layer 可以揀睇
+          Turbulence/SIGMET Weather，之後想加嘅 layer 就跟住
+          RouteWeatherMap.tsx 嘅 LAYER_DEFS 模式加），右邊係 METAR/TAF
+          卡片清單——各自獨立滾動，唔使成個 tab 一齊 scroll */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5 items-start">
+        <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl shrink-0 shadow-lg overflow-hidden h-[560px] flex flex-col">
+          <div className="px-5 pt-4 pb-1 flex items-center justify-between shrink-0">
+            <h3 className="text-white font-bold tracking-widest uppercase text-[0.9rem]">Route &amp; Weather Map</h3>
+            <span className="text-[#555] text-[0.6rem] font-bold uppercase tracking-widest">Demo</span>
+          </div>
+          <div className="flex-1 min-h-0">
+            <RouteWeatherMap sigmets={mapSigmets} routeFixes={mapRouteFixes} />
+          </div>
         </div>
-        <div className="flex-1 min-h-0">
-          <RouteWeatherMap sigmets={mapSigmets} routeFixes={mapRouteFixes} />
+
+        <div className="h-[560px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
+          {renderList.map((wx) => (
+            <WxCard
+              key={wx.id}
+              type={wx.type}
+              icao={wx.icao}
+              metar={wx.metar}
+              taf={wx.taf}
+            />
+          ))}
         </div>
       </div>
-
-      {/* 依序渲染去重後的氣象卡片 */}
-      {renderList.map((wx) => (
-        <WxCard
-          key={wx.id}
-          type={wx.type}
-          icao={wx.icao}
-          metar={wx.metar}
-          taf={wx.taf}
-        />
-      ))}
 
       {/* 🌟 Enroute Stations：摺埋嘅可展開區塊，展開先顯示滾動清單 */}
       {enrouteStationList.length > 0 && (

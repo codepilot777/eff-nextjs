@@ -1,16 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ParsedSigmet } from "@/lib/weather/sigmetParser";
 import type { RouteFix } from "@/lib/weather/routeFixes";
+import { getCoastlineRingsInView } from "@/lib/weather/coastline";
 
 // 🌟 Demo：trainee Weather tab 嘅 map view——同 SigmetChart.tsx 用緊一樣嘅
-// lat/lon→SVG 投影數學（包括高緯度嘅經度壓扁修正），淨係加多咗 route layer
-// 同層選擇 UI。SIGMET 嘅 hazard 分類（/TURB/ vs 其他）已經喺 sigmetParser.ts
-// 解析嗰陣有埋，唔使另外再 parse 一次——Turbulence/SIGMET Weather 兩個
-// layer 純粹係用呢個分類濾返 sigmets 數組，之後想加嘅 layer（TC track、
-// enroute stations……）都係跟呢個模式加多個 filter + 多個 toggle
+// lat/lon→SVG 投影數學（包括高緯度嘅經度壓扁修正），加埋 route layer、
+// 地面海岸線（world-atlas land-110m，一次過攞成個世界，再按視窗 bbox 篩走
+// 睇唔到嘅部分）、zoom/pan、同一個時間動畫（根據 SIGMET 嘅 MOV 向量模擬
+// weather 隨時間漂移）。SIGMET 嘅 hazard 分類（/TURB/ vs 其他）已經喺
+// sigmetParser.ts 解析嗰陣有埋，之後想加嘅 layer（TC track、enroute
+// stations……）都係跟呢個模式加多個 filter + 多個 toggle
 const NM_PER_DEG_LAT = 60;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 8;
+const PLAY_MAX_MIN = 180;
+const PLAY_STEP_MIN = 5;
+const PLAY_TICK_MS = 350;
 
 type LatLon = [lat: number, lon: number];
 
@@ -18,6 +25,31 @@ const LAYER_DEFS = [
   { id: "turb", label: "Turbulence", color: "#3b82f6", match: (s: ParsedSigmet) => /TURB/.test(s.hazard) },
   { id: "sigmet", label: "SIGMET Weather", color: "#d97706", match: (s: ParsedSigmet) => !/TURB/.test(s.hazard) },
 ] as const;
+
+// 🌟 "WNW" 之類嘅羅盤方向轉做方位角（度），用嚟配合 movSpdKt 做 play 動畫
+const COMPASS_BEARING: Record<string, number> = {
+  N: 0, NNE: 22.5, NE: 45, ENE: 67.5, E: 90, ESE: 112.5, SE: 135, SSE: 157.5,
+  S: 180, SSW: 202.5, SW: 225, WSW: 247.5, W: 270, WNW: 292.5, NW: 315, NNW: 337.5,
+};
+
+function shiftPoint([lat, lon]: LatLon, bearingDeg: number, distNm: number): LatLon {
+  const rad = (bearingDeg * Math.PI) / 180;
+  const dLat = (distNm * Math.cos(rad)) / NM_PER_DEG_LAT;
+  const dLon = (distNm * Math.sin(rad)) / (NM_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180));
+  return [lat + dLat, lon + dLon];
+}
+
+// 🌟 按 playMinutes 將帶 MOV 向量嘅 SIGMET 推移——冇 movDir/movSpdKt 嘅（例如
+// 冇寫移動方向嘅電報）就當佢靜止唔動，唯一影響嘅係 play slider 拖到幾時都
+// 留在原位,唔會爛
+function shiftSigmet(s: ParsedSigmet, minutes: number): ParsedSigmet {
+  if (minutes <= 0 || !s.movDir || !s.movSpdKt) return s;
+  const bearing = COMPASS_BEARING[s.movDir];
+  if (bearing === undefined) return s;
+  const distNm = (s.movSpdKt * minutes) / 60;
+  if (s.type === "polygon") return { ...s, poly: s.poly.map((p) => shiftPoint(p, bearing, distNm)) };
+  return { ...s, centre: shiftPoint(s.centre, bearing, distNm) };
+}
 
 function collectSigmetPoints(sigmets: ParsedSigmet[]): LatLon[] {
   const pts: LatLon[] = [];
@@ -46,6 +78,32 @@ export default function RouteWeatherMap({
   height?: number;
 }) {
   const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({ turb: true, sigmet: true });
+  const [showCoast, setShowCoast] = useState(true);
+
+  // 🌟 Zoom/pan 狀態——transform 寫做 translate(pan) scale(zoom)，咁拖拽嗰陣
+  // 螢幕 delta 可以直接加落 pan 度，唔使理 zoom 幾多(SVG 先 scale 再 translate
+  // 套用喺個點上，所以外層個 translate 同 zoom 冇關係)
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ x: number; y: number } | null>(null);
+
+  // 🌟 Play：模擬 SIGMET 隨時間漂移——淨係靠 SIGMET 本身嘅 MOV 向量,
+  // 唔使加新數據源
+  const [playMinutes, setPlayMinutes] = useState(0);
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    if (!playing) return;
+    const id = setInterval(() => {
+      setPlayMinutes((t) => (t + PLAY_STEP_MIN > PLAY_MAX_MIN ? 0 : t + PLAY_STEP_MIN));
+    }, PLAY_TICK_MS);
+    return () => clearInterval(id);
+  }, [playing]);
+
+  const displaySigmets = useMemo(
+    () => sigmets.map((s) => shiftSigmet(s, playMinutes)),
+    [sigmets, playMinutes]
+  );
 
   const hasRoute = routeFixes.length >= 2;
   const hasSigmets = sigmets.length > 0;
@@ -90,12 +148,36 @@ export default function RouteWeatherMap({
   const gridLons: number[] = [];
   for (let g = Math.ceil(vLonMin / gridStepDeg) * gridStepDeg; g <= vLonMax; g += gridStepDeg) gridLons.push(g);
 
+  // 🌟 地面海岸線——淨係攞返同視窗 bbox 有重疊嗰啲 ring，唔使畫成個世界
+  const coastRings = showCoast ? getCoastlineRingsInView(vLatMin, vLatMax, vLonMin, vLonMax) : [];
+
   const toggleLayer = (id: string) => setActiveLayers((prev) => ({ ...prev, [id]: !prev[id] }));
+  const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+  const resetView = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
+
+  const onWheel: React.WheelEventHandler<SVGSVGElement> = (e) => {
+    e.preventDefault();
+    setZoom((z) => clampZoom(z * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+  };
+  const onPointerDown: React.PointerEventHandler<SVGSVGElement> = (e) => {
+    dragRef.current = { x: e.clientX, y: e.clientY };
+  };
+  const onPointerMove: React.PointerEventHandler<SVGSVGElement> = (e) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.x;
+    const dy = e.clientY - dragRef.current.y;
+    dragRef.current = { x: e.clientX, y: e.clientY };
+    // 🌟 螢幕 px 要轉做 SVG user-unit（viewBox 同實際渲染尺寸可能唔一樣大）
+    const svgEl = e.currentTarget;
+    const scaleX = width / svgEl.clientWidth;
+    const scaleY = height / svgEl.clientHeight;
+    setPan((p) => ({ x: p.x + dx * scaleX, y: p.y + dy * scaleY }));
+  };
+  const endDrag = () => { dragRef.current = null; };
 
   return (
     <div className="flex flex-col h-full">
-      {/* 🌟 Layer toggle — 而家得 2 個（turbulence/SIGMET weather），
-          之後加新 layer（TC track、enroute stations……）淨係加多粒掣 */}
+      {/* Layer/zoom/play 工具列 */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-[#333] shrink-0 flex-wrap">
         <span className="text-[#8fa0a6] text-[0.6rem] font-bold uppercase tracking-widest mr-1">Layers</span>
         {LAYER_DEFS.map((l) => (
@@ -111,109 +193,182 @@ export default function RouteWeatherMap({
             {l.label}
           </button>
         ))}
+        <button
+          onClick={() => setShowCoast((v) => !v)}
+          className={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-[0.65rem] font-bold uppercase tracking-wide transition-colors ${
+            showCoast ? "border-current bg-white/5 text-[#7fd68a]" : "border-[#333] text-[#555] opacity-60"
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full" style={{ background: showCoast ? "#7fd68a" : "#444" }} />
+          Coastline
+        </button>
+
+        <div className="ml-auto flex items-center gap-1">
+          <button onClick={() => setZoom((z) => clampZoom(z / 1.3))} title="Zoom out"
+            className="w-6 h-6 flex items-center justify-center rounded border border-[#333] text-[#8fa0a6] hover:text-white hover:border-[#555] text-sm font-bold">
+            −
+          </button>
+          <span className="text-[#555] text-[0.6rem] font-bold w-10 text-center">{zoom.toFixed(1)}×</span>
+          <button onClick={() => setZoom((z) => clampZoom(z * 1.3))} title="Zoom in"
+            className="w-6 h-6 flex items-center justify-center rounded border border-[#333] text-[#8fa0a6] hover:text-white hover:border-[#555] text-sm font-bold">
+            +
+          </button>
+          <button onClick={resetView} title="Reset view"
+            className="px-2 h-6 flex items-center justify-center rounded border border-[#333] text-[#8fa0a6] hover:text-white hover:border-[#555] text-[0.6rem] font-bold uppercase">
+            Reset
+          </button>
+        </div>
+      </div>
+
+      {/* Play 時間動畫列 */}
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[#333] shrink-0">
+        <button
+          onClick={() => setPlaying((v) => !v)}
+          className={`w-6 h-6 flex items-center justify-center rounded border text-[0.65rem] font-bold ${
+            playing ? "border-[#ff4fff] text-[#ff4fff] bg-white/5" : "border-[#333] text-[#8fa0a6] hover:text-white"
+          }`}
+          title={playing ? "Pause" : "Play"}
+        >
+          {playing ? "❙❙" : "▶"}
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={PLAY_MAX_MIN}
+          step={PLAY_STEP_MIN}
+          value={playMinutes}
+          onChange={(e) => { setPlaying(false); setPlayMinutes(Number(e.target.value)); }}
+          className="flex-1 accent-[#ff4fff]"
+        />
+        <span className="text-[#8fa0a6] text-[0.65rem] font-bold font-mono w-16 text-right">T+{playMinutes}m</span>
       </div>
 
       <div className="flex-1 min-h-0">
-        <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%" className="bg-[#0a1218]">
-          {/* 經緯網格 */}
-          {gridLats.map((g) => {
-            const [, y] = project([g, vLonMin]);
-            return (
-              <g key={`lat-${g}`}>
-                <line x1={0} y1={y} x2={width} y2={y} stroke="#1f2d36" strokeWidth={1} />
-                <text x={4} y={y - 3} fill="#51626c" fontSize={9} fontFamily="monospace">{g.toFixed(0)}N</text>
-              </g>
-            );
-          })}
-          {gridLons.map((g) => {
-            const [x] = project([vLatMin, g]);
-            return (
-              <g key={`lon-${g}`}>
-                <line x1={x} y1={0} x2={x} y2={height} stroke="#1f2d36" strokeWidth={1} />
-                <text x={x + 3} y={height - 4} fill="#51626c" fontSize={9} fontFamily="monospace">{g.toFixed(0)}E</text>
-              </g>
-            );
-          })}
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          width="100%"
+          height="100%"
+          className="bg-[#0a1218] cursor-grab active:cursor-grabbing touch-none"
+          onWheel={onWheel}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerLeave={endDrag}
+        >
+          <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
+            {/* 經緯網格 */}
+            {gridLats.map((g) => {
+              const [, y] = project([g, vLonMin]);
+              return (
+                <g key={`lat-${g}`}>
+                  <line x1={0} y1={y} x2={width} y2={y} stroke="#1f2d36" strokeWidth={1 / zoom} />
+                  <text x={4} y={y - 3} fill="#51626c" fontSize={9 / zoom} fontFamily="monospace">{g.toFixed(0)}N</text>
+                </g>
+              );
+            })}
+            {gridLons.map((g) => {
+              const [x] = project([vLatMin, g]);
+              return (
+                <g key={`lon-${g}`}>
+                  <line x1={x} y1={0} x2={x} y2={height} stroke="#1f2d36" strokeWidth={1 / zoom} />
+                  <text x={x + 3} y={height - 4} fill="#51626c" fontSize={9 / zoom} fontFamily="monospace">{g.toFixed(0)}E</text>
+                </g>
+              );
+            })}
 
-          {/* Route layer — 恆常顯示，係成張圖嘅骨幹，唔使 toggle */}
-          {hasRoute && (
-            <g>
-              <polyline
-                points={routePts.map((p) => project(p).join(",")).join(" ")}
-                fill="none"
-                stroke="#ff4fff"
-                strokeWidth={1.8}
-                strokeDasharray="6 4"
+            {/* 地面海岸線——淡淡嘅陸地參考，唔搶 route/weather 嘅視覺焦點 */}
+            {coastRings.map((ring, i) => (
+              <path
+                key={`coast-${i}`}
+                d={`M ${ring.map((p) => project(p).join(",")).join(" L ")} Z`}
+                fill="#16261b"
+                fillOpacity={0.9}
+                stroke="#2c4a36"
+                strokeWidth={1 / zoom}
               />
-              {routeFixes.map((f, i) => {
-                const [x, y] = project([f.lat, f.lon]);
-                const isEndpoint = i === 0 || i === routeFixes.length - 1;
-                return (
-                  <g key={`${f.name}-${i}`}>
-                    <circle cx={x} cy={y} r={isEndpoint ? 4 : 2.5} fill={isEndpoint ? "#38d9ff" : "#ff4fff"} stroke="#0a1218" strokeWidth={1} />
-                    <text x={x + 6} y={y - 6} fill={isEndpoint ? "#38d9ff" : "#ff9eff"} fontSize={10} fontWeight={isEndpoint ? 700 : 500} fontFamily="monospace">
-                      {f.name}
-                    </text>
-                  </g>
-                );
-              })}
-            </g>
-          )}
+            ))}
 
-          {/* SIGMET layers — 按 LAYER_DEFS 嘅 match() 分流，toggle 控制顯唔顯示 */}
-          {LAYER_DEFS.map((layer) => {
-            if (!activeLayers[layer.id]) return null;
-            const layerSigmets = sigmets.filter(layer.match);
-            return (
-              <g key={layer.id}>
-                {layerSigmets.map((s) => {
-                  const key = `${s.firCode}-${s.sigmetNumber}`;
-                  if (s.type === "polygon") {
-                    const screenPts = s.poly.map(project);
-                    const pathD = `M ${screenPts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L ")} Z`;
-                    const [lx, ly] = screenPts[0];
-                    return (
-                      <g key={key}>
-                        <path d={pathD} fill={layer.color} fillOpacity={0.18} stroke={layer.color} strokeWidth={1.5} strokeDasharray="4 2" />
-                        <text x={lx + 4} y={ly - 4} fill={layer.color} fontSize={11} fontWeight={700} fontFamily="monospace">
-                          {s.sigmetNumber} {s.hazard}
-                        </text>
-                      </g>
-                    );
-                  }
-
-                  const [cx, cy] = project(s.centre);
-                  const radiusDeg = (s.radiusNm ?? 60) / NM_PER_DEG_LAT;
-                  const [, edgeY] = project([s.centre[0] - radiusDeg, s.centre[1]]);
-                  const rPx = Math.abs(edgeY - cy);
-                  const fc = s.forecastCentre ? project(s.forecastCentre.centre) : null;
-
+            {/* Route layer — 恆常顯示，係成張圖嘅骨幹，唔使 toggle */}
+            {hasRoute && (
+              <g>
+                <polyline
+                  points={routePts.map((p) => project(p).join(",")).join(" ")}
+                  fill="none"
+                  stroke="#ff4fff"
+                  strokeWidth={1.8 / zoom}
+                  strokeDasharray={`${6 / zoom} ${4 / zoom}`}
+                />
+                {routeFixes.map((f, i) => {
+                  const [x, y] = project([f.lat, f.lon]);
+                  const isEndpoint = i === 0 || i === routeFixes.length - 1;
                   return (
-                    <g key={key}>
-                      <circle cx={cx} cy={cy} r={rPx} fill={layer.color} fillOpacity={0.12} stroke={layer.color} strokeWidth={1.5} strokeDasharray="4 2" />
-                      <circle cx={cx} cy={cy} r={3} fill={layer.color} />
-                      {fc && (
-                        <>
-                          <line x1={cx} y1={cy} x2={fc[0]} y2={fc[1]} stroke={layer.color} strokeWidth={1} strokeDasharray="2 3" />
-                          <circle cx={fc[0]} cy={fc[1]} r={2.5} fill="none" stroke={layer.color} strokeWidth={1.5} />
-                          <text x={fc[0] + 4} y={fc[1] - 4} fill={layer.color} fontSize={9} fontFamily="monospace">
-                            FCST {s.forecastCentre?.time}Z
-                          </text>
-                        </>
-                      )}
-                      <text x={cx + 6} y={cy - 6} fill={layer.color} fontSize={11} fontWeight={700} fontFamily="monospace">
-                        {s.sigmetNumber} {s.hazard}
+                    <g key={`${f.name}-${i}`}>
+                      <circle cx={x} cy={y} r={(isEndpoint ? 4 : 2.5) / zoom} fill={isEndpoint ? "#38d9ff" : "#ff4fff"} stroke="#0a1218" strokeWidth={1 / zoom} />
+                      <text x={x + 6 / zoom} y={y - 6 / zoom} fill={isEndpoint ? "#38d9ff" : "#ff9eff"} fontSize={10 / zoom} fontWeight={isEndpoint ? 700 : 500} fontFamily="monospace">
+                        {f.name}
                       </text>
                     </g>
                   );
                 })}
               </g>
-            );
-          })}
+            )}
 
-          <text x={width - 6} y={height - 6} fill="#51626c" fontSize={9} fontFamily="monospace" textAnchor="end">
-            SCHEMATIC ONLY — NOT FOR OPERATIONAL USE
-          </text>
+            {/* SIGMET layers — 按 LAYER_DEFS 嘅 match() 分流，toggle 控制顯唔顯示；
+                displaySigmets 已經按 playMinutes 推移咗位置 */}
+            {LAYER_DEFS.map((layer) => {
+              if (!activeLayers[layer.id]) return null;
+              const layerSigmets = displaySigmets.filter(layer.match);
+              return (
+                <g key={layer.id}>
+                  {layerSigmets.map((s) => {
+                    const key = `${s.firCode}-${s.sigmetNumber}`;
+                    if (s.type === "polygon") {
+                      const screenPts = s.poly.map(project);
+                      const pathD = `M ${screenPts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L ")} Z`;
+                      const [lx, ly] = screenPts[0];
+                      return (
+                        <g key={key}>
+                          <path d={pathD} fill={layer.color} fillOpacity={0.18} stroke={layer.color} strokeWidth={1.5 / zoom} strokeDasharray={`${4 / zoom} ${2 / zoom}`} />
+                          <text x={lx + 4 / zoom} y={ly - 4 / zoom} fill={layer.color} fontSize={11 / zoom} fontWeight={700} fontFamily="monospace">
+                            {s.sigmetNumber} {s.hazard}
+                          </text>
+                        </g>
+                      );
+                    }
+
+                    const [cx, cy] = project(s.centre);
+                    const radiusDeg = (s.radiusNm ?? 60) / NM_PER_DEG_LAT;
+                    const [, edgeY] = project([s.centre[0] - radiusDeg, s.centre[1]]);
+                    const rPx = Math.abs(edgeY - cy);
+                    const fc = s.forecastCentre ? project(s.forecastCentre.centre) : null;
+
+                    return (
+                      <g key={key}>
+                        <circle cx={cx} cy={cy} r={rPx} fill={layer.color} fillOpacity={0.12} stroke={layer.color} strokeWidth={1.5 / zoom} strokeDasharray={`${4 / zoom} ${2 / zoom}`} />
+                        <circle cx={cx} cy={cy} r={3 / zoom} fill={layer.color} />
+                        {fc && (
+                          <>
+                            <line x1={cx} y1={cy} x2={fc[0]} y2={fc[1]} stroke={layer.color} strokeWidth={1 / zoom} strokeDasharray={`${2 / zoom} ${3 / zoom}`} />
+                            <circle cx={fc[0]} cy={fc[1]} r={2.5 / zoom} fill="none" stroke={layer.color} strokeWidth={1.5 / zoom} />
+                            <text x={fc[0] + 4 / zoom} y={fc[1] - 4 / zoom} fill={layer.color} fontSize={9 / zoom} fontFamily="monospace">
+                              FCST {s.forecastCentre?.time}Z
+                            </text>
+                          </>
+                        )}
+                        <text x={cx + 6 / zoom} y={cy - 6 / zoom} fill={layer.color} fontSize={11 / zoom} fontWeight={700} fontFamily="monospace">
+                          {s.sigmetNumber} {s.hazard}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            })}
+
+            <text x={width - 6} y={height - 6} fill="#51626c" fontSize={9 / zoom} fontFamily="monospace" textAnchor="end">
+              SCHEMATIC ONLY — NOT FOR OPERATIONAL USE
+            </text>
+          </g>
         </svg>
       </div>
     </div>
