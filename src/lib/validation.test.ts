@@ -136,6 +136,10 @@ describe('requiresInstructorAuthForFlight', () => {
     expect(requiresInstructorAuthForFlight({ data: { scenario_airborne_time_z: '0600' } })).toBe(true);
     expect(requiresInstructorAuthForFlight({ data: { scenario_active_snapshot: { ac: { x: 0 }, t: 400 } } })).toBe(true);
   });
+
+  it('gates writes to scenario_route_override (instructor-edited active route for the ND tool)', () => {
+    expect(requiresInstructorAuthForFlight({ data: { scenario_route_override: [{ name: 'ABBEY', lat: 22.27, lon: 114.92 }] } })).toBe(true);
+  });
 });
 
 describe('flightDeleteBodySchema', () => {

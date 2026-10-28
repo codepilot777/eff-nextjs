@@ -210,6 +210,11 @@ export const PROTECTED_FLIGHT_PATCH_FIELDS = [
   'scenario_sigmets_raw',
   'scenario_airborne_time_z',
   'scenario_active_snapshot',
+  // 🌟 scenario_route_override：教官想畀 trainee 睇嘅「真實發生咗嘅」arrival/
+  // departure(例如轉咗跑道、唔同 STAR)，覆寫走 Observer ND 預設讀嘅 OFP navlog
+  // route——同其餘 scenario_* 欄位一樣嘅保護理由，trainee 唔應該自己寫呢個
+  // 去扮教官改劇本
+  'scenario_route_override',
 ] as const;
 
 export function hasProtectedFlightFields(patch: Record<string, unknown>): boolean {

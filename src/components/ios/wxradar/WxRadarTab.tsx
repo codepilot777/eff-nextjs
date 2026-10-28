@@ -3,9 +3,12 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
 import { useWxRadarSync, type ActiveSnapshot } from "@/hooks/useWxRadarSync";
+import { useProcedures } from "@/hooks/useProcedures";
 import { parseSigmetBulletin } from "@/lib/weather/sigmetParser";
 import { extractRouteFixes } from "@/lib/weather/routeFixes";
+import { computeOverriddenRoute } from "@/lib/nav/routeOverride";
 import SigmetChart from "@/components/weather/SigmetChart";
+import RouteOverridePanel from "./RouteOverridePanel";
 
 // 🌟 教官（或者 Claude 傾好劇本之後）將原始 ICAO SIGMET 電報 paste 落呢度，save
 // 落 flightData.scenario_sigmets_raw（受保護欄位，睇 validation.ts）。剩低嗰份
@@ -167,7 +170,26 @@ export default function WxRadarTab() {
 
   const rawText: string = flightData?.scenario_sigmets_raw || "";
   const parsed = parseSigmetBulletin(rawText);
-  const routeFixes = useMemo(() => extractRouteFixes(flightData?.raw_simbrief), [flightData?.raw_simbrief]);
+  const ofpRouteFixes = useMemo(() => extractRouteFixes(flightData?.raw_simbrief), [flightData?.raw_simbrief]);
+
+  // 🌟 揀咗 SID/STAR（睇 RouteOverridePanel）就用嚟覆寫 dep/arr 兩頭，中間
+  // 嘅 enroute 一樣跟返 OFP（睇 computeOverriddenRoute）；procedure 數據喺呢度
+  // 攞，連同成個機場嘅 fixes 一齊送落 iframe 做 snap-to-fix 用（唔止 active
+  // route 用緊嗰幾個）
+  const depProcQuery = useProcedures(flightData?.dep_icao);
+  const arrProcQuery = useProcedures(flightData?.arr_icao);
+  const routeFixes = useMemo(
+    () => computeOverriddenRoute(flightData?.scenario_route_override, ofpRouteFixes, depProcQuery.data, arrProcQuery.data),
+    [flightData?.scenario_route_override, ofpRouteFixes, depProcQuery.data, arrProcQuery.data]
+  );
+  const snapFixes = useMemo(() => {
+    const byName = new Map<string, { name: string; lat: number; lon: number }>();
+    for (const f of routeFixes) byName.set(f.name, f);
+    for (const proc of [depProcQuery.data, arrProcQuery.data]) {
+      for (const f of proc?.fixes || []) byName.set(f.name, { name: f.name, lat: f.latDeg, lon: f.lonDeg });
+    }
+    return Array.from(byName.values());
+  }, [routeFixes, depProcQuery.data, arrProcQuery.data]);
 
   const handleActiveSnapshotAction = useCallback(
     (snapshot: ActiveSnapshot) => {
@@ -182,12 +204,16 @@ export default function WxRadarTab() {
     flightData?.scenario_airborne_time_z,
     flightData?.scenario_active_snapshot,
     handleActiveSnapshotAction,
-    routeFixes
+    routeFixes,
+    snapFixes
   );
 
   return (
     <div className="h-full flex flex-col gap-4 md:flex-row">
-      <SigmetPanel />
+      <div className="flex-1 min-w-0 flex flex-col gap-4 md:max-w-[420px] overflow-y-auto">
+        <RouteOverridePanel />
+        <SigmetPanel />
+      </div>
 
       <div className="flex-1 min-w-0 bg-[#1a1a1a] border border-[#333] rounded-xl overflow-hidden flex flex-col">
         <div className="flex-none px-4 py-2 border-b border-[#333] flex items-center justify-between gap-3">
