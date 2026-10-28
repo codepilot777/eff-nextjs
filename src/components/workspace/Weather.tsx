@@ -74,21 +74,13 @@ export default function Weather() {
   // 🌟 從天上直接抽取 Data
   const { flightData } = useFlightData();
 
-  // 🌟 Enroute Stations 呢個分類可以成十幾個機場，預設收埋，trainee 想睇先展開，
-  // 避免一入嚟就成頁都係機場卡片
-  const [enrouteExpanded, setEnrouteExpanded] = useState(false);
-
   // 🌟 撳個 map 上面嘅機場 marker 之後，右邊卡片短暫 highlight 一下俾 trainee
-  // 知撳中邊個——幾秒後自動清返，唔使成個 session 都亮住
+  // 知撳中邊個——幾秒後自動清返，唔使成個 session 都亮住。右邊欄依家係單一
+  // 滾動清單（Enroute Stations 都已經擺埋入去），唔使再摺疊展開先搵到
   const [highlightedWxId, setHighlightedWxId] = useState<string | null>(null);
   const scrollToAirport = (wxId: string) => {
     setHighlightedWxId(wxId);
-    // 🌟 Enroute Station 張卡預設收埋喺摺疊區塊入面，撳 marker 之前要先展開，
-    // 等個 element 真係存在落 DOM 先 scrollIntoView 得到
-    if (wxId.startsWith("enr-station-")) setEnrouteExpanded(true);
-    window.setTimeout(() => {
-      document.getElementById(wxId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
+    document.getElementById(wxId)?.scrollIntoView({ behavior: "smooth", block: "start" });
     window.setTimeout(() => setHighlightedWxId((cur) => (cur === wxId ? null : cur)), 2500);
   };
 
@@ -202,7 +194,7 @@ export default function Weather() {
   });
 
   // 🌟 6. 航路沿途氣象站 (Enroute Stations)——SimBrief raw data 入面成十幾個機場，
-  // 淨係呢類先摺埋（collapsed）＋滾動清單顯示，避免一開頁就成版都係機場卡片
+  // 同其他機場一齊放落右邊嗰個獨立滾動嘅清單度，唔再分開摺疊
   const rawEnrouteStations = Array.isArray(rawSb.enroute_station) ? rawSb.enroute_station : [];
   const enrouteStationOverrides = flightData?.enroute_stations || [];
   const enrouteStationList = rawEnrouteStations
@@ -220,11 +212,15 @@ export default function Weather() {
       };
     });
 
+  // 🌟 右邊欄依家係單一清單，擺晒所有機場（dep/arr/altn/toff-altn/enr-altn/
+  // enr-station）嘅天氣，唔再分開一個摺疊嘅 Enroute Stations 區塊
+  const allAirports = [...renderList, ...enrouteStationList];
+
   // 🌟 Map 上面要顯示嘅機場 marker——有真正 TAF（唔係 "NO METAR/TAF DATA
   // AVAILABLE" 嗰句 placeholder）而且攞到座標先畫,撳落去右邊會跳去/閃一閃
   // 返對應嗰張卡
   const hasTaf = (taf: string) => taf !== "NO METAR/TAF DATA AVAILABLE";
-  const mapAirports = [...renderList, ...enrouteStationList]
+  const mapAirports = allAirports
     .filter((wx) => wx.pos && hasTaf(wx.taf))
     .map((wx) => ({ id: wx.id, icao: wx.icao, lat: wx.pos!.lat, lon: wx.pos!.lon }));
 
@@ -243,10 +239,11 @@ export default function Weather() {
 
       {/* 🌟 左右 2 col：左邊 route + SIGMET map view（layer 可以揀睇
           Turbulence/SIGMET Weather，之後想加嘅 layer 就跟住
-          RouteWeatherMap.tsx 嘅 LAYER_DEFS 模式加），右邊係 METAR/TAF
-          卡片清單——各自獨立滾動，唔使成個 tab 一齊 scroll */}
+          RouteWeatherMap.tsx 嘅 LAYER_DEFS 模式加）——fix 死喺度，唔跟住
+          成個 tab scroll 走；右邊係所有機場嘅 METAR/TAF 卡片清單（dep/arr/
+          altn/toff-altn/enr-altn/enr-station 全部擺埋一齊），獨立滾動 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5 items-start">
-        <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl shrink-0 shadow-lg overflow-hidden h-[560px] flex flex-col">
+        <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl shrink-0 shadow-lg overflow-hidden h-[560px] flex flex-col lg:sticky lg:top-2">
           <div className="px-5 pt-4 pb-1 flex items-center justify-between shrink-0">
             <h3 className="text-white font-bold tracking-widest uppercase text-[0.9rem]">Route &amp; Weather Map</h3>
             <span className="text-[#555] text-[0.6rem] font-bold uppercase tracking-widest">Demo</span>
@@ -262,7 +259,7 @@ export default function Weather() {
         </div>
 
         <div className="h-[560px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
-          {renderList.map((wx) => (
+          {allAirports.map((wx: any) => (
             <WxCard
               key={wx.id}
               id={wx.id}
@@ -275,38 +272,6 @@ export default function Weather() {
           ))}
         </div>
       </div>
-
-      {/* 🌟 Enroute Stations：摺埋嘅可展開區塊，展開先顯示滾動清單 */}
-      {enrouteStationList.length > 0 && (
-        <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl mb-5 shrink-0 shadow-lg overflow-hidden">
-          <button
-            onClick={() => setEnrouteExpanded((v) => !v)}
-            className="w-full px-5 py-4 flex justify-between items-center hover:bg-[#252525] transition-colors outline-none"
-          >
-            <span className="text-white font-bold tracking-widest uppercase text-[0.9rem]">
-              Enroute Weather Stations ({enrouteStationList.length})
-            </span>
-            <span className={`text-[#8fa0a6] text-2xl font-light transform transition-transform duration-200 ${enrouteExpanded ? 'rotate-180' : ''}`}>
-              ›
-            </span>
-          </button>
-          {enrouteExpanded && (
-            <div className="border-t border-[#333333] p-5 max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
-              {enrouteStationList.map((wx: any) => (
-                <WxCard
-                  key={wx.id}
-                  id={wx.id}
-                  type={wx.type}
-                  icao={wx.icao}
-                  metar={wx.metar}
-                  taf={wx.taf}
-                  highlighted={highlightedWxId === wx.id}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
     </div>
   );
