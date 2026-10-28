@@ -80,7 +80,7 @@ export default function TechLog({ forcedRole }: { forcedRole?: string }) {
   // 亦可以帶埋 directive 欄位 (defectUpdate/defectAppend/tlEntryAppend/...)
   const updateTechLogData = async (patch: TechLogPatch | Record<string, unknown>) => {
     const normalized: TechLogPatch = 'data' in patch || Object.keys(patch).some((k) =>
-      ['defectUpdate', 'defectAppend', 'tlEntryAppend', 'tlEntriesReset', 'flightsPrepend', 'signOffDefects'].includes(k)
+      ['defectUpdate', 'defectAppend', 'tlEntryAppend', 'tlEntriesReset', 'flightsPrepend', 'signOffDefects', 'instructorInsertInboundSector'].includes(k)
     ) ? (patch as TechLogPatch) : { data: patch as Record<string, unknown> };
 
     isUpdatingTl.current = true;
@@ -139,7 +139,9 @@ export default function TechLog({ forcedRole }: { forcedRole?: string }) {
             updateTechLogData={updateTechLogData} 
           />
         )}
-        {activeNav === "history" && <TechLogHistory tlData={tlData} />}
+        {activeNav === "history" && (
+          <TechLogHistory tlData={tlData} isInstructor={isInstructor} updateTechLogData={updateTechLogData} />
+        )}
         {activeNav === "reporting" && (
           <TechLogReporting tlData={tlData} updateTechLogData={updateTechLogData} roleMode={roleMode} setActiveNav={setActiveNav} />
         )}

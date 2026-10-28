@@ -181,6 +181,33 @@ describe('techlogPostBodySchema', () => {
     expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', data: { tl_entries: [] } }).success).toBe(false);
     expect(techlogPostBodySchema.safeParse({ id: 'FLIGHT-1', data: { flights: [] } }).success).toBe(false);
   });
+
+  it('accepts a well-formed instructorInsertInboundSector directive', () => {
+    expect(techlogPostBodySchema.safeParse({
+      id: 'FLIGHT-1',
+      instructorInsertInboundSector: {
+        departureStation: 'SIN',
+        defects: [{ status: 'DEFERRED', description: 'Hyd B qty low' }],
+        flightNo: 'CX888',
+        cmdr: 'TEST PILOT',
+      },
+    }).success).toBe(true);
+  });
+
+  it('rejects instructorInsertInboundSector with a bad status, empty departure, or no defects', () => {
+    expect(techlogPostBodySchema.safeParse({
+      id: 'FLIGHT-1',
+      instructorInsertInboundSector: { departureStation: 'SIN', defects: [{ status: 'BROKEN', description: 'x' }] },
+    }).success).toBe(false);
+    expect(techlogPostBodySchema.safeParse({
+      id: 'FLIGHT-1',
+      instructorInsertInboundSector: { departureStation: '', defects: [{ status: 'OPEN', description: 'x' }] },
+    }).success).toBe(false);
+    expect(techlogPostBodySchema.safeParse({
+      id: 'FLIGHT-1',
+      instructorInsertInboundSector: { departureStation: 'SIN', defects: [] },
+    }).success).toBe(true); // 🌟 空 array 本身 schema 層面唔擋(0 defect 都係合法輸入)，業務邏輯(至少一條)由前端表單驗證
+  });
 });
 
 describe('requiresInstructorAuth', () => {
@@ -203,6 +230,12 @@ describe('requiresInstructorAuth', () => {
   it('does not gate an open-status defectUpdate (e.g. reporting) or unrelated field writes', () => {
     expect(requiresInstructorAuth({ defectUpdate: { changes: { status: 'OPEN' } } })).toBe(false);
     expect(requiresInstructorAuth({ data: { tl_prepared: true } })).toBe(false);
+  });
+
+  it('gates the instructorInsertInboundSector directive', () => {
+    expect(requiresInstructorAuth({
+      instructorInsertInboundSector: { departureStation: 'SIN', defects: [{ status: 'OPEN', description: 'x' }] },
+    })).toBe(true);
   });
 
   it('does NOT gate the flight-crew finalizeSector reset, even though it writes tl_defects/crs_id: ""', () => {

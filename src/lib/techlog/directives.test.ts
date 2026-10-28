@@ -73,6 +73,23 @@ describe('applyTechLogDirectives', () => {
     expect(merged.tl_release).toBe(false);
   });
 
+  it('instructorInsertInboundSector replaces flights with the instructor-authored sector + regenerated chain', () => {
+    const current = {
+      tl_prep_dep: 'HKG',
+      flights: [{ id: 'SEC-OLD-1', route: 'NGO ➔ HKG' }, { id: 'SEC-OLD-2', route: 'TPE ➔ NGO' }],
+    };
+    const merged = applyTechLogDirectives(current, {
+      instructorInsertInboundSector: {
+        departureStation: 'SIN',
+        defects: [{ status: 'OPEN', description: 'Pack 1 flow control valve fault' }],
+      },
+    });
+    const flights = merged.flights as Array<Record<string, unknown>>;
+    expect(flights[0].route).toBe('SIN ➔ HKG');
+    expect(flights.some((f) => f.id === 'SEC-OLD-1')).toBe(false);
+    expect(merged.tl_prev_dep).toBe('SIN');
+  });
+
   it('defectAppend after a defectUpdate in the same patch builds on the updated list, not the stale one', () => {
     const current = { defects: [{ id: 'A1', status: 'OPEN' }] };
     const merged = applyTechLogDirectives(current, {
