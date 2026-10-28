@@ -51,6 +51,18 @@ function shiftSigmet(s: ParsedSigmet, minutes: number): ParsedSigmet {
   return { ...s, centre: shiftPoint(s.centre, bearing, distNm) };
 }
 
+export interface MapAirport {
+  id: string;
+  icao: string;
+  lat: number;
+  lon: number;
+}
+
+function touchDistance(touches: React.TouchList): number {
+  const a = touches[0], b = touches[1];
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
+
 function collectSigmetPoints(sigmets: ParsedSigmet[]): LatLon[] {
   const pts: LatLon[] = [];
   for (const s of sigmets) {
@@ -69,11 +81,15 @@ function collectSigmetPoints(sigmets: ParsedSigmet[]): LatLon[] {
 export default function RouteWeatherMap({
   sigmets,
   routeFixes,
+  airports = [],
+  onAirportSelect,
   width = 720,
   height = 480,
 }: {
   sigmets: ParsedSigmet[];
   routeFixes: RouteFix[];
+  airports?: MapAirport[];
+  onAirportSelect?: (id: string) => void;
   width?: number;
   height?: number;
 }) {
@@ -86,6 +102,9 @@ export default function RouteWeatherMap({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ x: number; y: number } | null>(null);
+  // 🌟 手指 pinch-to-zoom——記低開始 pinch 嗰刻嘅距離同 zoom，之後純粹睇
+  // 兩隻手指距離嘅比例嚟縮放,唔使掣/數字顯示
+  const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
 
   // 🌟 Play：模擬 SIGMET 隨時間漂移——淨係靠 SIGMET 本身嘅 MOV 向量,
   // 唔使加新數據源
@@ -107,8 +126,9 @@ export default function RouteWeatherMap({
 
   const hasRoute = routeFixes.length >= 2;
   const hasSigmets = sigmets.length > 0;
+  const hasAirports = airports.length > 0;
 
-  if (!hasRoute && !hasSigmets) {
+  if (!hasRoute && !hasSigmets && !hasAirports) {
     return (
       <div className="flex items-center justify-center h-full text-[#555] text-xs font-bold uppercase tracking-widest">
         No route or SIGMET data to map yet
@@ -118,7 +138,8 @@ export default function RouteWeatherMap({
 
   const routePts: LatLon[] = routeFixes.map((f) => [f.lat, f.lon]);
   const sigPts = collectSigmetPoints(sigmets);
-  const pts = [...routePts, ...sigPts];
+  const airportPts: LatLon[] = airports.map((a) => [a.lat, a.lon]);
+  const pts = [...routePts, ...sigPts, ...airportPts];
 
   const lats = pts.map((p) => p[0]);
   const lons = pts.map((p) => p[1]);
@@ -160,10 +181,11 @@ export default function RouteWeatherMap({
     setZoom((z) => clampZoom(z * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
   };
   const onPointerDown: React.PointerEventHandler<SVGSVGElement> = (e) => {
+    if (pinchRef.current) return; // 🌟 pinch 緊嗰陣唔好當單指拖拽
     dragRef.current = { x: e.clientX, y: e.clientY };
   };
   const onPointerMove: React.PointerEventHandler<SVGSVGElement> = (e) => {
-    if (!dragRef.current) return;
+    if (!dragRef.current || pinchRef.current) return;
     const dx = e.clientX - dragRef.current.x;
     const dy = e.clientY - dragRef.current.y;
     dragRef.current = { x: e.clientX, y: e.clientY };
@@ -174,6 +196,25 @@ export default function RouteWeatherMap({
     setPan((p) => ({ x: p.x + dx * scaleX, y: p.y + dy * scaleY }));
   };
   const endDrag = () => { dragRef.current = null; };
+
+  // 🌟 兩隻手指 pinch 開/合嚟 zoom in/out——唔使 +/- 掣。單指拖拽(onPointerMove)
+  // 喺 pinchRef 有嘢嗰陣會自動 bail out，兩者唔會打架
+  const onTouchStart: React.TouchEventHandler<SVGSVGElement> = (e) => {
+    if (e.touches.length === 2) {
+      dragRef.current = null;
+      pinchRef.current = { dist: touchDistance(e.touches), zoom };
+    }
+  };
+  const onTouchMove: React.TouchEventHandler<SVGSVGElement> = (e) => {
+    if (e.touches.length === 2 && pinchRef.current) {
+      e.preventDefault();
+      const ratio = touchDistance(e.touches) / pinchRef.current.dist;
+      setZoom(clampZoom(pinchRef.current.zoom * ratio));
+    }
+  };
+  const onTouchEnd: React.TouchEventHandler<SVGSVGElement> = (e) => {
+    if (e.touches.length < 2) pinchRef.current = null;
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -203,16 +244,8 @@ export default function RouteWeatherMap({
           Coastline
         </button>
 
-        <div className="ml-auto flex items-center gap-1">
-          <button onClick={() => setZoom((z) => clampZoom(z / 1.3))} title="Zoom out"
-            className="w-6 h-6 flex items-center justify-center rounded border border-[#333] text-[#8fa0a6] hover:text-white hover:border-[#555] text-sm font-bold">
-            −
-          </button>
-          <span className="text-[#555] text-[0.6rem] font-bold w-10 text-center">{zoom.toFixed(1)}×</span>
-          <button onClick={() => setZoom((z) => clampZoom(z * 1.3))} title="Zoom in"
-            className="w-6 h-6 flex items-center justify-center rounded border border-[#333] text-[#8fa0a6] hover:text-white hover:border-[#555] text-sm font-bold">
-            +
-          </button>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden sm:inline text-[#555] text-[0.6rem] font-bold uppercase tracking-widest">Pinch / scroll to zoom</span>
           <button onClick={resetView} title="Reset view"
             className="px-2 h-6 flex items-center justify-center rounded border border-[#333] text-[#8fa0a6] hover:text-white hover:border-[#555] text-[0.6rem] font-bold uppercase">
             Reset
@@ -254,6 +287,9 @@ export default function RouteWeatherMap({
           onPointerMove={onPointerMove}
           onPointerUp={endDrag}
           onPointerLeave={endDrag}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
         >
           <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
             {/* 經緯網格 */}
@@ -361,6 +397,30 @@ export default function RouteWeatherMap({
                       </g>
                     );
                   })}
+                </g>
+              );
+            })}
+
+            {/* 🌟 有 TAF 嘅機場 marker——撳落去/tap 一下就叫 onAirportSelect，
+                等右邊 METAR/TAF 欄跳去/highlight 返嗰張卡。stopPropagation
+                等單指拖拽個 pointerdown 唔會當佢做拖地圖 */}
+            {airports.map((a) => {
+              const [x, y] = project([a.lat, a.lon]);
+              return (
+                <g
+                  key={a.id}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); onAirportSelect?.(a.id); }}
+                  className="cursor-pointer"
+                >
+                  <rect
+                    x={x - 4 / zoom} y={y - 4 / zoom} width={8 / zoom} height={8 / zoom}
+                    fill="#ffd23f" stroke="#0a1218" strokeWidth={1 / zoom}
+                    transform={`rotate(45 ${x} ${y})`}
+                  />
+                  <text x={x + 7 / zoom} y={y + 3 / zoom} fill="#ffd23f" fontSize={10 / zoom} fontWeight={700} fontFamily="monospace">
+                    {a.icao}
+                  </text>
                 </g>
               );
             })}
