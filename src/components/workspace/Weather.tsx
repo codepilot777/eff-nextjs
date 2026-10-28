@@ -1,6 +1,9 @@
 "use client";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
+import { parseSigmetBulletin } from "@/lib/weather/sigmetParser";
+import { extractRouteFixes } from "@/lib/weather/routeFixes";
+import RouteWeatherMap from "@/components/weather/RouteWeatherMap";
 
 // 🌟 將 WxCard 抽離主函數，效能更好，唔會重複 Render
 const WxCard = ({ type, icao, metar, taf }: { type: string, icao: string, metar: string, taf: string }) => {
@@ -67,6 +70,12 @@ export default function Weather() {
   // 🌟 Enroute Stations 呢個分類可以成十幾個機場，預設收埋，trainee 想睇先展開，
   // 避免一入嚟就成頁都係機場卡片
   const [enrouteExpanded, setEnrouteExpanded] = useState(false);
+
+  // 🌟 Demo：map view 用嘅 route/SIGMET 數據——同 WxRadar 果邊用緊同一套
+  // sigmetParser.ts/routeFixes.ts，唔使另外再揼一次邏輯。useMemo 要喺
+  // return null 之前 call（Hooks 規則），所以放喺呢度，入面自己做 optional chaining
+  const mapSigmets = useMemo(() => parseSigmetBulletin(flightData?.scenario_sigmets_raw || ""), [flightData?.scenario_sigmets_raw]);
+  const mapRouteFixes = useMemo(() => extractRouteFixes(flightData?.raw_simbrief), [flightData?.raw_simbrief]);
 
   // 防呆保護：未有 data 就唔 render
   if (!flightData) return null;
@@ -195,6 +204,19 @@ export default function Weather() {
            </svg>
          </div>
          <h2 className="text-lg font-bold text-white tracking-wide">Weather Briefing</h2>
+      </div>
+
+      {/* 🌟 Demo：route + SIGMET map view，layer 可以揀睇 Turbulence/SIGMET
+          Weather——之後想加嘅 layer（TC track、enroute stations……）就跟住
+          RouteWeatherMap.tsx 嘅 LAYER_DEFS 模式加 */}
+      <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl mb-5 shrink-0 shadow-lg overflow-hidden h-[420px] flex flex-col">
+        <div className="px-5 pt-4 pb-1 flex items-center justify-between shrink-0">
+          <h3 className="text-white font-bold tracking-widest uppercase text-[0.9rem]">Route &amp; Weather Map</h3>
+          <span className="text-[#555] text-[0.6rem] font-bold uppercase tracking-widest">Demo</span>
+        </div>
+        <div className="flex-1 min-h-0">
+          <RouteWeatherMap sigmets={mapSigmets} routeFixes={mapRouteFixes} />
+        </div>
       </div>
 
       {/* 依序渲染去重後的氣象卡片 */}
