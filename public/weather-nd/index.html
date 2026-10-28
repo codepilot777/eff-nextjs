@@ -101,6 +101,10 @@ ul.log{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
           </div>
           <div class="row" style="margin-top:8px"><button class="b" id="btnReset" type="button">Restart from plan at current time</button></div>
           <div class="row" style="margin-top:8px"><button class="b pri" id="btnCapture" type="button">📸 Capture for trainee</button></div>
+          <div class="row" style="margin-top:6px">
+            <button class="b" id="btnLive" type="button">Live: OFF</button>
+            <span class="lbl" style="font-size:11px">auto-sends what trainee sees every couple seconds</span>
+          </div>
         </div>
 
         <div>
@@ -151,12 +155,13 @@ ul.log{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
   </section>
 
   <section id="paneActive" hidden>
-    <p class="note">The instructor's captured ND picture. Range is yours to adjust — everything else (position, weather, mode) is exactly what the instructor captured, so it always matches what they saw.</p>
+    <p class="note">The instructor's captured ND picture (or live, if the instructor has Live mode on). Range and Altitude are yours to adjust — position/weather/mode are exactly what the instructor set, so it always matches what they saw.</p>
     <figure class="snap" style="max-width:620px;margin:12px auto 0">
       <canvas id="ndActive" width="800" height="620" aria-label="Captured weather ND picture"></canvas>
       <figcaption>
         <b id="activeHdr"></b><span id="activeSub"></span>
         <span class="row" style="margin-top:6px;justify-content:center"><span class="lbl">Range</span><span class="seg" id="activeRngSeg"></span></span>
+        <span class="row" style="margin-top:6px;justify-content:center"><span class="lbl">Altitude</span><span class="seg" id="activeAltSeg"></span></span>
       </figcaption>
     </figure>
     <p class="disc" style="margin-top:8px;max-width:620px;margin-inline:auto"><b>Not a real radar.</b> Fictional weather, simplified beam, tilt and attenuation model, generic colours and layout. Fix names are fictional. Distances use a flat chart, so treat them as approximate.</p>
@@ -380,6 +385,14 @@ const WX = { bc: new Uint8Array(NAZ * NRG), tb: new Uint8Array(NAZ * NRG) };
 function autoTilt(alt, range) {
   const t = -Math.atan(alt / (6076 * 0.6 * range)) * R2D;
   return Math.max(-15, Math.min(15, Math.round(t * 2) / 2));
+}
+// 🌟 Trainee 嗰邊想睇嘅唔係「tilt 幾多度」，而係「想睇邊個高度嘅 return」
+// ——tilt 嘅作用本身就係控制睇邊個高度，所以淨係將 autoTilt() 嘅邏輯由
+// 「永遠睇地面（alt 相對 0）」推廣做「睇任何想要嘅高度」：alt 同
+// targetAlt 嘅落差先係真正用嚟計 tilt 嘅數，targetAlt=0 嗰陣同 autoTilt()
+// 一模一樣（望地面），targetAlt=own alt 嗰陣 tilt=0（望自己呢層）
+function altTargetTilt(ownAlt, targetAlt, range) {
+  return autoTilt(ownAlt - targetAlt, range);
 }
 function computeWx(ac, tMin, P, range, tilt, gainDb) {
   const bin = range / NRG;
@@ -808,8 +821,11 @@ function drawMap(cv, ac, tMin, P, trail, showWx) {
 const S = {
   airborne: 360, fast: false, showWx: true,
   view: { range: 160, tiltAuto: true, tilt: 0, gainAuto: true, gain: 0 },
-  int: { ac: null, t: 400, playing: false, speed: 15, trail: [], redMin: 999, red: { d: 999, brg: 0 }, inS: {}, log: [], lastRed: 0, lastTrail: 0, acc: 0 },
-  activeView: { range: 160 },
+  int: { ac: null, t: 400, playing: false, speed: 15, trail: [], redMin: 999, red: { d: 999, brg: 0 }, inS: {}, log: [], lastRed: 0, lastTrail: 0, acc: 0, live: false },
+  // 🌟 targetAlt: null = AUTO（跟返教官 Capture/Live 低嗰刻嘅 tilt，同以前
+  // 行為一樣）；有數值就 trainee 自己揀緊想睇邊個高度層嘅 return（睇
+  // altTargetTilt()）
+  activeView: { range: 160, targetAlt: null },
   // 🌟 擺位置功能嘅 Observer map zoom/pan 狀態——純粹 view 嘅嘢，唔影響
   // 飛機實際座標
   mapView: { zoom: 1, panX: 0, panY: 0 },
@@ -892,6 +908,9 @@ function init() {
   $('inPace').onchange = () => { S.fast = $('inPace').value === 'fast'; dirty = true; };
   seg('rngSeg', rangeList, S.view.range, v => S.view.range = +v);
   seg('activeRngSeg', rangeList, S.activeView.range, (v) => { S.activeView.range = +v; renderActive(); });
+  seg('activeAltSeg', ['AUTO', 0, 10000, 20000, 30000, 40000], S.activeView.targetAlt ?? 'AUTO',
+    (v) => { S.activeView.targetAlt = v === 'AUTO' ? null : v; renderActive(); },
+    (v) => v === 'AUTO' ? 'AUTO' : v === 0 ? 'SFC' : (v / 1000) + 'k');
   $('tiltAutoBtn').onclick = () => { if (!S.view.tiltAuto) { S.view.tiltAuto = true; } else { S.view.tiltAuto = false; S.view.tilt = autoTilt(curAc().alt, S.view.range); } dirty = true; };
   $('tiltDn').onclick = () => { if (S.view.tiltAuto) { S.view.tilt = autoTilt(curAc().alt, S.view.range); S.view.tiltAuto = false; } S.view.tilt = Math.max(-15, S.view.tilt - 0.5); dirty = true; };
   $('tiltUp').onclick = () => { if (S.view.tiltAuto) { S.view.tilt = autoTilt(curAc().alt, S.view.range); S.view.tiltAuto = false; } S.view.tilt = Math.min(15, S.view.tilt + 0.5); dirty = true; };
@@ -1066,30 +1085,51 @@ function init() {
   const altAdj = d => { const a = A(); if (a.altMode !== 'MAN') { a.altMode = 'MAN'; a.altSel = Math.round(a.alt / 1000) * 1000; } a.altSel = Math.max(1000, Math.min(41000, a.altSel + d)); $('altMode').textContent = 'MAN ' + a.altSel / 1000 + 'k'; dirty = true; };
   $('altDn').onclick = () => altAdj(-1000); $('altUp').onclick = () => altAdj(1000);
 
-  // 🌟 教官搵到想畀 trainee 睇嘅一刻就撳呢粒掣——將而家 Interactive 個
+  // 🌟 教官搵到想畀 trainee 睇嘅一刻就撳 Capture，將而家 Interactive 個
   // ac/t/shift/view 成份「影低」，postMessage 返出去俾 parent（睇
   // WxRadarTab.tsx），等 parent 寫落 scenario_active_snapshot，trainee
-  // 嗰邊個 iframe 淨係畫返呢份已經凍結咗嘅畫面，自己唔使計都100%一致
+  // 嗰邊個 iframe 淨係畫返呢份已經凍結咗嘅畫面，自己唔使計都100%一致。
+  // 🌟 Live 模式：同一條 pipeline，淨係由「教官手動撳先送一次」變成「每隔
+  // 幾秒自動再送一次」——唔使起新嘅即時同步機制，繼續行返 scenario_active_
+  // snapshot 嗰條已經驗證過啱嘅路（trainee 嗰邊 poll 3 秒一次，所以 Live
+  // 模式嘅更新有大概呢個數量級嘅延遲，唔係真係逐 frame 咁快）
   const isTraineeMode = new URLSearchParams(location.search).get('mode') === 'trainee';
-  $('btnCapture').onclick = () => {
-    if (isTraineeMode) return;
+  function buildSnapshot() {
     const a = A();
-    if (!a) return;
-    const snapshot = {
+    if (!a) return null;
+    return {
       ac: { x: a.x, y: a.y, hdg: a.hdg, trk: a.trk, gs: a.gs, tas: a.tas, alt: a.alt, mode: a.mode, selHdg: a.selHdg, tgt: a.tgt, nextIdx: a.nextIdx, hold: a.hold, altMode: a.altMode, altSel: a.altSel, atcHold: a.atcHold, ended: a.ended },
       t: S.int.t,
       shift: P().shift,
       view: { tiltAuto: S.view.tiltAuto, tilt: S.view.tilt, gainAuto: S.view.gainAuto, gain: S.view.gain },
     };
+  }
+  function sendSnapshot() {
+    if (isTraineeMode) return;
+    const snapshot = buildSnapshot();
+    if (!snapshot) return;
+    try { window.parent.postMessage({ type: 'eff-active-snapshot-action', snapshot }, '*'); } catch (e) { }
+  }
+  $('btnCapture').onclick = () => {
+    if (isTraineeMode || !A()) return;
+    sendSnapshot();
     logEv('Captured for trainee at ' + hhmm(S.int.t) + 'Z');
     dirty = true;
-    try { window.parent.postMessage({ type: 'eff-active-snapshot-action', snapshot }, '*'); } catch (e) { }
+  };
+  $('btnLive').onclick = () => {
+    if (isTraineeMode) return;
+    S.int.live = !S.int.live;
+    $('btnLive').textContent = 'Live: ' + (S.int.live ? 'ON' : 'OFF');
+    $('btnLive').setAttribute('aria-pressed', String(S.int.live));
+    logEv(S.int.live ? 'Live mode on — trainee now follows this view automatically' : 'Live mode off');
+    if (S.int.live) sendSnapshot();
   };
 
   $('inAir').value = hhmm(S.airborne);
   startInteractive(Math.max(S.airborne + 20, 380));
   updatePlayLabels();
-  let last = performance.now(), acc = 0;
+  let last = performance.now(), acc = 0, liveAcc = 0;
+  const LIVE_SEND_INTERVAL_S = 2; // 🌟 跟返 useFlightData 個 3 秒 poll 差唔多嘅數量級，唔使送得密過 trainee 實際攞得到
   function frame(ts) {
     const dt = Math.min(0.25, (ts - last) / 1000); last = ts; acc += dt;
     if (S.int.playing) {
@@ -1097,6 +1137,10 @@ function init() {
       const n = Math.floor(S.int.accSim); S.int.accSim -= n;
       if (n > 0) simStep(Math.min(n, 120));
       dirty = true;
+    }
+    if (S.int.live) {
+      liveAcc += dt;
+      if (liveAcc >= LIVE_SEND_INTERVAL_S) { liveAcc = 0; sendSnapshot(); }
     }
     if (dirty && acc > 0.08) { acc = 0; dirty = false; renderScope(); }
     requestAnimationFrame(frame);
@@ -1264,9 +1308,17 @@ function applyScenarioActiveSnapshot(snapshot) {
 function renderActive() {
   const cv = $('ndActive');
   if (!cv || !activeSnapshot) return;
-  const view = Object.assign({}, activeSnapshot.view, { range: S.activeView.range });
-  drawND(cv, activeSnapshot.ac, activeSnapshot.t, { shift: activeSnapshot.shift }, view);
   const ac = activeSnapshot.ac;
+  // 🌟 targetAlt 有值就用嚟推 tilt（睇邊個高度層嘅 return），冇就跟返
+  // 教官 Capture/Live 低嗰刻嘅 tilt（AUTO 或者佢手動揀嘅 MAN 度數）—— 一樣
+  // 都係淨係蓋 view.tiltAuto/tilt 呢兩個欄，唔影響 range 嗰套獨立邏輯
+  const hasTargetAlt = S.activeView.targetAlt !== null && S.activeView.targetAlt !== undefined;
+  const view = Object.assign({}, activeSnapshot.view, {
+    range: S.activeView.range,
+    tiltAuto: hasTargetAlt ? false : activeSnapshot.view.tiltAuto,
+    tilt: hasTargetAlt ? altTargetTilt(ac.alt, S.activeView.targetAlt, S.activeView.range) : activeSnapshot.view.tilt,
+  });
+  drawND(cv, ac, activeSnapshot.t, { shift: activeSnapshot.shift }, view);
   if ($('activeHdr')) $('activeHdr').textContent = hhmm(activeSnapshot.t) + 'Z · range ' + S.activeView.range + ' NM';
   if ($('activeSub')) $('activeSub').textContent = posText(ac) + ' · ' + (ac.alt >= 18000 ? 'FL' + Math.round(ac.alt / 100) : Math.round(ac.alt / 100) * 100 + ' ft');
 }
