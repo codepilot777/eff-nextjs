@@ -39,15 +39,19 @@ export function useWxRadarSync(
   airborneZ: string | undefined,
   activeSnapshot?: ActiveSnapshot | null,
   onActiveSnapshotAction?: (snapshot: ActiveSnapshot) => void,
-  routeFixes?: RouteFix[]
+  routeFixes?: RouteFix[],
+  // 🌟 snapFixes：呢個機場 procedure 庫成個已知 fix 清單（唔止 active route
+  // 揀中嗰幾個），畀教官喺 Observer map 度撳位置嗰陣可以 snap 落去準確座標
+  // （睇 weather-nd/index.html 嘅 applyScenarioFixes）
+  snapFixes?: RouteFix[]
 ) {
   const readyRef = useRef(false);
-  const latestRef = useRef({ sigmets, airborneZ, activeSnapshot, routeFixes });
+  const latestRef = useRef({ sigmets, airborneZ, activeSnapshot, routeFixes, snapFixes });
   const onActiveSnapshotActionRef = useRef(onActiveSnapshotAction);
 
   useEffect(() => {
-    latestRef.current = { sigmets, airborneZ, activeSnapshot, routeFixes };
-  }, [sigmets, airborneZ, activeSnapshot, routeFixes]);
+    latestRef.current = { sigmets, airborneZ, activeSnapshot, routeFixes, snapFixes };
+  }, [sigmets, airborneZ, activeSnapshot, routeFixes, snapFixes]);
 
   useEffect(() => {
     onActiveSnapshotActionRef.current = onActiveSnapshotAction;
@@ -62,6 +66,7 @@ export function useWxRadarSync(
       if (latest.airborneZ) win.postMessage({ type: "eff-scenario-airborne", airborneZ: latest.airborneZ }, "*");
       if (latest.activeSnapshot) win.postMessage({ type: "eff-scenario-active-snapshot", snapshot: latest.activeSnapshot }, "*");
       if (latest.routeFixes) win.postMessage({ type: "eff-scenario-route", route: { fixes: latest.routeFixes } }, "*");
+      if (latest.snapFixes) win.postMessage({ type: "eff-scenario-fixes", fixes: latest.snapFixes }, "*");
     };
     const onMessage = (e: MessageEvent) => {
       if (e.source !== iframeRef.current?.contentWindow) return;
@@ -86,6 +91,7 @@ export function useWxRadarSync(
     if (airborneZ) win.postMessage({ type: "eff-scenario-airborne", airborneZ }, "*");
     if (activeSnapshot) win.postMessage({ type: "eff-scenario-active-snapshot", snapshot: activeSnapshot }, "*");
     if (routeFixes) win.postMessage({ type: "eff-scenario-route", route: { fixes: routeFixes } }, "*");
+    if (snapFixes) win.postMessage({ type: "eff-scenario-fixes", fixes: snapFixes }, "*");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sigmets, airborneZ, activeSnapshot, routeFixes]);
+  }, [sigmets, airborneZ, activeSnapshot, routeFixes, snapFixes]);
 }
