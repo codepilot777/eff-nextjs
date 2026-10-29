@@ -1,0 +1,271 @@
+{
+  "airport": "RCKH",
+  "name": "Kaohsiung International",
+  "arp": {
+    "lat": "22 34 37N",
+    "lon": "120 21 01E"
+  },
+  "runways": [
+    {
+      "ident": "09",
+      "bearingTrue": 91.9,
+      "lat": "22 34 38.97N",
+      "lon": "120 20 11.10E",
+      "thresholdFt": 21
+    },
+    {
+      "ident": "27",
+      "bearingTrue": 271.93,
+      "lat": "22 34 36.22N",
+      "lon": "120 21 40.18E",
+      "thresholdFt": 31
+    }
+  ],
+  "source": {
+    "publication": "AIP Taipei FIR (eAIP), https://ais.caa.gov.tw/eaip/",
+    "airac": "2026-10-29",
+    "amendment": "AIRAC AIP AMDT 05/26",
+    "sections": [
+      "AD 2 RCKH 2.2 ARP, 2.12 runway thresholds",
+      "AD 2 RCKH 2.24 Aeronautical Data (waypoint list and coding table) of each RNAV SID and STAR"
+    ],
+    "notice": "Transcribed and simplified for a game. NOT FOR NAVIGATIONAL USE."
+  },
+  "units": {
+    "lat/lon": "published WGS-84 degrees minutes seconds",
+    "latDeg/lonDeg": "decimal degrees (north and east positive)",
+    "path": "ARINC 424 path terminator: IF initial fix, TF track to fix, DF direct to fix, VA heading to altitude, CA course to altitude",
+    "courseMag/courseTrue": "published leg course, degrees magnetic / true",
+    "min/max": "altitude constraint, feet (at or above / at or below; both equal = at)",
+    "speed": "maximum speed, knots IAS",
+    "turn": "turn direction onto the leg, L or R",
+    "flyover": "fly-over waypoint (otherwise fly-by)",
+    "bearingTrue": "runway true bearing",
+    "thresholdFt": "threshold elevation, feet"
+  },
+  "notes": [
+    "RNAV SIDs and STARs only; conventional procedures (HCN, PARPA, PORCH, TNN arrivals, SPRAY radar and TNN C/D/F departures) are not included.",
+    "HENGCHUN is the HCN VOR, so 'HENGCHUN TWO ALFA' is designated HCN 2A; SIGANG is TNN.",
+    "Holding patterns are only drawn on the charts (no table), so holds is empty."
+  ],
+  "fixes": [
+    { "name": "ANDRE", "kind": "fix", "role": "SID waypoint", "lat": "21 44 28.00N", "lon": "119 59 32.00E", "latDeg": 21.741111, "lonDeg": 119.992222 },
+    { "name": "FORKY", "kind": "fix", "role": "STAR waypoint", "lat": "22 25 53.84N", "lon": "120 26 41.24E", "latDeg": 22.431622, "lonDeg": 120.444789 },
+    { "name": "GLIGA", "kind": "fix", "role": "SID waypoint", "lat": "22 37 38.99N", "lon": "119 55 26.12E", "latDeg": 22.627497, "lonDeg": 119.923922 },
+    { "name": "HCN", "kind": "vor", "role": "SID waypoint", "lat": "21 55 40.00N", "lon": "120 50 37.00E", "latDeg": 21.927778, "lonDeg": 120.843611 },
+    { "name": "KIZIN", "kind": "fix", "role": "STAR waypoint", "lat": "22 35 05.00N", "lon": "120 05 33.00E", "latDeg": 22.584722, "lonDeg": 120.0925 },
+    { "name": "LIUCU", "kind": "fix", "role": "SID waypoint", "lat": "22 34 57.73N", "lon": "120 09 50.71E", "latDeg": 22.582703, "lonDeg": 120.164086 },
+    { "name": "LUGIA", "kind": "fix", "role": "STAR waypoint", "lat": "22 53 00.51N", "lon": "120 03 08.67E", "latDeg": 22.883475, "lonDeg": 120.052408 },
+    { "name": "PARAS", "kind": "fix", "role": "SID waypoint", "lat": "22 12 32.04N", "lon": "119 44 31.08E", "latDeg": 22.2089, "lonDeg": 119.741967 },
+    { "name": "POTIB", "kind": "fix", "role": "STAR waypoint", "lat": "21 00 00.00N", "lon": "120 45 30.00E", "latDeg": 21.0, "lonDeg": 120.758333 },
+    { "name": "TNN", "kind": "vor", "role": "SID waypoint", "lat": "23 08 07.10N", "lon": "120 12 22.30E", "latDeg": 23.135306, "lonDeg": 120.206194 },
+    { "name": "WP140", "kind": "fix", "role": "SID waypoint", "lat": "22 34 57.34N", "lon": "120 08 12.61E", "latDeg": 22.582594, "lonDeg": 120.136836 },
+    { "name": "WP164", "kind": "fix", "role": "SID waypoint", "lat": "22 26 45.29N", "lon": "120 19 50.48E", "latDeg": 22.445914, "lonDeg": 120.330689 },
+    { "name": "WP171", "kind": "fix", "role": "SID waypoint", "lat": "22 31 29.47N", "lon": "120 09 34.91E", "latDeg": 22.524853, "lonDeg": 120.159697 },
+    { "name": "WP345", "kind": "fix", "role": "STAR waypoint", "lat": "22 42 03.31N", "lon": "120 04 36.62E", "latDeg": 22.700919, "lonDeg": 120.076839 },
+    { "name": "WP381", "kind": "fix", "role": "STAR waypoint", "lat": "22 03 23.01N", "lon": "120 28 21.36E", "latDeg": 22.056392, "lonDeg": 120.4726 },
+    { "name": "WP382", "kind": "fix", "role": "STAR waypoint", "lat": "22 13 25.12N", "lon": "120 19 06.40E", "latDeg": 22.223644, "lonDeg": 120.318444 },
+    { "name": "WP383", "kind": "fix", "role": "STAR waypoint", "lat": "22 21 41.60N", "lon": "120 11 15.36E", "latDeg": 22.361556, "lonDeg": 120.1876 },
+    { "name": "WP406", "kind": "fix", "role": "STAR waypoint", "lat": "21 54 01.58N", "lon": "120 36 53.24E", "latDeg": 21.900439, "lonDeg": 120.614789 },
+    { "name": "WP407", "kind": "fix", "role": "STAR waypoint", "lat": "22 05 10.30N", "lon": "120 53 18.92E", "latDeg": 22.086194, "lonDeg": 120.888589 },
+    { "name": "WP430", "kind": "fix", "role": "STAR waypoint", "lat": "22 26 50.96N", "lon": "120 18 42.09E", "latDeg": 22.447489, "lonDeg": 120.311692 },
+    { "name": "WP526", "kind": "fix", "role": "SID waypoint", "lat": "21 58 06.87N", "lon": "120 24 59.87E", "latDeg": 21.968575, "lonDeg": 120.416631 },
+    { "name": "WP552", "kind": "fix", "role": "SID waypoint", "lat": "22 17 43.12N", "lon": "120 08 45.47E", "latDeg": 22.295311, "lonDeg": 120.145964 },
+    { "name": "WP553", "kind": "fix", "role": "SID waypoint", "lat": "22 16 00.74N", "lon": "120 00 44.75E", "latDeg": 22.266872, "lonDeg": 120.012431 },
+    { "name": "WP561", "kind": "fix", "role": "SID waypoint", "lat": "22 12 42.31N", "lon": "120 08 58.18E", "latDeg": 22.211753, "lonDeg": 120.149494 },
+    { "name": "WP571", "kind": "fix", "role": "STAR waypoint", "lat": "22 23 30.01N", "lon": "120 21 24.81E", "latDeg": 22.391669, "lonDeg": 120.356892 },
+    { "name": "WP605", "kind": "fix", "role": "SID waypoint", "lat": "22 34 47.39N", "lon": "120 14 47.07E", "latDeg": 22.579831, "lonDeg": 120.246408 },
+    { "name": "WP608", "kind": "fix", "role": "SID waypoint", "lat": "22 25 15.02N", "lon": "120 03 56.70E", "latDeg": 22.420839, "lonDeg": 120.06575 },
+    { "name": "WP609", "kind": "fix", "role": "SID waypoint", "lat": "22 31 27.72N", "lon": "120 10 59.93E", "latDeg": 22.524367, "lonDeg": 120.183314 },
+    { "name": "WP620", "kind": "fix", "role": "STAR waypoint", "lat": "22 28 04.49N", "lon": "120 05 11.21E", "latDeg": 22.467914, "lonDeg": 120.086447 },
+    { "name": "WP728", "kind": "fix", "role": "SID waypoint", "lat": "22 34 47.39N", "lon": "120 14 47.07E", "latDeg": 22.579831, "lonDeg": 120.246408 },
+    { "name": "WP738", "kind": "fix", "role": "STAR waypoint", "lat": "22 31 19.22N", "lon": "120 12 47.99E", "latDeg": 22.522006, "lonDeg": 120.213331 },
+    { "name": "WP777", "kind": "fix", "role": "SID waypoint", "lat": "21 58 57.07N", "lon": "120 15 20.43E", "latDeg": 21.982519, "lonDeg": 120.255675 },
+    { "name": "WP946", "kind": "fix", "role": "STAR waypoint", "lat": "21 21 28.02N", "lon": "120 47 27.88E", "latDeg": 21.357783, "lonDeg": 120.791078 },
+    { "name": "YANMA", "kind": "fix", "role": "STAR waypoint", "lat": "22 42 49.26N", "lon": "121 22 35.61E", "latDeg": 22.713683, "lonDeg": 121.376558 }
+  ],
+  "stars": [
+    {
+      "name": "LUGIA1A",
+      "runways": "09",
+      "legs": [
+        { "path": "IF", "fix": "LUGIA" },
+        { "path": "TF", "fix": "WP345", "courseMag": 177, "courseTrue": 172.9, "min": 5000 },
+        { "path": "TF", "fix": "KIZIN", "courseMag": 177, "courseTrue": 172.9, "min": 3000, "speed": 210 }
+      ]
+    },
+    {
+      "name": "LUGIA2B",
+      "runways": "27",
+      "legs": [
+        { "path": "IF", "fix": "LUGIA" },
+        { "path": "TF", "fix": "WP738", "courseMag": 162, "courseTrue": 157.5, "min": 9000 },
+        { "path": "TF", "fix": "WP430", "courseMag": 133, "courseTrue": 129.2 },
+        { "path": "TF", "fix": "FORKY", "courseMag": 102, "courseTrue": 97.3, "min": 4000, "speed": 210 }
+      ]
+    },
+    {
+      "name": "POTIB1A",
+      "runways": "09",
+      "legs": [
+        { "path": "IF", "fix": "POTIB" },
+        { "path": "TF", "fix": "WP946", "courseMag": 9, "courseTrue": 4.9 },
+        { "path": "TF", "fix": "WP406", "courseMag": 347, "courseTrue": 343.1 },
+        { "path": "TF", "fix": "WP381", "courseMag": 324, "courseTrue": 319.7 },
+        { "path": "TF", "fix": "WP382", "courseMag": 324, "courseTrue": 319.4 },
+        { "path": "TF", "fix": "WP383", "courseMag": 323, "courseTrue": 318.6, "min": 8000 },
+        { "path": "TF", "fix": "WP620", "courseMag": 323, "courseTrue": 318.5, "max": 7000 },
+        { "path": "TF", "fix": "KIZIN", "courseMag": 7, "courseTrue": 2.8, "min": 3000, "speed": 210 }
+      ]
+    },
+    {
+      "name": "POTIB2B",
+      "runways": "27",
+      "legs": [
+        { "path": "IF", "fix": "POTIB" },
+        { "path": "TF", "fix": "WP946", "courseMag": 9, "courseTrue": 4.9 },
+        { "path": "TF", "fix": "WP406", "courseMag": 347, "courseTrue": 343.1 },
+        { "path": "TF", "fix": "WP381", "courseMag": 324, "courseTrue": 319.7 },
+        { "path": "TF", "fix": "WP382", "courseMag": 324, "courseTrue": 319.4 },
+        { "path": "TF", "fix": "WP571", "courseMag": 16, "courseTrue": 12.0 },
+        { "path": "TF", "fix": "FORKY", "courseMag": 68, "courseTrue": 63.9, "min": 4000, "speed": 210 }
+      ]
+    },
+    {
+      "name": "YANMA1A",
+      "runways": "09",
+      "legs": [
+        { "path": "IF", "fix": "YANMA" },
+        { "path": "TF", "fix": "WP407", "courseMag": 220, "courseTrue": 216.0, "min": 21000 },
+        { "path": "TF", "fix": "WP381", "courseMag": 270, "courseTrue": 265.7 },
+        { "path": "TF", "fix": "WP382", "courseMag": 324, "courseTrue": 319.4 },
+        { "path": "TF", "fix": "WP383", "courseMag": 323, "courseTrue": 318.6, "min": 8000 },
+        { "path": "TF", "fix": "WP620", "courseMag": 323, "courseTrue": 318.5, "max": 7000 },
+        { "path": "TF", "fix": "KIZIN", "courseMag": 7, "courseTrue": 2.8, "min": 3000, "speed": 210 }
+      ]
+    },
+    {
+      "name": "YANMA2B",
+      "runways": "27",
+      "legs": [
+        { "path": "IF", "fix": "YANMA" },
+        { "path": "TF", "fix": "WP407", "courseMag": 220, "courseTrue": 216.0, "min": 21000 },
+        { "path": "TF", "fix": "WP381", "courseMag": 270, "courseTrue": 265.7 },
+        { "path": "TF", "fix": "WP382", "courseMag": 324, "courseTrue": 319.4 },
+        { "path": "TF", "fix": "WP571", "courseMag": 16, "courseTrue": 12.0 },
+        { "path": "TF", "fix": "FORKY", "courseMag": 68, "courseTrue": 63.9, "min": 4000, "speed": 210 }
+      ]
+    }
+  ],
+  "sids": [
+    {
+      "name": "ANDRE2A",
+      "runways": "09",
+      "legs": [
+        { "path": "VA", "courseMag": 96, "courseTrue": 91.9, "min": 800, "speed": 210 },
+        { "path": "DF", "fix": "WP552", "max": 7000, "speed": 210 },
+        { "path": "TF", "fix": "WP561", "courseMag": 182, "courseTrue": 177.8 },
+        { "path": "TF", "fix": "ANDRE", "courseMag": 202, "courseTrue": 197.3 }
+      ]
+    },
+    {
+      "name": "ANDRE1B",
+      "runways": "27",
+      "legs": [
+        { "path": "VA", "courseMag": 276, "courseTrue": 271.9, "min": 540 },
+        { "path": "DF", "fix": "WP605" },
+        { "path": "TF", "fix": "WP609", "courseMag": 231, "courseTrue": 226.6, "max": 8000 },
+        { "path": "TF", "fix": "WP608", "courseMag": 231, "courseTrue": 226.6 },
+        { "path": "TF", "fix": "WP561", "courseMag": 164, "courseTrue": 159.6, "max": 9000 },
+        { "path": "TF", "fix": "ANDRE", "courseMag": 202, "courseTrue": 197.3 }
+      ]
+    },
+    {
+      "name": "GLIGA2A",
+      "runways": "09",
+      "legs": [
+        { "path": "VA", "courseMag": 96, "courseTrue": 91.9, "min": 800, "speed": 210 },
+        { "path": "DF", "fix": "WP164", "min": 4000, "speed": 210 },
+        { "path": "TF", "fix": "WP171", "courseMag": 301, "courseTrue": 296.5, "min": 8000 },
+        { "path": "TF", "fix": "GLIGA", "courseMag": 299, "courseTrue": 295.2 }
+      ]
+    },
+    {
+      "name": "GLIGA1B",
+      "runways": "27",
+      "legs": [
+        { "path": "VA", "courseMag": 276, "courseTrue": 271.9, "min": 540 },
+        { "path": "DF", "fix": "WP728" },
+        { "path": "TF", "fix": "WP140", "courseMag": 276, "courseTrue": 271.6, "max": 8000 },
+        { "path": "TF", "fix": "GLIGA", "courseMag": 287, "courseTrue": 282.8 }
+      ]
+    },
+    {
+      "name": "HCN2A",
+      "runways": "09",
+      "legs": [
+        { "path": "VA", "courseMag": 96, "courseTrue": 91.9, "min": 800, "speed": 210 },
+        { "path": "DF", "fix": "WP552", "max": 7000, "speed": 210 },
+        { "path": "TF", "fix": "WP561", "courseMag": 182, "courseTrue": 177.8 },
+        { "path": "TF", "fix": "WP777", "courseMag": 161, "courseTrue": 156.6 },
+        { "path": "TF", "fix": "WP526", "courseMag": 99, "courseTrue": 95.3 },
+        { "path": "TF", "fix": "HCN", "courseMag": 100, "courseTrue": 95.8 }
+      ]
+    },
+    {
+      "name": "HCN1B",
+      "runways": "27",
+      "legs": [
+        { "path": "VA", "courseMag": 276, "courseTrue": 271.9, "min": 540 },
+        { "path": "DF", "fix": "WP605" },
+        { "path": "TF", "fix": "WP609", "courseMag": 231, "courseTrue": 226.6, "max": 8000 },
+        { "path": "TF", "fix": "WP608", "courseMag": 231, "courseTrue": 226.6 },
+        { "path": "TF", "fix": "WP561", "courseMag": 164, "courseTrue": 159.6, "max": 9000 },
+        { "path": "TF", "fix": "WP777", "courseMag": 161, "courseTrue": 156.6 },
+        { "path": "TF", "fix": "WP526", "courseMag": 99, "courseTrue": 95.3 },
+        { "path": "TF", "fix": "HCN", "courseMag": 100, "courseTrue": 95.8 }
+      ]
+    },
+    {
+      "name": "PARAS2A",
+      "runways": "09",
+      "legs": [
+        { "path": "VA", "courseMag": 96, "courseTrue": 91.9, "min": 800, "speed": 210 },
+        { "path": "DF", "fix": "WP552", "speed": 210 },
+        { "path": "TF", "fix": "WP553", "courseMag": 261, "courseTrue": 257.1, "max": 7000 },
+        { "path": "TF", "fix": "PARAS", "courseMag": 261, "courseTrue": 257.1 }
+      ]
+    },
+    {
+      "name": "PARAS1B",
+      "runways": "27",
+      "legs": [
+        { "path": "VA", "courseMag": 276, "courseTrue": 271.9, "min": 540 },
+        { "path": "DF", "fix": "WP605" },
+        { "path": "TF", "fix": "WP609", "courseMag": 231, "courseTrue": 226.6, "max": 8000 },
+        { "path": "TF", "fix": "WP608", "courseMag": 231, "courseTrue": 226.6 },
+        { "path": "TF", "fix": "PARAS", "courseMag": 239, "courseTrue": 234.9 }
+      ]
+    },
+    {
+      "name": "TNN2G",
+      "runways": "09",
+      "legs": [
+        { "path": "VA", "courseMag": 96, "courseTrue": 91.9, "min": 800, "speed": 210 },
+        { "path": "DF", "fix": "WP164", "min": 4000, "speed": 210 },
+        { "path": "TF", "fix": "WP171", "courseMag": 301, "courseTrue": 296.5, "min": 8000 },
+        { "path": "TF", "fix": "TNN", "courseMag": 8, "courseTrue": 4.0 }
+      ]
+    },
+    {
+      "name": "TNN1H",
+      "runways": "27",
+      "legs": [
+        { "path": "VA", "courseMag": 276, "courseTrue": 271.9, "min": 600 },
+        { "path": "DF", "fix": "LIUCU", "turn": "R" },
+        { "path": "TF", "fix": "TNN", "courseMag": 8, "courseTrue": 4.0 }
+      ]
+    }
+  ],
+  "holds": []
+}

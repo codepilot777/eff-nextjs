@@ -42,8 +42,8 @@ export function computeOverriddenRoute(
   // 噉樣亂跳，唔係 STAR 本身嘅「ABBEY→MUSEL→HH512」。而家將同揀咗嘅 SID/STAR
   // 撞名嘅 OFP fix 篩走，淨係用返 SID/STAR 自己嗰份（座標、順序都用佢嘅）
   const overriddenNames = new Set<string>([
-    ...(sid?.legs.map((l) => l.fix) ?? []),
-    ...(star?.legs.map((l) => l.fix) ?? []),
+    ...(sid?.legs.map((l) => l.fix).filter((f): f is string => !!f) ?? []),
+    ...(star?.legs.map((l) => l.fix).filter((f): f is string => !!f) ?? []),
   ]);
   // 🌟 OFP 自己嘅 enroute 中段（去頭去尾），唔理教官有冇換 SID/STAR 都保留——
   // 呼應「dep/arr 要改得到，enroute 盡量跟 OFP」嘅要求

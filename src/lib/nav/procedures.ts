@@ -15,7 +15,9 @@ export interface ProcedureFix {
 }
 
 export interface ProcedureLeg {
-  fix: string;
+  // 冇 fix 嘅 leg(例如 ARINC 424 VA/CA path terminator,heading/course-to
+  // -altitude,冇固定座標)——resolveProcedureLegs() 會跳過呢啲 leg
+  fix?: string;
   min?: number;
   max?: number;
   speed?: number;
@@ -58,7 +60,7 @@ const fixSchema = z.object({
 }).passthrough();
 
 const legSchema = z.object({
-  fix: z.string().trim().min(1),
+  fix: z.string().trim().min(1).optional(),
   min: z.number().optional(),
   max: z.number().optional(),
   speed: z.number().optional(),
@@ -102,6 +104,7 @@ export function resolveProcedureLegs(
   const byName = new Map(proc.fixes.map((f) => [f.name, f]));
   const out: { name: string; lat: number; lon: number }[] = [];
   for (const leg of legs) {
+    if (!leg.fix) continue;
     const f = byName.get(leg.fix);
     if (!f) continue;
     out.push({ name: f.name, lat: f.latDeg, lon: f.lonDeg });

@@ -1,0 +1,495 @@
+{
+  "airport": "RCTP",
+  "name": "Taipei/Taiwan Taoyuan International",
+  "arp": {
+    "lat": "25 04 49N",
+    "lon": "121 13 56E"
+  },
+  "runways": [
+    {
+      "ident": "05L",
+      "bearingTrue": 49.08,
+      "lat": "25 04 22.42N",
+      "lon": "121 12 57.55E",
+      "thresholdFt": 74
+    },
+    {
+      "ident": "23R",
+      "bearingTrue": 229.08,
+      "lat": "25 05 40.19N",
+      "lon": "121 14 36.39E",
+      "thresholdFt": 63
+    },
+    {
+      "ident": "05R",
+      "bearingTrue": 49.07,
+      "lat": "25 03 41.15N",
+      "lon": "121 13 27.29E",
+      "thresholdFt": 107
+    },
+    {
+      "ident": "23L",
+      "bearingTrue": 229.07,
+      "lat": "25 04 52.33N",
+      "lon": "121 14 57.73E",
+      "thresholdFt": 96
+    }
+  ],
+  "source": {
+    "publication": "AIP Taipei FIR (eAIP), https://ais.caa.gov.tw/eaip/",
+    "airac": "2026-10-29",
+    "amendment": "AIRAC AIP AMDT 05/26",
+    "sections": [
+      "AD 2 RCTP 2.2 ARP, 2.12 runway thresholds",
+      "AD 2 RCTP 2.22 flight procedures (STAR to runway table, initial level, speed control)",
+      "AD 2 RCTP 2.24 Aeronautical Data (waypoint list and coding table) of each RNAV SID and STAR"
+    ],
+    "notice": "Transcribed and simplified for a game. NOT FOR NAVIGATIONAL USE."
+  },
+  "units": {
+    "lat/lon": "published WGS-84 degrees minutes seconds",
+    "latDeg/lonDeg": "decimal degrees (north and east positive)",
+    "path": "ARINC 424 path terminator: IF initial fix, TF track to fix, DF direct to fix, VA heading to altitude, CA course to altitude",
+    "courseMag/courseTrue": "published leg course, degrees magnetic / true",
+    "min/max": "altitude constraint, feet (at or above / at or below; both equal = at)",
+    "speed": "maximum speed, knots IAS",
+    "turn": "turn direction onto the leg, L or R",
+    "flyover": "fly-over waypoint (otherwise fly-by)",
+    "bearingTrue": "runway true bearing",
+    "thresholdFt": "threshold elevation, feet"
+  },
+  "notes": [
+    "RNAV SIDs and STARs only; conventional procedures (SPRAY departures, VOR approaches) are not included.",
+    "STARs ending A serve runways 05L/05R and B serve 23L/23R (AD 2.22.4 table).",
+    "Departures: expect initial level 3000 ft, further climb by Taipei Approach (AD 2.22.2).",
+    "Arrivals: 280 kt IAS from FL250 to FL130, maximum 280 kt below FL130 down to 10000 ft (AD 2.22.3).",
+    "Descent planning: BAKER/DRAKE/GRACE cross COPRA/DRAKE/GRACE at FL200 for 05L/05R or FL140 for 23R/23L; TONGA/TNN cross BOCCA at FL290 (AD 2.22.5).",
+    "SIGANG is the TNN VOR/DME, so 'SIGANG ONE ALFA' is designated TNN 1A.",
+    "Holding patterns are only drawn on the charts (no table), so holds is empty."
+  ],
+  "fixes": [
+    { "name": "APRIL", "kind": "fix", "role": "STAR waypoint", "lat": "25 06 57.86N", "lon": "121 06 08.29E", "latDeg": 25.116072, "lonDeg": 121.102303 },
+    { "name": "AUGUR", "kind": "fix", "role": "STAR waypoint", "lat": "25 23 58.15N", "lon": "121 27 47.96E", "latDeg": 25.399486, "lonDeg": 121.463322 },
+    { "name": "BAKER", "kind": "fix", "role": "STAR waypoint", "lat": "25 38 36.00N", "lon": "121 52 48.00E", "latDeg": 25.643333, "lonDeg": 121.88 },
+    { "name": "BOCCA", "kind": "fix", "role": "STAR waypoint", "lat": "23 28 46.24N", "lon": "119 46 52.90E", "latDeg": 23.479511, "lonDeg": 119.781361 },
+    { "name": "BRAVO", "kind": "fix", "role": "STAR waypoint", "lat": "24 40 27.24N", "lon": "120 36 41.87E", "latDeg": 24.674233, "lonDeg": 120.611631 },
+    { "name": "CHALI", "kind": "fix", "role": "SID waypoint", "lat": "24 43 48.00N", "lon": "120 30 30.00E", "latDeg": 24.73, "lonDeg": 120.508333 },
+    { "name": "DECOY", "kind": "fix", "role": "SID waypoint", "lat": "25 12 18.00N", "lon": "121 01 06.00E", "latDeg": 25.205, "lonDeg": 121.018333 },
+    { "name": "DRAKE", "kind": "fix", "role": "STAR waypoint", "lat": "25 36 56.02N", "lon": "122 04 40.61E", "latDeg": 25.615561, "lonDeg": 122.077947 },
+    { "name": "ELBER", "kind": "fix", "role": "STAR waypoint", "lat": "24 06 41.81N", "lon": "120 13 05.84E", "latDeg": 24.111614, "lonDeg": 120.218289 },
+    { "name": "FETUS", "kind": "fix", "role": "STAR waypoint", "lat": "24 58 25.89N", "lon": "120 55 18.78E", "latDeg": 24.973858, "lonDeg": 120.921883 },
+    { "name": "GRACE", "kind": "fix", "role": "STAR waypoint", "lat": "25 06 21.55N", "lon": "122 17 22.88E", "latDeg": 25.105986, "lonDeg": 122.289689 },
+    { "name": "JAMMY", "kind": "fix", "role": "STAR waypoint", "lat": "24 55 08.77N", "lon": "120 51 09.37E", "latDeg": 24.919103, "lonDeg": 120.852603 },
+    { "name": "JUNTA", "kind": "fix", "role": "STAR waypoint", "lat": "25 17 26.34N", "lon": "121 19 27.85E", "latDeg": 25.29065, "lonDeg": 121.324403 },
+    { "name": "JUROR", "kind": "fix", "role": "STAR waypoint", "lat": "25 20 41.88N", "lon": "121 23 37.15E", "latDeg": 25.344967, "lonDeg": 121.393653 },
+    { "name": "KIKIT", "kind": "fix", "role": "SID waypoint", "lat": "25 52 55.83N", "lon": "123 35 31.91E", "latDeg": 25.882175, "lonDeg": 123.592197 },
+    { "name": "KUDOS", "kind": "fix", "role": "SID waypoint", "lat": "25 07 53.00N", "lon": "121 59 28.00E", "latDeg": 25.131389, "lonDeg": 121.991111 },
+    { "name": "MARCH", "kind": "fix", "role": "STAR waypoint", "lat": "25 01 42.90N", "lon": "120 59 28.42E", "latDeg": 25.028583, "lonDeg": 120.991228 },
+    { "name": "MAYOR", "kind": "fix", "role": "STAR waypoint", "lat": "25 12 11.75N", "lon": "121 12 47.06E", "latDeg": 25.203264, "lonDeg": 121.213072 },
+    { "name": "MEICH", "kind": "fix", "role": "STAR waypoint", "lat": "23 42 16.31N", "lon": "120 16 27.02E", "latDeg": 23.704531, "lonDeg": 120.274172 },
+    { "name": "MOLKA", "kind": "fix", "role": "SID waypoint", "lat": "26 39 31.00N", "lon": "124 00 00.00E", "latDeg": 26.658611, "lonDeg": 124.0 },
+    { "name": "NEPAS", "kind": "fix", "role": "SID waypoint", "lat": "25 16 42.00N", "lon": "121 28 54.00E", "latDeg": 25.278333, "lonDeg": 121.481667 },
+    { "name": "NOVAS", "kind": "fix", "role": "SID waypoint", "lat": "25 17 30.00N", "lon": "121 07 42.00E", "latDeg": 25.291667, "lonDeg": 121.128333 },
+    { "name": "OCTAN", "kind": "fix", "role": "SID waypoint", "lat": "25 23 18.00N", "lon": "121 16 54.00E", "latDeg": 25.388333, "lonDeg": 121.281667 },
+    { "name": "PABSO", "kind": "fix", "role": "SID waypoint", "lat": "25 38 20.80N", "lon": "122 51 57.70E", "latDeg": 25.639111, "lonDeg": 122.866028 },
+    { "name": "PIANO", "kind": "fix", "role": "SID waypoint", "lat": "25 48 22.91N", "lon": "121 49 02.84E", "latDeg": 25.806364, "lonDeg": 121.817456 },
+    { "name": "ROBIN", "kind": "fix", "role": "SID waypoint", "lat": "25 25 09.00N", "lon": "122 12 28.00E", "latDeg": 25.419167, "lonDeg": 122.207778 },
+    { "name": "SEPIA", "kind": "fix", "role": "STAR waypoint", "lat": "25 29 13.05N", "lon": "121 34 31.73E", "latDeg": 25.486958, "lonDeg": 121.575481 },
+    { "name": "SUMER", "kind": "fix", "role": "SID waypoint", "lat": "25 08 00.00N", "lon": "120 56 30.00E", "latDeg": 25.133333, "lonDeg": 120.941667 },
+    { "name": "TINHO", "kind": "fix", "role": "SID waypoint", "lat": "24 21 09.00N", "lon": "122 01 43.00E", "latDeg": 24.3525, "lonDeg": 122.028611 },
+    { "name": "TNN", "kind": "vor", "role": "STAR waypoint", "lat": "23 08 07.10N", "lon": "120 12 22.30E", "latDeg": 23.135306, "lonDeg": 120.206194 },
+    { "name": "TONGA", "kind": "fix", "role": "STAR waypoint", "lat": "23 10 38.65N", "lon": "119 35 27.96E", "latDeg": 23.177403, "lonDeg": 119.5911 },
+    { "name": "TP050", "kind": "fix", "role": "SID waypoint", "lat": "25 07 42.00N", "lon": "121 17 12.00E", "latDeg": 25.128333, "lonDeg": 121.286667 },
+    { "name": "TP060", "kind": "fix", "role": "SID waypoint", "lat": "25 06 54.00N", "lon": "121 17 36.00E", "latDeg": 25.115, "lonDeg": 121.293333 },
+    { "name": "TP064", "kind": "fix", "role": "SID waypoint", "lat": "25 06 48.00N", "lon": "121 17 30.00E", "latDeg": 25.113333, "lonDeg": 121.291667 },
+    { "name": "TP230", "kind": "fix", "role": "SID waypoint", "lat": "25 02 18.00N", "lon": "121 10 18.00E", "latDeg": 25.038333, "lonDeg": 121.171667 },
+    { "name": "TP240", "kind": "fix", "role": "SID waypoint", "lat": "25 01 36.00N", "lon": "121 10 48.00E", "latDeg": 25.026667, "lonDeg": 121.18 }
+  ],
+  "stars": [
+    {
+      "name": "BAKER1A",
+      "runways": "05L/05R",
+      "legs": [
+        { "path": "IF", "fix": "BAKER" },
+        { "path": "TF", "fix": "SEPIA", "courseMag": 245, "courseTrue": 240.4, "min": 5000 },
+        { "path": "TF", "fix": "AUGUR", "courseMag": 234, "courseTrue": 229.3, "min": 5000 },
+        { "path": "TF", "fix": "APRIL", "courseMag": 234, "courseTrue": 229.1, "min": 4000 },
+        { "path": "TF", "fix": "MARCH", "courseMag": 234, "courseTrue": 229.1, "min": 4000 },
+        { "path": "TF", "fix": "FETUS", "courseMag": 234, "courseTrue": 229.1, "min": 4000 },
+        { "path": "TF", "fix": "JAMMY", "courseMag": 233, "courseTrue": 229.1, "min": 4000 }
+      ]
+    },
+    {
+      "name": "BAKER1B",
+      "runways": "23L/23R",
+      "legs": [
+        { "path": "IF", "fix": "BAKER" },
+        { "path": "TF", "fix": "SEPIA", "courseMag": 245, "courseTrue": 240.4, "min": 5000 },
+        { "path": "TF", "fix": "AUGUR", "courseMag": 234, "courseTrue": 229.3, "min": 5000 }
+      ]
+    },
+    {
+      "name": "DRAKE1A",
+      "runways": "05L/05R",
+      "legs": [
+        { "path": "IF", "fix": "DRAKE" },
+        { "path": "TF", "fix": "SEPIA", "courseMag": 259, "courseTrue": 254.1, "min": 5000 },
+        { "path": "TF", "fix": "AUGUR", "courseMag": 234, "courseTrue": 229.3, "min": 5000 },
+        { "path": "TF", "fix": "APRIL", "courseMag": 234, "courseTrue": 229.1, "min": 4000 },
+        { "path": "TF", "fix": "MARCH", "courseMag": 234, "courseTrue": 229.1, "min": 4000 },
+        { "path": "TF", "fix": "FETUS", "courseMag": 234, "courseTrue": 229.1, "min": 4000 },
+        { "path": "TF", "fix": "JAMMY", "courseMag": 233, "courseTrue": 229.1, "min": 4000 }
+      ]
+    },
+    {
+      "name": "DRAKE1B",
+      "runways": "23L/23R",
+      "legs": [
+        { "path": "IF", "fix": "DRAKE" },
+        { "path": "TF", "fix": "SEPIA", "courseMag": 259, "courseTrue": 254.1, "min": 5000 },
+        { "path": "TF", "fix": "AUGUR", "courseMag": 234, "courseTrue": 229.3, "min": 5000 }
+      ]
+    },
+    {
+      "name": "GRACE1A",
+      "runways": "05L/05R",
+      "legs": [
+        { "path": "IF", "fix": "GRACE" },
+        { "path": "TF", "fix": "SEPIA", "courseMag": 305, "courseTrue": 300.3, "min": 5000 },
+        { "path": "TF", "fix": "AUGUR", "courseMag": 234, "courseTrue": 229.3, "min": 5000 },
+        { "path": "TF", "fix": "APRIL", "courseMag": 234, "courseTrue": 229.1, "min": 4000 },
+        { "path": "TF", "fix": "MARCH", "courseMag": 234, "courseTrue": 229.1, "min": 4000 },
+        { "path": "TF", "fix": "FETUS", "courseMag": 234, "courseTrue": 229.1, "min": 4000 },
+        { "path": "TF", "fix": "JAMMY", "courseMag": 233, "courseTrue": 229.1, "min": 4000 }
+      ]
+    },
+    {
+      "name": "GRACE1B",
+      "runways": "23L/23R",
+      "legs": [
+        { "path": "IF", "fix": "GRACE" },
+        { "path": "TF", "fix": "SEPIA", "courseMag": 305, "courseTrue": 300.3, "min": 5000 },
+        { "path": "TF", "fix": "AUGUR", "courseMag": 234, "courseTrue": 229.3, "min": 5000 }
+      ]
+    },
+    {
+      "name": "TNN1A",
+      "runways": "05L/05R",
+      "legs": [
+        { "path": "IF", "fix": "TNN" },
+        { "path": "TF", "fix": "MEICH", "courseMag": 10, "courseTrue": 6.3, "min": 5000 },
+        { "path": "TF", "fix": "BRAVO", "courseMag": 22, "courseTrue": 17.8, "min": 5000 },
+        { "path": "TF", "fix": "JAMMY", "courseMag": 46, "courseTrue": 42.0, "min": 5000 }
+      ]
+    },
+    {
+      "name": "TNN1B",
+      "runways": "23L/23R",
+      "legs": [
+        { "path": "IF", "fix": "TNN" },
+        { "path": "TF", "fix": "MEICH", "courseMag": 10, "courseTrue": 6.3, "min": 5000 },
+        { "path": "TF", "fix": "BRAVO", "courseMag": 22, "courseTrue": 17.8, "min": 5000 },
+        { "path": "TF", "fix": "JAMMY", "courseMag": 46, "courseTrue": 42.0, "min": 5000 },
+        { "path": "TF", "fix": "MAYOR", "courseMag": 54, "courseTrue": 49.2, "min": 5000 },
+        { "path": "TF", "fix": "JUNTA", "courseMag": 54, "courseTrue": 49.2, "min": 4700 },
+        { "path": "TF", "fix": "JUROR", "courseMag": 54, "courseTrue": 49.2, "min": 4700 },
+        { "path": "TF", "fix": "AUGUR", "courseMag": 54, "courseTrue": 49.3, "min": 4700 }
+      ]
+    },
+    {
+      "name": "TONGA1A",
+      "runways": "05L/05R",
+      "legs": [
+        { "path": "IF", "fix": "TONGA" },
+        { "path": "TF", "fix": "BOCCA", "courseMag": 34, "courseTrue": 30.2, "min": 11000 },
+        { "path": "TF", "fix": "ELBER", "courseMag": 37, "courseTrue": 32.6, "min": 5000 },
+        { "path": "TF", "fix": "BRAVO", "courseMag": 37, "courseTrue": 32.7, "min": 5000 },
+        { "path": "TF", "fix": "JAMMY", "courseMag": 46, "courseTrue": 42.0, "min": 5000 }
+      ]
+    },
+    {
+      "name": "TONGA1B",
+      "runways": "23L/23R",
+      "legs": [
+        { "path": "IF", "fix": "TONGA" },
+        { "path": "TF", "fix": "BOCCA", "courseMag": 34, "courseTrue": 30.2, "min": 11000 },
+        { "path": "TF", "fix": "ELBER", "courseMag": 37, "courseTrue": 32.6, "min": 5000 },
+        { "path": "TF", "fix": "BRAVO", "courseMag": 37, "courseTrue": 32.7, "min": 5000 },
+        { "path": "TF", "fix": "JAMMY", "courseMag": 46, "courseTrue": 42.0, "min": 5000 },
+        { "path": "TF", "fix": "MAYOR", "courseMag": 54, "courseTrue": 49.2, "min": 5000 },
+        { "path": "TF", "fix": "JUNTA", "courseMag": 54, "courseTrue": 49.2, "min": 4700 },
+        { "path": "TF", "fix": "JUROR", "courseMag": 54, "courseTrue": 49.2, "min": 4700 },
+        { "path": "TF", "fix": "AUGUR", "courseMag": 54, "courseTrue": 49.3, "min": 4700 }
+      ]
+    }
+  ],
+  "sids": [
+    {
+      "name": "CHALI1A",
+      "runways": "05R",
+      "legs": [
+        { "path": "VA", "courseMag": 54, "courseTrue": 49.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP060", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "NOVAS" },
+        { "path": "TF", "fix": "DECOY", "courseMag": 234, "courseTrue": 229.1 },
+        { "path": "TF", "fix": "SUMER", "courseMag": 229, "courseTrue": 224.2, "min": 4000 },
+        { "path": "TF", "fix": "CHALI", "courseMag": 229, "courseTrue": 224.3 }
+      ]
+    },
+    {
+      "name": "CHALI1B",
+      "runways": "23L",
+      "legs": [
+        { "path": "VA", "courseMag": 234, "courseTrue": 229.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP240", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "SUMER", "min": 4000 },
+        { "path": "TF", "fix": "CHALI", "courseMag": 229, "courseTrue": 224.3 }
+      ]
+    },
+    {
+      "name": "CHALI1C",
+      "runways": "05L",
+      "legs": [
+        { "path": "VA", "courseMag": 54, "courseTrue": 49.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP050", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "NOVAS" },
+        { "path": "TF", "fix": "DECOY", "courseMag": 234, "courseTrue": 229.1 },
+        { "path": "TF", "fix": "SUMER", "courseMag": 229, "courseTrue": 224.2, "min": 4000 },
+        { "path": "TF", "fix": "CHALI", "courseMag": 229, "courseTrue": 224.3 }
+      ]
+    },
+    {
+      "name": "CHALI1D",
+      "runways": "23R",
+      "legs": [
+        { "path": "VA", "courseMag": 234, "courseTrue": 229.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP230", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "SUMER", "min": 4000 },
+        { "path": "TF", "fix": "CHALI", "courseMag": 229, "courseTrue": 224.3 }
+      ]
+    },
+    {
+      "name": "KUDOS1A",
+      "runways": "05R",
+      "legs": [
+        { "path": "VA", "courseMag": 54, "courseTrue": 49.2, "min": 600 },
+        { "path": "DF", "fix": "TP064", "flyover": true },
+        { "path": "TF", "fix": "NEPAS", "flyover": true, "courseMag": 51, "courseTrue": 46.4, "min": 4500 },
+        { "path": "TF", "fix": "KUDOS", "courseMag": 112, "courseTrue": 107.7 }
+      ]
+    },
+    {
+      "name": "KUDOS1C",
+      "runways": "05L",
+      "legs": [
+        { "path": "VA", "courseMag": 54, "courseTrue": 49.2, "min": 600 },
+        { "path": "DF", "fix": "TP050", "flyover": true },
+        { "path": "TF", "fix": "NEPAS", "flyover": true, "courseMag": 54, "courseTrue": 49.8, "min": 4500 },
+        { "path": "TF", "fix": "KUDOS", "courseMag": 112, "courseTrue": 107.7 }
+      ]
+    },
+    {
+      "name": "KUDOS1B",
+      "runways": "23L",
+      "legs": [
+        { "path": "VA", "courseMag": 234, "courseTrue": 229.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP240", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "DECOY" },
+        { "path": "TF", "fix": "OCTAN", "flyover": true, "courseMag": 57, "courseTrue": 52.6 },
+        { "path": "TF", "fix": "KUDOS", "courseMag": 116, "courseTrue": 111.9 }
+      ]
+    },
+    {
+      "name": "KUDOS1D",
+      "runways": "23R",
+      "legs": [
+        { "path": "VA", "courseMag": 234, "courseTrue": 229.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP230", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "DECOY" },
+        { "path": "TF", "fix": "OCTAN", "flyover": true, "courseMag": 57, "courseTrue": 52.6 },
+        { "path": "TF", "fix": "KUDOS", "courseMag": 116, "courseTrue": 111.9 }
+      ]
+    },
+    {
+      "name": "MOLKA1A",
+      "runways": "05R",
+      "legs": [
+        { "path": "VA", "courseMag": 54, "courseTrue": 49.2, "min": 600 },
+        { "path": "DF", "fix": "TP064", "flyover": true },
+        { "path": "TF", "fix": "NEPAS", "flyover": true, "courseMag": 51, "courseTrue": 46.4 },
+        { "path": "TF", "fix": "ROBIN", "courseMag": 83, "courseTrue": 78.1 },
+        { "path": "TF", "fix": "PABSO", "courseMag": 75, "courseTrue": 69.9 },
+        { "path": "TF", "fix": "KIKIT", "courseMag": 75, "courseTrue": 69.9 },
+        { "path": "TF", "fix": "MOLKA", "courseMag": 31, "courseTrue": 25.4 }
+      ]
+    },
+    {
+      "name": "MOLKA1C",
+      "runways": "05L",
+      "legs": [
+        { "path": "VA", "courseMag": 54, "courseTrue": 49.2, "min": 600 },
+        { "path": "DF", "fix": "TP050", "flyover": true },
+        { "path": "TF", "fix": "NEPAS", "flyover": true, "courseMag": 54, "courseTrue": 49.8 },
+        { "path": "TF", "fix": "ROBIN", "courseMag": 83, "courseTrue": 78.1 },
+        { "path": "TF", "fix": "PABSO", "courseMag": 75, "courseTrue": 69.9 },
+        { "path": "TF", "fix": "KIKIT", "courseMag": 75, "courseTrue": 69.9 },
+        { "path": "TF", "fix": "MOLKA", "courseMag": 31, "courseTrue": 25.4 }
+      ]
+    },
+    {
+      "name": "MOLKA1B",
+      "runways": "23L",
+      "legs": [
+        { "path": "VA", "courseMag": 234, "courseTrue": 229.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP240", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "DECOY" },
+        { "path": "TF", "fix": "OCTAN", "flyover": true, "courseMag": 57, "courseTrue": 52.6 },
+        { "path": "TF", "fix": "ROBIN", "courseMag": 93, "courseTrue": 88.1 },
+        { "path": "TF", "fix": "PABSO", "courseMag": 75, "courseTrue": 69.9 },
+        { "path": "TF", "fix": "KIKIT", "courseMag": 75, "courseTrue": 69.9 },
+        { "path": "TF", "fix": "MOLKA", "courseMag": 31, "courseTrue": 25.4 }
+      ]
+    },
+    {
+      "name": "MOLKA1D",
+      "runways": "23R",
+      "legs": [
+        { "path": "VA", "courseMag": 234, "courseTrue": 229.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP230", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "DECOY" },
+        { "path": "TF", "fix": "OCTAN", "flyover": true, "courseMag": 57, "courseTrue": 52.6 },
+        { "path": "TF", "fix": "ROBIN", "courseMag": 93, "courseTrue": 88.1 },
+        { "path": "TF", "fix": "PABSO", "courseMag": 75, "courseTrue": 69.9 },
+        { "path": "TF", "fix": "KIKIT", "courseMag": 75, "courseTrue": 69.9 },
+        { "path": "TF", "fix": "MOLKA", "courseMag": 31, "courseTrue": 25.4 }
+      ]
+    },
+    {
+      "name": "ROBIN1A",
+      "runways": "05R",
+      "legs": [
+        { "path": "VA", "courseMag": 54, "courseTrue": 49.2, "min": 600 },
+        { "path": "DF", "fix": "TP064", "flyover": true },
+        { "path": "TF", "fix": "NEPAS", "flyover": true, "courseMag": 51, "courseTrue": 46.4 },
+        { "path": "TF", "fix": "ROBIN", "courseMag": 83, "courseTrue": 78.1 }
+      ]
+    },
+    {
+      "name": "ROBIN1C",
+      "runways": "05L",
+      "legs": [
+        { "path": "VA", "courseMag": 54, "courseTrue": 49.2, "min": 600 },
+        { "path": "DF", "fix": "TP050", "flyover": true },
+        { "path": "TF", "fix": "NEPAS", "flyover": true, "courseMag": 54, "courseTrue": 49.8 },
+        { "path": "TF", "fix": "ROBIN", "courseMag": 83, "courseTrue": 78.1 }
+      ]
+    },
+    {
+      "name": "ROBIN1B",
+      "runways": "23L",
+      "legs": [
+        { "path": "VA", "courseMag": 234, "courseTrue": 229.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP240", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "DECOY" },
+        { "path": "TF", "fix": "OCTAN", "flyover": true, "courseMag": 57, "courseTrue": 52.6 },
+        { "path": "TF", "fix": "ROBIN", "courseMag": 93, "courseTrue": 88.1 }
+      ]
+    },
+    {
+      "name": "ROBIN1D",
+      "runways": "23R",
+      "legs": [
+        { "path": "VA", "courseMag": 234, "courseTrue": 229.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP230", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "DECOY" },
+        { "path": "TF", "fix": "OCTAN", "flyover": true, "courseMag": 57, "courseTrue": 52.6 },
+        { "path": "TF", "fix": "ROBIN", "courseMag": 93, "courseTrue": 88.1 }
+      ]
+    },
+    {
+      "name": "TINHO1A",
+      "runways": "05R",
+      "legs": [
+        { "path": "VA", "courseMag": 54, "courseTrue": 49.2, "min": 600 },
+        { "path": "DF", "fix": "TP064", "flyover": true },
+        { "path": "TF", "fix": "NEPAS", "flyover": true, "courseMag": 51, "courseTrue": 46.4, "min": 4500 },
+        { "path": "TF", "fix": "TINHO", "courseMag": 156, "courseTrue": 151.8 }
+      ]
+    },
+    {
+      "name": "TINHO1C",
+      "runways": "05L",
+      "legs": [
+        { "path": "VA", "courseMag": 54, "courseTrue": 49.2, "min": 600 },
+        { "path": "DF", "fix": "TP050", "flyover": true },
+        { "path": "TF", "fix": "NEPAS", "flyover": true, "courseMag": 54, "courseTrue": 49.8, "min": 4500 },
+        { "path": "TF", "fix": "TINHO", "courseMag": 156, "courseTrue": 151.8 }
+      ]
+    },
+    {
+      "name": "TINHO1B",
+      "runways": "23L",
+      "legs": [
+        { "path": "VA", "courseMag": 234, "courseTrue": 229.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP240", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "DECOY" },
+        { "path": "TF", "fix": "OCTAN", "flyover": true, "courseMag": 57, "courseTrue": 52.6 },
+        { "path": "TF", "fix": "TINHO", "courseMag": 151, "courseTrue": 146.8 }
+      ]
+    },
+    {
+      "name": "TINHO1D",
+      "runways": "23R",
+      "legs": [
+        { "path": "VA", "courseMag": 234, "courseTrue": 229.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP230", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "DECOY" },
+        { "path": "TF", "fix": "OCTAN", "flyover": true, "courseMag": 57, "courseTrue": 52.6 },
+        { "path": "TF", "fix": "TINHO", "courseMag": 151, "courseTrue": 146.8 }
+      ]
+    },
+    {
+      "name": "PIANO1A",
+      "runways": "05R",
+      "legs": [
+        { "path": "VA", "courseMag": 54, "courseTrue": 49.2, "min": 600 },
+        { "path": "DF", "fix": "TP064", "flyover": true },
+        { "path": "TF", "fix": "OCTAN", "courseMag": 3, "courseTrue": 358.1 },
+        { "path": "TF", "fix": "PIANO", "courseMag": 54, "courseTrue": 49.4 }
+      ]
+    },
+    {
+      "name": "PIANO1B",
+      "runways": "23L",
+      "legs": [
+        { "path": "VA", "courseMag": 234, "courseTrue": 229.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP240", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "DECOY" },
+        { "path": "TF", "fix": "OCTAN", "courseMag": 57, "courseTrue": 52.6, "min": 8000 },
+        { "path": "TF", "fix": "PIANO", "courseMag": 54, "courseTrue": 49.4 }
+      ]
+    },
+    {
+      "name": "PIANO1C",
+      "runways": "05L",
+      "legs": [
+        { "path": "VA", "courseMag": 54, "courseTrue": 49.2, "min": 600 },
+        { "path": "DF", "fix": "TP050", "flyover": true },
+        { "path": "TF", "fix": "OCTAN", "courseMag": 4, "courseTrue": 359.0 },
+        { "path": "TF", "fix": "PIANO", "courseMag": 54, "courseTrue": 49.4 }
+      ]
+    },
+    {
+      "name": "PIANO1D",
+      "runways": "23R",
+      "legs": [
+        { "path": "VA", "courseMag": 234, "courseTrue": 229.2, "min": 600, "speed": 210 },
+        { "path": "DF", "fix": "TP230", "flyover": true, "speed": 210 },
+        { "path": "DF", "fix": "DECOY" },
+        { "path": "TF", "fix": "OCTAN", "courseMag": 57, "courseTrue": 52.6, "min": 8000 },
+        { "path": "TF", "fix": "PIANO", "courseMag": 54, "courseTrue": 49.4 }
+      ]
+    }
+  ],
+  "holds": []
+}

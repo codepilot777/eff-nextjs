@@ -4,7 +4,21 @@
 // 自動幫手 seed 一次做起始數據——之後教官喺 IOS 編輯過,DB 入面嗰份就會
 // 蓋過呢度嘅 bundled 版本，唔會畀呢份檔案嘅內容覆寫返教官嘅修改
 import vhhh from "./VHHH.json";
+import rckh from "./RCKH.json";
+import rctp from "./RCTP.json";
+import rjaa from "./RJAA.json";
+import rjbb from "./RJBB.json";
+import rjff from "./RJFF.json";
+import rjtt from "./RJTT.json";
+import vmmc from "./VMMC.json";
 
 export const BUNDLED_PROCEDURES: Record<string, unknown> = {
   VHHH: vhhh,
+  RCKH: rckh,
+  RCTP: rctp,
+  RJAA: rjaa,
+  RJBB: rjbb,
+  RJFF: rjff,
+  RJTT: rjtt,
+  VMMC: vmmc,
 };

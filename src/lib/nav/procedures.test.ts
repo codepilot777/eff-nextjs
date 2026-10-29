@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseAirportProcedures, parseFixLines, resolveProcedureLegs } from "./procedures";
 import vhhh from "@/data/procedures/VHHH.json";
+import { BUNDLED_PROCEDURES } from "@/data/procedures";
 
 describe("parseAirportProcedures", () => {
   it("accepts the real VHHH procedure JSON", () => {
@@ -15,6 +16,14 @@ describe("parseAirportProcedures", () => {
   it("rejects something that isn't shaped like a procedure set", () => {
     expect(parseAirportProcedures({ foo: "bar" })).toBeNull();
     expect(parseAirportProcedures(null)).toBeNull();
+  });
+
+  it("accepts every bundled airport, including richer ARINC 424-style legs without a fix (VA/CA path terminators)", () => {
+    for (const [icao, data] of Object.entries(BUNDLED_PROCEDURES)) {
+      const parsed = parseAirportProcedures(data);
+      expect(parsed, `${icao} should parse`).not.toBeNull();
+      expect(parsed!.fixes.length, `${icao} fixes`).toBeGreaterThan(0);
+    }
   });
 });
 

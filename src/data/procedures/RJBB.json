@@ -1,0 +1,1112 @@
+{
+  "airport": "RJBB",
+  "name": "Kansai International",
+  "arp": {
+    "lat": "34 26 03N",
+    "lon": "135 13 58E"
+  },
+  "runways": [
+    {
+      "ident": "06R",
+      "bearingTrue": 51.0,
+      "lat": "34 25 02.56N",
+      "lon": "135 13 45.40E",
+      "thresholdFt": 5.0
+    },
+    {
+      "ident": "24L",
+      "bearingTrue": 231.0,
+      "lat": "34 26 14.04N",
+      "lon": "135 15 31.92E",
+      "thresholdFt": 12.3
+    },
+    {
+      "ident": "06L",
+      "bearingTrue": 50.98,
+      "lat": "34 25 42.86N",
+      "lon": "135 12 22.33E",
+      "thresholdFt": 9.2
+    },
+    {
+      "ident": "24R",
+      "bearingTrue": 230.98,
+      "lat": "34 27 04.58N",
+      "lon": "135 14 24.08E",
+      "thresholdFt": 15.6
+    }
+  ],
+  "source": {
+    "publication": "AIP Japan, Civil Aviation Bureau (AIS Japan, https://aisjapan.mlit.go.jp), via the copy at https://nagodede.github.io/aip/japan/",
+    "airac": "2026-03-01",
+    "amendment": "AIP Japan effective 1 MAR 2026 (published 19 FEB 2026)",
+    "sections": [
+      "RJBB AD 2.2 ARP, AD 2.12 runway thresholds, AD 2.19 navaids",
+      "RJBB AD 2.24 RNAV SID, STAR and transition coding tables with waypoint coordinates and holding"
+    ],
+    "notice": "Transcribed and simplified for a game. NOT FOR NAVIGATIONAL USE."
+  },
+  "units": {
+    "lat/lon": "published WGS-84 degrees minutes seconds",
+    "latDeg/lonDeg": "decimal degrees (north and east positive)",
+    "path": "ARINC 424 path terminator: IF initial fix, TF track to fix, DF direct to fix, VA heading to altitude, CA course to altitude, RF radius to fix",
+    "courseMag/courseTrue": "published leg course, degrees magnetic / true",
+    "magVar": "magnetic variation used in the table, degrees (negative = west)",
+    "distanceNm": "published leg distance, NM",
+    "min/max": "altitude constraint, feet (at or above / at or below; both equal = at)",
+    "speed": "speed limit, knots IAS (maximum unless speedAt or speedAtOrAbove)",
+    "turn": "turn direction onto the leg, L or R",
+    "flyover": "fly-over waypoint (otherwise fly-by)",
+    "vpaDeg": "vertical path angle, degrees",
+    "navSpec": "navigation specification (an RNP value for RNP AR legs)",
+    "inboundMag": "hold inbound course, degrees magnetic",
+    "minAltFt": "minimum holding altitude, feet",
+    "bearingTrue": "runway true bearing",
+    "thresholdFt": "threshold elevation, feet (displaced threshold where marked)"
+  },
+  "notes": [
+    "The AIP copy used is effective 1 MAR 2026, older than the current AIRAC; check AIS Japan before relying on it.",
+    "RNAV procedures with coding tables only; conventional procedures (VOR radials, radar vectors) are not included.",
+    "Procedures tabled once per runway are merged when their legs are identical; runways lists every runway they serve.",
+    "Holds are the RNAV holding patterns from the coding tables (1 min at or below 14000 ft, 1.5 min above)."
+  ],
+  "fixes": [
+    { "name": "APORA", "kind": "fix", "role": "STAR waypoint", "lat": "34 12 05.5N", "lon": "134 20 00.2E", "latDeg": 34.201528, "lonDeg": 134.333389 },
+    { "name": "ASAMI", "kind": "fix", "role": "STAR waypoint", "lat": "34 07 57.9N", "lon": "134 48 41.8E", "latDeg": 34.13275, "lonDeg": 134.811611 },
+    { "name": "ATMUG", "kind": "fix", "role": "STAR waypoint", "lat": "34 33 30.0N", "lon": "134 07 37.4E", "latDeg": 34.558333, "lonDeg": 134.127056 },
+    { "name": "ATVID", "kind": "fix", "role": "STAR waypoint", "lat": "34 18 11.4N", "lon": "134 56 05.1E", "latDeg": 34.303167, "lonDeg": 134.93475 },
+    { "name": "AVDOX", "kind": "fix", "role": "STAR waypoint", "lat": "34 16 24.1N", "lon": "135 00 55.5E", "latDeg": 34.273361, "lonDeg": 135.015417 },
+    { "name": "AVMIT", "kind": "fix", "role": "STAR waypoint", "lat": "34 21 22.5N", "lon": "134 21 28.3E", "latDeg": 34.35625, "lonDeg": 134.357861 },
+    { "name": "AWAJI", "kind": "fix", "role": "STAR waypoint", "lat": "34 16 13.1N", "lon": "134 42 46.6E", "latDeg": 34.270306, "lonDeg": 134.712944 },
+    { "name": "B4L10", "kind": "fix", "role": "SID waypoint", "lat": "34 21 36.9N", "lon": "135 07 34.5E", "latDeg": 34.36025, "lonDeg": 135.12625 },
+    { "name": "B4L30", "kind": "fix", "role": "SID waypoint", "lat": "34 20 13.0N", "lon": "135 05 04.1E", "latDeg": 34.336944, "lonDeg": 135.084472 },
+    { "name": "B6L01", "kind": "fix", "role": "SID waypoint", "lat": "34 32 58.4N", "lon": "135 17 08.1E", "latDeg": 34.549556, "lonDeg": 135.285583 },
+    { "name": "B6R10", "kind": "fix", "role": "SID waypoint", "lat": "34 27 59.6N", "lon": "135 17 46.0E", "latDeg": 34.466556, "lonDeg": 135.296111 },
+    { "name": "B6R11", "kind": "fix", "role": "SID waypoint", "lat": "34 31 40.8N", "lon": "135 18 45.1E", "latDeg": 34.528, "lonDeg": 135.312528 },
+    { "name": "B6R12", "kind": "fix", "role": "SID waypoint", "lat": "34 34 17.0N", "lon": "135 08 53.1E", "latDeg": 34.571389, "lonDeg": 135.148083 },
+    { "name": "B6R14", "kind": "fix", "role": "SID waypoint", "lat": "34 33 20.1N", "lon": "135 12 29.1E", "latDeg": 34.555583, "lonDeg": 135.208083 },
+    { "name": "BB400", "kind": "fix", "role": "SID waypoint", "lat": "34 30 02.3N", "lon": "135 05 07.5E", "latDeg": 34.500639, "lonDeg": 135.085417 },
+    { "name": "BB401", "kind": "fix", "role": "SID waypoint", "lat": "34 27 42.8N", "lon": "135 08 44.5E", "latDeg": 34.461889, "lonDeg": 135.145694 },
+    { "name": "BB460", "kind": "fix", "role": "STAR waypoint", "lat": "33 51 34.8N", "lon": "134 33 11.5E", "latDeg": 33.859667, "lonDeg": 134.553194 },
+    { "name": "BB461", "kind": "fix", "role": "STAR waypoint", "lat": "33 53 43.6N", "lon": "134 24 25.2E", "latDeg": 33.895444, "lonDeg": 134.407 },
+    { "name": "BB462", "kind": "fix", "role": "STAR waypoint", "lat": "33 58 30.2N", "lon": "134 17 17.3E", "latDeg": 33.975056, "lonDeg": 134.288139 },
+    { "name": "BB463", "kind": "fix", "role": "STAR waypoint", "lat": "34 05 11.2N", "lon": "134 12 52.8E", "latDeg": 34.086444, "lonDeg": 134.214667 },
+    { "name": "BB464", "kind": "fix", "role": "STAR waypoint", "lat": "34 06 05.5N", "lon": "134 16 19.6E", "latDeg": 34.101528, "lonDeg": 134.272111 },
+    { "name": "BB465", "kind": "fix", "role": "STAR waypoint", "lat": "34 00 26.1N", "lon": "134 20 03.2E", "latDeg": 34.00725, "lonDeg": 134.334222 },
+    { "name": "BB466", "kind": "fix", "role": "STAR waypoint", "lat": "33 56 23.6N", "lon": "134 26 05.4E", "latDeg": 33.939889, "lonDeg": 134.434833 },
+    { "name": "BB467", "kind": "fix", "role": "STAR waypoint", "lat": "34 12 38.1N", "lon": "134 13 40.6E", "latDeg": 34.210583, "lonDeg": 134.227944 },
+    { "name": "BB468", "kind": "fix", "role": "STAR waypoint", "lat": "34 05 38.4N", "lon": "134 14 36.2E", "latDeg": 34.094, "lonDeg": 134.243389 },
+    { "name": "BB469", "kind": "fix", "role": "STAR waypoint", "lat": "33 59 28.2N", "lon": "134 18 40.3E", "latDeg": 33.991167, "lonDeg": 134.311194 },
+    { "name": "BB470", "kind": "fix", "role": "STAR waypoint", "lat": "33 55 03.6N", "lon": "134 25 15.3E", "latDeg": 33.917667, "lonDeg": 134.420917 },
+    { "name": "BB650", "kind": "fix", "role": "STAR waypoint", "lat": "33 52 22.2N", "lon": "134 30 55.0E", "latDeg": 33.872833, "lonDeg": 134.515278 },
+    { "name": "BB651", "kind": "fix", "role": "STAR waypoint", "lat": "33 57 32.9N", "lon": "134 24 12.3E", "latDeg": 33.959139, "lonDeg": 134.403417 },
+    { "name": "BB652", "kind": "fix", "role": "STAR waypoint", "lat": "34 04 28.4N", "lon": "134 20 22.2E", "latDeg": 34.074556, "lonDeg": 134.3395 },
+    { "name": "BB653", "kind": "fix", "role": "STAR waypoint", "lat": "34 05 10.5N", "lon": "134 23 52.9E", "latDeg": 34.08625, "lonDeg": 134.398028 },
+    { "name": "BB654", "kind": "fix", "role": "STAR waypoint", "lat": "33 59 18.9N", "lon": "134 27 07.5E", "latDeg": 33.988583, "lonDeg": 134.452083 },
+    { "name": "BB655", "kind": "fix", "role": "STAR waypoint", "lat": "33 54 55.8N", "lon": "134 32 48.3E", "latDeg": 33.9155, "lonDeg": 134.54675 },
+    { "name": "BB656", "kind": "fix", "role": "STAR waypoint", "lat": "34 11 51.4N", "lon": "134 21 47.5E", "latDeg": 34.197611, "lonDeg": 134.363194 },
+    { "name": "BB657", "kind": "fix", "role": "STAR waypoint", "lat": "34 04 49.4N", "lon": "134 22 07.5E", "latDeg": 34.080389, "lonDeg": 134.36875 },
+    { "name": "BB658", "kind": "fix", "role": "STAR waypoint", "lat": "33 58 25.9N", "lon": "134 25 39.9E", "latDeg": 33.973861, "lonDeg": 134.42775 },
+    { "name": "BB659", "kind": "fix", "role": "STAR waypoint", "lat": "33 53 39.0N", "lon": "134 31 51.6E", "latDeg": 33.894167, "lonDeg": 134.531 },
+    { "name": "BERRY", "kind": "fix", "role": "STAR waypoint", "lat": "34 15 02.0N", "lon": "134 56 31.6E", "latDeg": 34.250556, "lonDeg": 134.942111 },
+    { "name": "BIKLO", "kind": "fix", "role": "STAR waypoint", "lat": "33 44 34.0N", "lon": "134 35 12.4E", "latDeg": 33.742778, "lonDeg": 134.586778 },
+    { "name": "BIXIS", "kind": "fix", "role": "STAR waypoint", "lat": "34 04 59.0N", "lon": "134 13 05.7E", "latDeg": 34.083056, "lonDeg": 134.21825 },
+    { "name": "BIXUR", "kind": "fix", "role": "STAR waypoint", "lat": "34 20 06.7N", "lon": "134 17 11.9E", "latDeg": 34.335194, "lonDeg": 134.286639 },
+    { "name": "BOTRA", "kind": "fix", "role": "STAR waypoint", "lat": "33 44 38.7N", "lon": "134 48 51.0E", "latDeg": 33.744083, "lonDeg": 134.814167 },
+    { "name": "CANDY", "kind": "fix", "role": "STAR waypoint", "lat": "33 52 29.8N", "lon": "134 55 41.8E", "latDeg": 33.874944, "lonDeg": 134.928278 },
+    { "name": "DOPDA", "kind": "fix", "role": "transition waypoint", "lat": "33 54 36.4N", "lon": "135 06 22.2E", "latDeg": 33.910111, "lonDeg": 135.106167 },
+    { "name": "DUBKA", "kind": "fix", "role": "STAR waypoint", "lat": "34 13 09.4N", "lon": "135 24 33.9E", "latDeg": 34.219278, "lonDeg": 135.409417 },
+    { "name": "DUMES", "kind": "fix", "role": "STAR waypoint", "lat": "33 53 04.7N", "lon": "134 33 21.2E", "latDeg": 33.884639, "lonDeg": 134.555889 },
+    { "name": "ELMUL", "kind": "fix", "role": "SID waypoint", "lat": "34 24 10.0N", "lon": "134 54 44.1E", "latDeg": 34.402778, "lonDeg": 134.91225 },
+    { "name": "EMVEN", "kind": "fix", "role": "SID waypoint", "lat": "34 12 09.7N", "lon": "134 43 53.3E", "latDeg": 34.202694, "lonDeg": 134.731472 },
+    { "name": "ENKUD", "kind": "fix", "role": "SID waypoint", "lat": "34 18 33.8N", "lon": "134 57 19.3E", "latDeg": 34.309389, "lonDeg": 134.955361 },
+    { "name": "EPKUR", "kind": "fix", "role": "SID waypoint", "lat": "34 17 00.9N", "lon": "134 39 44.0E", "latDeg": 34.283583, "lonDeg": 134.662222 },
+    { "name": "EVERT", "kind": "fix", "role": "STAR waypoint", "lat": "33 39 25.1N", "lon": "135 07 59.1E", "latDeg": 33.656972, "lonDeg": 135.133083 },
+    { "name": "GUJYO", "kind": "fix", "role": "transition waypoint", "lat": "35 21 50.5N", "lon": "136 34 38.5E", "latDeg": 35.364028, "lonDeg": 136.577361 },
+    { "name": "GUMID", "kind": "fix", "role": "transition waypoint", "lat": "34 34 25.8N", "lon": "134 02 34.0E", "latDeg": 34.573833, "lonDeg": 134.042778 },
+    { "name": "HABAR", "kind": "fix", "role": "transition waypoint", "lat": "34 19 09.7N", "lon": "133 35 19.6E", "latDeg": 34.319361, "lonDeg": 133.588778 },
+    { "name": "IDLAK", "kind": "fix", "role": "SID waypoint", "lat": "34 30 06.2N", "lon": "134 59 53.0E", "latDeg": 34.501722, "lonDeg": 134.998056 },
+    { "name": "IGDIN", "kind": "fix", "role": "STAR waypoint", "lat": "33 52 41.1N", "lon": "134 40 03.5E", "latDeg": 33.878083, "lonDeg": 134.667639 },
+    { "name": "IGLEV", "kind": "fix", "role": "STAR waypoint", "lat": "34 04 05.2N", "lon": "133 59 40.5E", "latDeg": 34.068111, "lonDeg": 133.994583 },
+    { "name": "ISNES", "kind": "fix", "role": "STAR waypoint", "lat": "33 51 12.0N", "lon": "134 39 46.3E", "latDeg": 33.853333, "lonDeg": 134.662861 },
+    { "name": "IVROG", "kind": "fix", "role": "transition waypoint", "lat": "33 38 28.1N", "lon": "133 42 24.0E", "latDeg": 33.641139, "lonDeg": 133.706667 },
+    { "name": "KCC", "kind": "fix", "role": "transition waypoint", "lat": "35 15 55.0N", "lon": "136 54 53.7E", "latDeg": 35.265278, "lonDeg": 136.914917 },
+    { "name": "KEC", "kind": "fix", "role": "transition waypoint", "lat": "33 26 51.9N", "lon": "135 47 40.2E", "latDeg": 33.44775, "lonDeg": 135.7945 },
+    { "name": "KIE", "kind": "vor", "role": "SID waypoint", "lat": "34 25 32.66N", "lon": "135 12 27.83E", "latDeg": 34.425739, "lonDeg": 135.207731 },
+    { "name": "KYOTO", "kind": "fix", "role": "transition waypoint", "lat": "34 49 49.7N", "lon": "135 44 48.8E", "latDeg": 34.830472, "lonDeg": 135.746889 },
+    { "name": "LELUS", "kind": "fix", "role": "SID waypoint", "lat": "34 24 36.6N", "lon": "135 03 09.3E", "latDeg": 34.410167, "lonDeg": 135.052583 },
+    { "name": "LIKPO", "kind": "fix", "role": "STAR waypoint", "lat": "34 09 55.3N", "lon": "135 07 15.9E", "latDeg": 34.165361, "lonDeg": 135.121083 },
+    { "name": "LILAC", "kind": "fix", "role": "STAR waypoint", "lat": "34 27 10.7N", "lon": "134 58 42.0E", "latDeg": 34.452972, "lonDeg": 134.978333 },
+    { "name": "LINDA", "kind": "fix", "role": "SID and transition waypoint", "lat": "34 30 15.8N", "lon": "134 51 40.1E", "latDeg": 34.504389, "lonDeg": 134.861139 },
+    { "name": "MADIP", "kind": "fix", "role": "STAR waypoint", "lat": "33 46 20.7N", "lon": "134 37 21.4E", "latDeg": 33.772417, "lonDeg": 134.622611 },
+    { "name": "MAIKO", "kind": "fix", "role": "STAR and SID and transition waypoint", "lat": "34 36 39.7N", "lon": "134 59 49.1E", "latDeg": 34.611028, "lonDeg": 134.996972 },
+    { "name": "MAYAH", "kind": "fix", "role": "STAR waypoint", "lat": "34 36 23.7N", "lon": "135 12 11.0E", "latDeg": 34.606583, "lonDeg": 135.203056 },
+    { "name": "MIDUX", "kind": "fix", "role": "STAR waypoint", "lat": "34 04 29.4N", "lon": "134 05 40.6E", "latDeg": 34.074833, "lonDeg": 134.094611 },
+    { "name": "MIMIG", "kind": "fix", "role": "SID waypoint", "lat": "34 26 07.4N", "lon": "135 17 07.8E", "latDeg": 34.435389, "lonDeg": 135.2855 },
+    { "name": "MINOS", "kind": "fix", "role": "STAR waypoint", "lat": "34 21 49.0N", "lon": "134 11 01.2E", "latDeg": 34.363611, "lonDeg": 134.183667 },
+    { "name": "MOVNI", "kind": "fix", "role": "STAR waypoint", "lat": "33 46 25.2N", "lon": "134 51 25.1E", "latDeg": 33.773667, "lonDeg": 134.856972 },
+    { "name": "MUGLA", "kind": "fix", "role": "STAR waypoint", "lat": "34 12 45.9N", "lon": "134 11 52.4E", "latDeg": 34.21275, "lonDeg": 134.197889 },
+    { "name": "MUMSU", "kind": "fix", "role": "SID waypoint", "lat": "34 26 56.2N", "lon": "135 14 32.3E", "latDeg": 34.448944, "lonDeg": 135.242306 },
+    { "name": "NALTO", "kind": "fix", "role": "STAR waypoint", "lat": "34 09 00.6N", "lon": "134 43 13.3E", "latDeg": 34.150167, "lonDeg": 134.720361 },
+    { "name": "NANKO", "kind": "fix", "role": "SID and transition waypoint", "lat": "34 36 38.7N", "lon": "135 21 21.0E", "latDeg": 34.61075, "lonDeg": 135.355833 },
+    { "name": "NIKEX", "kind": "fix", "role": "transition waypoint", "lat": "34 47 58.7N", "lon": "135 34 24.9E", "latDeg": 34.799639, "lonDeg": 135.573583 },
+    { "name": "NIPUG", "kind": "fix", "role": "STAR waypoint", "lat": "34 24 34.7N", "lon": "135 03 04.1E", "latDeg": 34.409639, "lonDeg": 135.051139 },
+    { "name": "NIRIP", "kind": "fix", "role": "STAR waypoint", "lat": "34 15 01.5N", "lon": "134 30 09.3E", "latDeg": 34.250417, "lonDeg": 134.502583 },
+    { "name": "NIXOV", "kind": "fix", "role": "STAR waypoint", "lat": "33 36 44.5N", "lon": "134 27 43.1E", "latDeg": 33.612361, "lonDeg": 134.461972 },
+    { "name": "NOBUN", "kind": "fix", "role": "STAR waypoint", "lat": "34 11 02.6N", "lon": "134 35 18.0E", "latDeg": 34.184056, "lonDeg": 134.588333 },
+    { "name": "OBLUR", "kind": "fix", "role": "SID waypoint", "lat": "34 04 59.0N", "lon": "134 22 27.0E", "latDeg": 34.083056, "lonDeg": 134.374167 },
+    { "name": "OBMEL", "kind": "fix", "role": "STAR waypoint", "lat": "34 32 18.2N", "lon": "134 51 12.1E", "latDeg": 34.538389, "lonDeg": 134.853361 },
+    { "name": "OLKIL", "kind": "fix", "role": "STAR waypoint", "lat": "34 10 51.4N", "lon": "134 52 51.0E", "latDeg": 34.180944, "lonDeg": 134.880833 },
+    { "name": "OLTIG", "kind": "fix", "role": "STAR waypoint", "lat": "33 59 22.2N", "lon": "134 42 53.6E", "latDeg": 33.9895, "lonDeg": 134.714889 },
+    { "name": "OMGEK", "kind": "fix", "role": "SID waypoint", "lat": "34 36 31.3N", "lon": "135 07 11.5E", "latDeg": 34.608694, "lonDeg": 135.119861 },
+    { "name": "OMGOR", "kind": "fix", "role": "SID waypoint", "lat": "34 09 20.3N", "lon": "134 38 54.4E", "latDeg": 34.155639, "lonDeg": 134.648444 },
+    { "name": "OSRIX", "kind": "fix", "role": "transition waypoint", "lat": "34 37 31.5N", "lon": "134 46 39.1E", "latDeg": 34.625417, "lonDeg": 134.777528 },
+    { "name": "PUNIB", "kind": "fix", "role": "SID waypoint", "lat": "34 35 39.8N", "lon": "135 03 37.8E", "latDeg": 34.594389, "lonDeg": 135.0605 },
+    { "name": "RUSIM", "kind": "fix", "role": "STAR waypoint", "lat": "34 33 18.4N", "lon": "134 56 18.9E", "latDeg": 34.555111, "lonDeg": 134.938583 },
+    { "name": "SAKVA", "kind": "fix", "role": "STAR waypoint", "lat": "34 22 13.8N", "lon": "134 43 25.4E", "latDeg": 34.3705, "lonDeg": 134.723722 },
+    { "name": "SAPEK", "kind": "fix", "role": "STAR waypoint", "lat": "34 33 31.6N", "lon": "135 07 58.6E", "latDeg": 34.558778, "lonDeg": 135.132944 },
+    { "name": "SASVO", "kind": "fix", "role": "STAR waypoint", "lat": "34 36 51.4N", "lon": "134 50 07.5E", "latDeg": 34.614278, "lonDeg": 134.835417 },
+    { "name": "SHION", "kind": "fix", "role": "transition waypoint", "lat": "34 25 42.1N", "lon": "134 16 57.4E", "latDeg": 34.428361, "lonDeg": 134.282611 },
+    { "name": "SHTLE", "kind": "fix", "role": "transition waypoint", "lat": "34 49 51.0N", "lon": "136 56 53.8E", "latDeg": 34.830833, "lonDeg": 136.948278 },
+    { "name": "SIGAK", "kind": "fix", "role": "transition waypoint", "lat": "34 53 07.7N", "lon": "136 02 52.7E", "latDeg": 34.885472, "lonDeg": 136.047972 },
+    { "name": "SOUJA", "kind": "fix", "role": "transition waypoint", "lat": "34 37 38.6N", "lon": "133 44 22.5E", "latDeg": 34.627389, "lonDeg": 133.739583 },
+    { "name": "SOVRI", "kind": "fix", "role": "SID and transition waypoint", "lat": "34 26 22.9N", "lon": "135 19 13.4E", "latDeg": 34.439694, "lonDeg": 135.320389 },
+    { "name": "SUPOL", "kind": "fix", "role": "STAR waypoint", "lat": "33 54 34.5N", "lon": "134 33 30.9E", "latDeg": 33.909583, "lonDeg": 134.558583 },
+    { "name": "SURIF", "kind": "fix", "role": "SID waypoint", "lat": "34 14 26.6N", "lon": "134 36 01.7E", "latDeg": 34.240722, "lonDeg": 134.600472 },
+    { "name": "TANTA", "kind": "fix", "role": "STAR waypoint", "lat": "34 16 04.9N", "lon": "134 27 29.2E", "latDeg": 34.268028, "lonDeg": 134.458111 },
+    { "name": "TOMOH", "kind": "fix", "role": "STAR and SID and transition waypoint", "lat": "34 16 49.6N", "lon": "135 00 20.3E", "latDeg": 34.280444, "lonDeg": 135.005639 },
+    { "name": "UPMIN", "kind": "fix", "role": "SID and transition waypoint", "lat": "34 14 16.7N", "lon": "135 00 33.1E", "latDeg": 34.237972, "lonDeg": 135.009194 },
+    { "name": "UPRAL", "kind": "fix", "role": "transition waypoint", "lat": "34 29 58.8N", "lon": "135 41 02.9E", "latDeg": 34.499667, "lonDeg": 135.684139 },
+    { "name": "VEKTA", "kind": "fix", "role": "SID waypoint", "lat": "34 22 15.6N", "lon": "134 59 51.2E", "latDeg": 34.371, "lonDeg": 134.997556 },
+    { "name": "WASYU", "kind": "fix", "role": "transition waypoint", "lat": "34 28 17.5N", "lon": "133 23 01.1E", "latDeg": 34.471528, "lonDeg": 133.383639 },
+    { "name": "YAGYU", "kind": "fix", "role": "transition waypoint", "lat": "34 32 39.3N", "lon": "135 57 38.1E", "latDeg": 34.54425, "lonDeg": 135.960583 }
+  ],
+  "stars": [
+    {
+      "name": "DUBKA A",
+      "title": "DUBKA A ARRIVAL",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "DUBKA", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LIKPO", "courseMag": 265, "courseTrue": 257.3, "magVar": -8.1, "distanceNm": 14.7, "min": 4000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "AVDOX", "courseMag": 329, "courseTrue": 321.1, "magVar": -8.1, "distanceNm": 8.3, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "DUBKA C",
+      "title": "DUBKA C ARRIVAL",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "DUBKA", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LIKPO", "courseMag": 265, "courseTrue": 257.3, "magVar": -8.1, "distanceNm": 14.7, "min": 4000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TOMOH", "courseMag": 328, "courseTrue": 320.4, "magVar": -8.1, "distanceNm": 9.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LILAC", "courseMag": 1, "courseTrue": 352.6, "magVar": -8.1, "distanceNm": 10.4, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SAPEK", "courseMag": 58, "courseTrue": 50.3, "magVar": -8.1, "distanceNm": 9.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "courseMag": 58, "courseTrue": 50.3, "magVar": -8.1, "distanceNm": 4.5, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "CANDY A",
+      "title": "CANDY A ARRIVAL",
+      "runways": "06L/06R",
+      "legs": [
+        { "path": "IF", "fix": "CANDY", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BERRY", "courseMag": 10, "courseTrue": 1.7, "magVar": -8.1, "distanceNm": 22.6, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "NIXOV A",
+      "title": "NIXOV A ARRIVAL",
+      "runways": "06L/06R",
+      "legs": [
+        { "path": "IF", "fix": "NIXOV", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NALTO", "courseMag": 30, "courseTrue": 21.7, "magVar": -8.1, "distanceNm": 34.8, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BERRY", "courseMag": 69, "courseTrue": 61.2, "magVar": -8.1, "distanceNm": 12.6, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "IGLEV A",
+      "title": "IGLEV A ARRIVAL",
+      "runways": "06L/06R",
+      "legs": [
+        { "path": "IF", "fix": "IGLEV", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BIXIS", "courseMag": 93, "courseTrue": 85.3, "magVar": -8.1, "distanceNm": 11.2, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NALTO", "courseMag": 89, "courseTrue": 80.7, "magVar": -8.1, "distanceNm": 25.3, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BERRY", "courseMag": 69, "courseTrue": 61.2, "magVar": -8.1, "distanceNm": 12.6, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "ATMUG A",
+      "title": "ATMUG A ARRIVAL",
+      "runways": "06L/06R",
+      "legs": [
+        { "path": "IF", "fix": "ATMUG", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SAKVA", "courseMag": 119, "courseTrue": 110.7, "magVar": -8.1, "distanceNm": 31.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "ATVID", "courseMag": 119, "courseTrue": 111.1, "magVar": -8.1, "distanceNm": 11.2, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "DUBKA B",
+      "title": "DUBKA B ARRIVAL",
+      "runways": "06L/06R",
+      "legs": [
+        { "path": "IF", "fix": "DUBKA", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LIKPO", "courseMag": 265, "courseTrue": 257.3, "magVar": -8.1, "distanceNm": 14.7, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BOTRA", "courseMag": 219, "courseTrue": 211.2, "magVar": -8.1, "distanceNm": 29.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BIKLO", "courseMag": 278, "courseTrue": 269.7, "magVar": -8.1, "distanceNm": 11.4, "min": 10000, "max": 10000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB650", "courseMag": 344, "courseTrue": 335.5, "magVar": -8.1, "distanceNm": 8.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB651", "courseMag": 321, "courseTrue": 313.0, "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB652", "courseMag": 343, "courseTrue": 335.4, "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "APORA", "courseMag": 6, "courseTrue": 357.7, "magVar": -8.1, "distanceNm": 7.6, "min": 10000, "max": 10000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NALTO", "courseMag": 107, "courseTrue": 99.0, "magVar": -8.1, "distanceNm": 19.5, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BERRY", "courseMag": 69, "courseTrue": 61.2, "magVar": -8.1, "distanceNm": 12.6, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "EVERT B",
+      "title": "EVERT B ARRIVAL",
+      "runways": "06L/06R",
+      "legs": [
+        { "path": "IF", "fix": "EVERT", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BOTRA", "courseMag": 296, "courseTrue": 288.3, "magVar": -8.1, "distanceNm": 16.8, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BIKLO", "courseMag": 278, "courseTrue": 269.7, "magVar": -8.1, "distanceNm": 11.4, "min": 10000, "max": 10000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB650", "courseMag": 344, "courseTrue": 335.5, "magVar": -8.1, "distanceNm": 8.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB651", "courseMag": 321, "courseTrue": 313.0, "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB652", "courseMag": 343, "courseTrue": 335.4, "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "APORA", "courseMag": 6, "courseTrue": 357.7, "magVar": -8.1, "distanceNm": 7.6, "min": 10000, "max": 10000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NALTO", "courseMag": 107, "courseTrue": 99.0, "magVar": -8.1, "distanceNm": 19.5, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BERRY", "courseMag": 69, "courseTrue": 61.2, "magVar": -8.1, "distanceNm": 12.6, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "NIXOV B",
+      "title": "NIXOV B ARRIVAL",
+      "runways": "06L/06R",
+      "legs": [
+        { "path": "IF", "fix": "NIXOV", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BIKLO", "courseMag": 47, "courseTrue": 38.5, "magVar": -8.1, "distanceNm": 10.0, "min": 10000, "max": 10000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB650", "courseMag": 344, "courseTrue": 335.5, "magVar": -8.1, "distanceNm": 8.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB651", "courseMag": 321, "courseTrue": 313.0, "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB652", "courseMag": 343, "courseTrue": 335.4, "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "APORA", "courseMag": 6, "courseTrue": 357.7, "magVar": -8.1, "distanceNm": 7.6, "min": 10000, "max": 10000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NALTO", "courseMag": 107, "courseTrue": 99.0, "magVar": -8.1, "distanceNm": 19.5, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BERRY", "courseMag": 69, "courseTrue": 61.2, "magVar": -8.1, "distanceNm": 12.6, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "IGLEV B",
+      "title": "IGLEV B ARRIVAL",
+      "runways": "06L/06R",
+      "legs": [
+        { "path": "IF", "fix": "IGLEV", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BIXIS", "courseMag": 93, "courseTrue": 85.3, "magVar": -8.1, "distanceNm": 11.2, "min": 12000, "max": 12000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB653", "courseMag": 97, "courseTrue": 88.7, "magVar": -8.1, "distanceNm": 8.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB654", "courseMag": 163, "courseTrue": 155.4, "magVar": -8.1, "distanceNm": 6.5, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB655", "courseMag": 141, "courseTrue": 132.9, "magVar": -8.1, "distanceNm": 6.4, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "IGDIN", "courseMag": 119, "courseTrue": 110.4, "magVar": -8.1, "distanceNm": 6.4, "min": 12000, "max": 12000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NALTO", "courseMag": 17, "courseTrue": 9.1, "magVar": -8.1, "distanceNm": 16.5, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BERRY", "courseMag": 69, "courseTrue": 61.2, "magVar": -8.1, "distanceNm": 12.6, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "ATMUG B",
+      "title": "ATMUG B ARRIVAL",
+      "runways": "06L/06R",
+      "legs": [
+        { "path": "IF", "fix": "ATMUG", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BIXUR", "courseMag": 158, "courseTrue": 149.4, "magVar": -8.1, "distanceNm": 15.6, "min": 11000, "max": 11000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB656", "courseMag": 163, "courseTrue": 155.3, "magVar": -8.1, "distanceNm": 9.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB657", "courseMag": 186, "courseTrue": 177.7, "magVar": -8.1, "distanceNm": 7.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB658", "courseMag": 163, "courseTrue": 155.3, "magVar": -8.1, "distanceNm": 7.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB659", "courseMag": 141, "courseTrue": 132.9, "magVar": -8.1, "distanceNm": 7.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "ISNES", "courseMag": 119, "courseTrue": 110.4, "magVar": -8.1, "distanceNm": 7.0, "min": 11000, "max": 11000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NALTO", "courseMag": 17, "courseTrue": 9.1, "magVar": -8.1, "distanceNm": 18.0, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BERRY", "courseMag": 69, "courseTrue": 61.2, "magVar": -8.1, "distanceNm": 12.6, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "CANDY C",
+      "title": "CANDY C ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "CANDY", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TOMOH", "courseMag": 17, "courseTrue": 9.0, "magVar": -8.1, "distanceNm": 24.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LILAC", "courseMag": 1, "courseTrue": 352.6, "magVar": -8.1, "distanceNm": 10.4 },
+        { "path": "TF", "fix": "SAPEK", "courseMag": 58, "courseTrue": 50.3, "magVar": -8.1, "distanceNm": 9.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "courseMag": 58, "courseTrue": 50.3, "magVar": -8.1, "distanceNm": 4.5, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "NIXOV C",
+      "title": "NIXOV C ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "NIXOV", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NOBUN", "courseMag": 18, "courseTrue": 10.4, "magVar": -8.1, "distanceNm": 34.9, "min": 8000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "AWAJI", "courseMag": 58, "courseTrue": 50.0, "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LILAC", "courseMag": 58, "courseTrue": 50.1, "magVar": -8.1, "distanceNm": 17.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SAPEK", "courseMag": 58, "courseTrue": 50.3, "magVar": -8.1, "distanceNm": 9.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "courseMag": 58, "courseTrue": 50.3, "magVar": -8.1, "distanceNm": 4.5, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "IGLEV C",
+      "title": "IGLEV C ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "IGLEV", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BIXIS", "courseMag": 93, "courseTrue": 85.3, "magVar": -8.1, "distanceNm": 11.2, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NIRIP", "courseMag": 63, "courseTrue": 54.5, "magVar": -8.1, "distanceNm": 17.3, "min": 6000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OBMEL", "courseMag": 53, "courseTrue": 45.0, "magVar": -8.1, "distanceNm": 24.5, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "RUSIM", "courseMag": 85, "courseTrue": 76.6, "magVar": -8.1, "distanceNm": 4.3, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "courseMag": 85, "courseTrue": 76.6, "magVar": -8.1, "distanceNm": 13.4, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "ATMUG C",
+      "title": "ATMUG C ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "ATMUG", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "AVMIT", "courseMag": 145, "courseTrue": 136.7, "magVar": -8.1, "distanceNm": 16.7, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SASVO", "courseMag": 65, "courseTrue": 56.6, "magVar": -8.1, "distanceNm": 28.3, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAIKO", "courseMag": 99, "courseTrue": 91.3, "magVar": -8.1, "distanceNm": 8.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "courseMag": 100, "courseTrue": 91.4, "magVar": -8.1, "distanceNm": 10.2, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "DUBKA M",
+      "title": "DUBKA M ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "DUBKA", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LIKPO", "magVar": -8.1, "distanceNm": 14.7, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MOVNI", "magVar": -8.1, "distanceNm": 26.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MADIP", "magVar": -8.1, "distanceNm": 11.7, "min": 10000, "max": 10000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB460", "magVar": -8.1, "distanceNm": 6.3, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB461", "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB462", "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB463", "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MUGLA", "magVar": -8.1, "distanceNm": 7.6, "min": 10000, "max": 10000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NOBUN", "magVar": -8.1, "distanceNm": 19.5, "min": 8000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "AWAJI", "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LILAC", "magVar": -8.1, "distanceNm": 17.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SAPEK", "magVar": -8.1, "distanceNm": 9.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "magVar": -8.1, "distanceNm": 4.5, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "EVERT M",
+      "title": "EVERT M ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "EVERT", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MOVNI", "courseMag": 305, "courseTrue": 297.0, "magVar": -8.1, "distanceNm": 15.5, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MADIP", "magVar": -8.1, "min": 10000, "max": 10000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB460", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB461", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB462", "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB463", "courseMag": 339, "courseTrue": 331.4, "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MUGLA", "courseMag": 2, "courseTrue": 353.7, "magVar": -8.1, "distanceNm": 7.6, "min": 10000, "max": 10000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NOBUN", "courseMag": 103, "courseTrue": 95.0, "magVar": -8.1, "distanceNm": 19.5, "min": 8000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "AWAJI", "courseMag": 58, "courseTrue": 50.0, "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LILAC", "magVar": -8.1, "distanceNm": 17.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SAPEK", "courseMag": 58, "courseTrue": 50.3, "magVar": -8.1, "distanceNm": 9.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "magVar": -8.1, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "NIXOV M",
+      "title": "NIXOV M ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "NIXOV", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MADIP", "courseMag": 48, "courseTrue": 39.8, "magVar": -8.1, "distanceNm": 12.5, "min": 10000, "max": 10000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB460", "magVar": -8.1, "distanceNm": 6.3, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB461", "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB462", "courseMag": 317, "courseTrue": 308.9, "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB463", "magVar": -8.1, "distanceNm": 7.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MUGLA", "courseMag": 2, "courseTrue": 353.7, "magVar": -8.1, "distanceNm": 7.6, "min": 10000, "max": 10000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NOBUN", "courseMag": 103, "courseTrue": 95.0, "magVar": -8.1, "distanceNm": 19.5, "min": 8000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "AWAJI", "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LILAC", "magVar": -8.1, "distanceNm": 17.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SAPEK", "magVar": -8.1, "distanceNm": 9.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "magVar": -8.1, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "IGLEV M",
+      "title": "IGLEV M ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "IGLEV", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MIDUX", "magVar": -8.1, "distanceNm": 5.0, "min": 12000, "max": 12000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB464", "magVar": -8.1, "distanceNm": 9.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB465", "magVar": -8.1, "distanceNm": 6.4, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB466", "magVar": -8.1, "distanceNm": 6.4, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SUPOL", "magVar": -8.1, "distanceNm": 6.4, "min": 12000, "max": 12000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NOBUN", "magVar": -8.1, "distanceNm": 16.5, "min": 8000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "AWAJI", "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LILAC", "magVar": -8.1, "distanceNm": 17.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SAPEK", "magVar": -8.1, "distanceNm": 9.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "magVar": -8.1, "distanceNm": 4.5, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "ATMUG M",
+      "title": "ATMUG M ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "ATMUG", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MINOS", "magVar": -8.1, "distanceNm": 12.0, "min": 11000, "max": 11000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB467", "magVar": -8.1, "distanceNm": 9.4, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB468", "magVar": -8.1, "distanceNm": 7.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB469", "magVar": -8.1, "distanceNm": 7.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB470", "magVar": -8.1, "distanceNm": 7.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "DUMES", "magVar": -8.1, "distanceNm": 7.0, "min": 11000, "max": 11000, "speed": 230, "speedAt": true, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NOBUN", "courseMag": 13, "courseTrue": 5.1, "magVar": -8.1, "distanceNm": 18.1, "min": 8000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "AWAJI", "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LILAC", "courseMag": 58, "courseTrue": 50.1, "magVar": -8.1, "distanceNm": 17.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SAPEK", "magVar": -8.1, "distanceNm": 9.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "courseMag": 58, "courseTrue": 50.3, "magVar": -8.1, "distanceNm": 4.5, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "CANDY D",
+      "title": "CANDY D ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "CANDY", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TOMOH", "magVar": -8.1, "distanceNm": 24.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NIPUG", "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "magVar": -8.1, "distanceNm": 14.0, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "NIXOV D",
+      "title": "NIXOV D ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "NIXOV", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OLTIG", "magVar": -8.1, "distanceNm": 25.9, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "ASAMI", "magVar": -8.1, "distanceNm": 9.9, "min": 6000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OLKIL", "magVar": -8.1, "distanceNm": 4.5, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TOMOH", "magVar": -8.1, "distanceNm": 8.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NIPUG", "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "magVar": -8.1, "distanceNm": 14.0, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "IGLEV D",
+      "title": "IGLEV D ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "IGLEV", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BIXIS", "magVar": -8.1, "distanceNm": 11.2, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "ASAMI", "magVar": -8.1, "distanceNm": 29.6, "min": 6000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OLKIL", "magVar": -8.1, "distanceNm": 4.5, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TOMOH", "magVar": -8.1, "distanceNm": 8.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NIPUG", "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "magVar": -8.1, "distanceNm": 14.0, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "ATMUG D",
+      "title": "ATMUG D ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "ATMUG", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TANTA", "magVar": -8.1, "distanceNm": 23.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NALTO", "magVar": -8.1, "distanceNm": 14.8, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "ASAMI", "magVar": -8.1, "distanceNm": 4.7, "min": 6000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OLKIL", "magVar": -8.1, "distanceNm": 4.5, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TOMOH", "magVar": -8.1, "distanceNm": 8.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NIPUG", "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "magVar": -8.1, "distanceNm": 14.0, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "CANDY E",
+      "title": "CANDY E ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "CANDY", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TANTA", "magVar": -8.1, "distanceNm": 33.2, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SASVO", "magVar": -8.1, "distanceNm": 28.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAIKO", "magVar": -8.1, "distanceNm": 8.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "magVar": -8.1, "distanceNm": 10.2, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "NIXOV E",
+      "title": "NIXOV E ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "NIXOV", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TANTA", "magVar": -8.1, "distanceNm": 39.4, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SASVO", "magVar": -8.1, "distanceNm": 28.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAIKO", "magVar": -8.1, "distanceNm": 8.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "magVar": -8.1, "distanceNm": 10.2, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "IGLEV E",
+      "title": "IGLEV E ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "IGLEV", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BIXIS", "magVar": -8.1, "distanceNm": 11.2, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TANTA", "magVar": -8.1, "distanceNm": 16.3, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SASVO", "magVar": -8.1, "distanceNm": 28.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAIKO", "magVar": -8.1, "distanceNm": 8.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "magVar": -8.1, "distanceNm": 10.2, "min": 4000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "ATMUG E",
+      "title": "ATMUG E ARRIVAL",
+      "runways": "24L/24R",
+      "legs": [
+        { "path": "IF", "fix": "ATMUG", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TANTA", "magVar": -8.1, "distanceNm": 23.9, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SASVO", "magVar": -8.1, "distanceNm": 28.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAIKO", "magVar": -8.1, "distanceNm": 8.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAYAH", "magVar": -8.1, "distanceNm": 10.2, "min": 4000, "navSpec": "RNP1" }
+      ]
+    }
+  ],
+  "sids": [
+    {
+      "name": "UPMIN ONE",
+      "title": "UPMIN ONE DEPARTURE",
+      "runways": "06R/06L",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "LELUS", "magVar": -8.1, "turn": "L", "navSpec": "RNP1" },
+        { "path": "TF", "fix": "VEKTA", "courseMag": 237, "courseTrue": 229.2, "magVar": -8.1, "distanceNm": 3.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "UPMIN", "courseMag": 184, "courseTrue": 175.9, "magVar": -8.1, "distanceNm": 8.0, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "UPMIN ONE",
+      "title": "UPMIN ONE DEPARTURE",
+      "runways": "24R/24L",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "LELUS", "magVar": -8.1, "turn": "R", "speed": 230, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "VEKTA", "courseMag": 237, "courseTrue": 229.2, "magVar": -8.1, "distanceNm": 3.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "UPMIN", "courseMag": 184, "courseTrue": 175.9, "magVar": -8.1, "distanceNm": 8.0, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "SUSAN THREE",
+      "title": "SUSAN THREE DEPARTURE",
+      "runways": "06R",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R11", "magVar": -8.1, "turn": "L", "min": 2500, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "B6R14", "flyover": true, "courseMag": 296, "courseTrue": 287.8, "magVar": -8.1, "distanceNm": 5.4, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "LELUS", "magVar": -8.1, "turn": "L", "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TOMOH", "courseMag": 205, "courseTrue": 196.6, "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "SUSAN THREE",
+      "title": "SUSAN THREE DEPARTURE",
+      "runways": "06L",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "LELUS", "magVar": -8.1, "turn": "L", "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TOMOH", "courseMag": 205, "courseTrue": 196.6, "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "SUSAN THREE",
+      "title": "SUSAN THREE DEPARTURE",
+      "runways": "24R",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "LELUS", "magVar": -8.1, "turn": "R", "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TOMOH", "courseMag": 205, "courseTrue": 196.6, "magVar": -8.1, "distanceNm": 8.1, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "SUSAN THREE",
+      "title": "SUSAN THREE DEPARTURE",
+      "runways": "24L",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B4L30", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "TOMOH", "courseMag": 237, "courseTrue": 229.1, "magVar": -8.1, "distanceNm": 5.2, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "SOVRI ONE",
+      "title": "SOVRI ONE DEPARTURE",
+      "runways": "06R",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R11", "magVar": -8.1, "turn": "L", "min": 2500, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "B6R14", "flyover": true, "courseMag": 296, "courseTrue": 287.8, "magVar": -8.1, "distanceNm": 5.4, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "KIE", "magVar": -8.1, "turn": "L", "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MIMIG", "courseMag": 90, "courseTrue": 81.4, "magVar": -8.1, "distanceNm": 3.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SOVRI", "courseMag": 90, "courseTrue": 81.5, "magVar": -8.1, "distanceNm": 1.7, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "SOVRI ONE",
+      "title": "SOVRI ONE DEPARTURE",
+      "runways": "06L",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "KIE", "magVar": -8.1, "turn": "L", "min": 5000, "speed": 210, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MIMIG", "courseMag": 90, "courseTrue": 81.4, "magVar": -8.1, "distanceNm": 3.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SOVRI", "courseMag": 90, "courseTrue": 81.5, "magVar": -8.1, "distanceNm": 1.7, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "SOVRI ONE",
+      "title": "SOVRI ONE DEPARTURE",
+      "runways": "24R",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "MUMSU", "magVar": -8.1, "turn": "R", "min": 5000, "speed": 210, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MIMIG", "courseMag": 119, "courseTrue": 110.8, "magVar": -8.1, "distanceNm": 2.3, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SOVRI", "courseMag": 90, "courseTrue": 81.5, "magVar": -8.1, "distanceNm": 1.7, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "SOVRI ONE",
+      "title": "SOVRI ONE DEPARTURE",
+      "runways": "24L",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B4L10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "KIE", "magVar": -8.1, "turn": "R", "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MIMIG", "courseMag": 90, "courseTrue": 81.4, "magVar": -8.1, "distanceNm": 3.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SOVRI", "courseMag": 90, "courseTrue": 81.5, "magVar": -8.1, "distanceNm": 1.7, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "NANKO THREE",
+      "title": "NANKO THREE DEPARTURE",
+      "runways": "06R",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R11", "magVar": -8.1, "turn": "L", "min": 2500, "navSpec": "RNP1" },
+        { "path": "TF", "courseMag": 31, "magVar": -8.1, "distanceNm": 5.4, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "NANKO THREE",
+      "title": "NANKO THREE DEPARTURE",
+      "runways": "06L",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6L01", "magVar": -8.1, "turn": "L", "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NANKO", "courseMag": 51, "courseTrue": 43.4, "magVar": -8.1, "distanceNm": 5.1, "min": 5000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "NANKO THREE",
+      "title": "NANKO THREE DEPARTURE",
+      "runways": "24R",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "NANKO", "magVar": -8.1, "turn": "R", "min": 5000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "NANKO THREE",
+      "title": "NANKO THREE DEPARTURE",
+      "runways": "24L",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B4L10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "NANKO", "magVar": -8.1, "turn": "R", "min": 5000, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "RINKU ONE",
+      "title": "RINKU ONE DEPARTURE",
+      "runways": "06R",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R11", "magVar": -8.1, "turn": "L", "min": 2500, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "PUNIB", "courseMag": 296, "courseTrue": 287.8, "magVar": -8.1, "distanceNm": 13.1, "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAIKO", "courseMag": 296, "courseTrue": 287.7, "magVar": -8.1, "distanceNm": 3.3, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "RINKU ONE",
+      "title": "RINKU ONE DEPARTURE",
+      "runways": "06L",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "BB400", "magVar": -8.1, "turn": "L", "navSpec": "RNP1" },
+        { "path": "TF", "fix": "PUNIB", "courseMag": 356, "courseTrue": 347.7, "magVar": -8.1, "distanceNm": 5.8, "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAIKO", "courseMag": 296, "courseTrue": 287.7, "magVar": -8.1, "distanceNm": 3.3, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "RINKU ONE",
+      "title": "RINKU ONE DEPARTURE",
+      "runways": "24R",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "LELUS", "magVar": -8.1, "turn": "R", "speed": 210, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB400", "courseMag": 25, "courseTrue": 16.7, "magVar": -8.1, "distanceNm": 5.7, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "PUNIB", "courseMag": 356, "courseTrue": 347.7, "magVar": -8.1, "distanceNm": 5.8, "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAIKO", "courseMag": 296, "courseTrue": 287.7, "magVar": -8.1, "distanceNm": 3.3, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "RINKU ONE",
+      "title": "RINKU ONE DEPARTURE",
+      "runways": "24L",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B4L10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "LELUS", "magVar": -8.1, "turn": "R", "speed": 210, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "BB400", "courseMag": 25, "courseTrue": 16.7, "magVar": -8.1, "distanceNm": 5.7, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "PUNIB", "courseMag": 356, "courseTrue": 347.7, "magVar": -8.1, "distanceNm": 5.8, "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAIKO", "magVar": -8.1, "distanceNm": 3.3, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "IWAYA THREE",
+      "title": "IWAYA THREE DEPARTURE",
+      "runways": "06R/06L",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "OMGEK", "magVar": -8.1, "turn": "L", "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAIKO", "courseMag": 279, "courseTrue": 271.4, "magVar": -8.1, "distanceNm": 6.1, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "IWAYA THREE",
+      "title": "IWAYA THREE DEPARTURE",
+      "runways": "24R/24L",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 700, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "BB401", "magVar": -8.1, "turn": "R", "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OMGEK", "courseMag": 360, "courseTrue": 351.8, "magVar": -8.1, "distanceNm": 8.9, "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "MAIKO", "courseMag": 279, "courseTrue": 271.4, "magVar": -8.1, "distanceNm": 6.1, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "LINDA ONE",
+      "title": "LINDA ONE DEPARTURE",
+      "runways": "06R",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R11", "magVar": -8.1, "turn": "L", "min": 2500, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "B6R12", "courseMag": 296, "courseTrue": 287.8, "magVar": -8.1, "distanceNm": 8.5, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "IDLAK", "courseMag": 249, "courseTrue": 240.6, "magVar": -8.1, "distanceNm": 8.5, "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LINDA", "courseMag": 279, "courseTrue": 271.4, "magVar": -8.1, "distanceNm": 6.8, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "LINDA ONE",
+      "title": "LINDA ONE DEPARTURE",
+      "runways": "06L",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "BB400", "magVar": -8.1, "turn": "L", "navSpec": "RNP1" },
+        { "path": "TF", "fix": "IDLAK", "courseMag": 279, "courseTrue": 270.9, "magVar": -8.1, "distanceNm": 4.3, "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LINDA", "courseMag": 279, "courseTrue": 271.4, "magVar": -8.1, "distanceNm": 6.8, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "LINDA ONE",
+      "title": "LINDA ONE DEPARTURE",
+      "runways": "24R",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "IDLAK", "magVar": -8.1, "turn": "R", "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LINDA", "courseMag": 279, "courseTrue": 271.4, "magVar": -8.1, "distanceNm": 6.8, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "LINDA ONE",
+      "title": "LINDA ONE DEPARTURE",
+      "runways": "24L",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B4L10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "IDLAK", "magVar": -8.1, "turn": "R", "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "LINDA", "courseMag": 279, "courseTrue": 271.4, "magVar": -8.1, "distanceNm": 6.8, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "OBLUR ONE",
+      "title": "OBLUR ONE DEPARTURE",
+      "runways": "06R",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R11", "magVar": -8.1, "turn": "L", "min": 2500, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "B6R14", "flyover": true, "courseMag": 296, "courseTrue": 287.8, "magVar": -8.1, "distanceNm": 5.4, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "ELMUL", "magVar": -8.1, "turn": "L", "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "EPKUR", "courseMag": 248, "courseTrue": 240.1, "magVar": -8.1, "distanceNm": 14.3, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SURIF", "courseMag": 238, "courseTrue": 230.0, "magVar": -8.1, "distanceNm": 4.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OBLUR", "courseMag": 238, "courseTrue": 230.0, "magVar": -8.1, "distanceNm": 14.7, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "OBLUR ONE",
+      "title": "OBLUR ONE DEPARTURE",
+      "runways": "06L",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "ELMUL", "magVar": -8.1, "turn": "L", "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "EPKUR", "courseMag": 248, "courseTrue": 240.1, "magVar": -8.1, "distanceNm": 14.3, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SURIF", "courseMag": 238, "courseTrue": 230.0, "magVar": -8.1, "distanceNm": 4.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OBLUR", "courseMag": 238, "courseTrue": 230.0, "magVar": -8.1, "distanceNm": 14.7, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "OBLUR ONE",
+      "title": "OBLUR ONE DEPARTURE",
+      "runways": "24R",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "LELUS", "magVar": -8.1, "turn": "R", "navSpec": "RNP1" },
+        { "path": "TF", "fix": "ELMUL", "courseMag": 274, "courseTrue": 266.4, "magVar": -8.1, "distanceNm": 7.0, "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "EPKUR", "courseMag": 248, "courseTrue": 240.1, "magVar": -8.1, "distanceNm": 14.3, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SURIF", "courseMag": 238, "courseTrue": 230.0, "magVar": -8.1, "distanceNm": 4.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OBLUR", "courseMag": 238, "courseTrue": 230.0, "magVar": -8.1, "distanceNm": 14.7, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "OBLUR ONE",
+      "title": "OBLUR ONE DEPARTURE",
+      "runways": "24L",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B4L10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "ELMUL", "magVar": -8.1, "turn": "R", "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "EPKUR", "courseMag": 248, "courseTrue": 240.1, "magVar": -8.1, "distanceNm": 14.3, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SURIF", "courseMag": 238, "courseTrue": 230.0, "magVar": -8.1, "distanceNm": 4.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OBLUR", "courseMag": 238, "courseTrue": 230.0, "magVar": -8.1, "distanceNm": 14.7, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "OMGOR ONE",
+      "title": "OMGOR ONE DEPARTURE",
+      "runways": "06R",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B6R11", "magVar": -8.1, "turn": "L", "min": 2500, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "B6R14", "flyover": true, "courseMag": 296, "courseTrue": 287.8, "magVar": -8.1, "distanceNm": 5.4, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "ENKUD", "magVar": -8.1, "turn": "L", "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "EMVEN", "courseMag": 248, "courseTrue": 240.1, "magVar": -8.1, "distanceNm": 12.8, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OMGOR", "courseMag": 244, "courseTrue": 235.6, "magVar": -8.1, "distanceNm": 5.0, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "OMGOR ONE",
+      "title": "OMGOR ONE DEPARTURE",
+      "runways": "06L",
+      "legs": [
+        { "path": "VA", "courseMag": 59, "courseTrue": 50.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "LELUS", "magVar": -8.1, "turn": "L", "navSpec": "RNP1" },
+        { "path": "TF", "fix": "ENKUD", "courseMag": 227, "courseTrue": 218.6, "magVar": -8.1, "distanceNm": 7.7, "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "EMVEN", "courseMag": 248, "courseTrue": 240.1, "magVar": -8.1, "distanceNm": 12.8, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OMGOR", "courseMag": 244, "courseTrue": 235.6, "magVar": -8.1, "distanceNm": 5.0, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "OMGOR ONE",
+      "title": "OMGOR ONE DEPARTURE",
+      "runways": "24R",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "LELUS", "magVar": -8.1, "turn": "R", "navSpec": "RNP1" },
+        { "path": "TF", "fix": "ENKUD", "courseMag": 227, "courseTrue": 218.6, "magVar": -8.1, "distanceNm": 7.7, "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "EMVEN", "courseMag": 248, "courseTrue": 240.1, "magVar": -8.1, "distanceNm": 12.8, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OMGOR", "courseMag": 244, "courseTrue": 235.6, "magVar": -8.1, "distanceNm": 5.0, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "OMGOR ONE",
+      "title": "OMGOR ONE DEPARTURE",
+      "runways": "24L",
+      "legs": [
+        { "path": "VA", "courseMag": 239, "courseTrue": 230.9, "magVar": -8.1, "min": 500, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "B4L10", "flyover": true, "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "DF", "fix": "ENKUD", "magVar": -8.1, "min": 5000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "EMVEN", "courseMag": 248, "courseTrue": 240.1, "magVar": -8.1, "distanceNm": 12.8, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OMGOR", "courseMag": 244, "courseTrue": 235.6, "magVar": -8.1, "distanceNm": 5.0, "navSpec": "RNP1" }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "name": "DOPDA N",
+      "title": "DOPDA N TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "UPMIN", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "DOPDA", "courseMag": 174, "courseTrue": 166.2, "magVar": -8.1, "distanceNm": 20.3, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "KEC", "courseMag": 137, "courseTrue": 128.7, "magVar": -8.1, "distanceNm": 44.2, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "IVROG",
+      "title": "IVROG TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "UPMIN", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "IVROG", "courseMag": 250, "courseTrue": 241.5, "magVar": -8.1, "distanceNm": 74.1, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "DOPDA D",
+      "title": "DOPDA D TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "TOMOH", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "DOPDA", "courseMag": 175, "courseTrue": 167.3, "magVar": -8.1, "distanceNm": 22.8, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "KEC", "courseMag": 137, "courseTrue": 128.7, "magVar": -8.1, "distanceNm": 44.2, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "UPRAL",
+      "title": "UPRAL TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "SOVRI", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "UPRAL", "courseMag": 87, "courseTrue": 78.6, "magVar": -8.1, "distanceNm": 18.4, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "SHTLE",
+      "title": "SHTLE TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "SOVRI", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "UPRAL", "courseMag": 87, "courseTrue": 78.6, "magVar": -8.1, "distanceNm": 18.4, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "YAGYU", "courseMag": 87, "courseTrue": 78.8, "magVar": -8.1, "distanceNm": 13.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SHTLE", "courseMag": 78, "courseTrue": 70.3, "magVar": -8.1, "distanceNm": 51.7, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "GUJYO",
+      "title": "GUJYO TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "NANKO", "magVar": -7.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NIKEX", "courseMag": 51, "courseTrue": 43.4, "magVar": -7.9, "distanceNm": 15.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "KYOTO", "courseMag": 86, "courseTrue": 77.7, "magVar": -7.9, "distanceNm": 8.7, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SIGAK", "courseMag": 85, "courseTrue": 77.4, "magVar": -7.9, "distanceNm": 15.2, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "GUJYO", "courseMag": 50, "courseTrue": 42.0, "magVar": -7.9, "distanceNm": 38.7, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "NAGOYA",
+      "title": "NAGOYA TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "NANKO", "magVar": -7.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "NIKEX", "courseMag": 51, "courseTrue": 43.4, "magVar": -7.9, "distanceNm": 15.6, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "KYOTO", "courseMag": 86, "courseTrue": 77.7, "magVar": -7.9, "distanceNm": 8.7, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SIGAK", "courseMag": 85, "courseTrue": 77.4, "magVar": -7.9, "distanceNm": 15.2, "min": 7000, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "KCC", "courseMag": 69, "courseTrue": 61.6, "magVar": -7.9, "distanceNm": 48.3, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "SHION N",
+      "title": "SHION N TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "MAIKO", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OSRIX", "courseMag": 283, "courseTrue": 274.6, "magVar": -8.1, "distanceNm": 10.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SHION", "courseMag": 252, "courseTrue": 244.3, "magVar": -8.1, "distanceNm": 27.2, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "SOUJA",
+      "title": "SOUJA TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "MAIKO", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OSRIX", "courseMag": 283, "courseTrue": 274.6, "magVar": -8.1, "distanceNm": 10.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "GUMID", "courseMag": 273, "courseTrue": 265.3, "magVar": -8.1, "distanceNm": 36.4, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SOUJA", "courseMag": 290, "courseTrue": 282.2, "magVar": -8.1, "distanceNm": 15.3, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "WASYU N",
+      "title": "WASYU N TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "MAIKO", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OSRIX", "courseMag": 283, "courseTrue": 274.6, "magVar": -8.1, "distanceNm": 10.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SHION", "courseMag": 252, "courseTrue": 244.3, "magVar": -8.1, "distanceNm": 27.2, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "WASYU", "courseMag": 282, "courseTrue": 273.6, "magVar": -8.1, "distanceNm": 44.6, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "HABAR N",
+      "title": "HABAR N TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "MAIKO", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "OSRIX", "courseMag": 283, "courseTrue": 274.6, "magVar": -8.1, "distanceNm": 10.9, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SHION", "courseMag": 252, "courseTrue": 244.3, "magVar": -8.1, "distanceNm": 27.2, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "HABAR", "courseMag": 268, "courseTrue": 259.4, "magVar": -8.1, "distanceNm": 35.0, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "SHION D",
+      "title": "SHION D TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "LINDA", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SHION", "courseMag": 269, "courseTrue": 261.1, "magVar": -8.1, "distanceNm": 29.0, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "WASYU D",
+      "title": "WASYU D TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "LINDA", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SHION", "courseMag": 269, "courseTrue": 261.1, "magVar": -8.1, "distanceNm": 29.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "WASYU", "courseMag": 282, "courseTrue": 273.6, "magVar": -8.1, "distanceNm": 44.6, "navSpec": "RNP1" }
+      ]
+    },
+    {
+      "name": "HABAR D",
+      "title": "HABAR D TRANSITION",
+      "runways": "",
+      "legs": [
+        { "path": "IF", "fix": "LINDA", "magVar": -8.1, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "SHION", "courseMag": 269, "courseTrue": 261.1, "magVar": -8.1, "distanceNm": 29.0, "navSpec": "RNP1" },
+        { "path": "TF", "fix": "HABAR", "courseMag": 268, "magVar": -8.1, "distanceNm": 35.0 }
+      ]
+    }
+  ],
+  "holds": [
+    { "fix": "DUBKA", "inboundMag": 271, "turn": "L", "minAltFt": 8000 },
+    { "fix": "LILAC", "inboundMag": 57, "turn": "R", "minAltFt": 3000 },
+    { "fix": "CANDY", "inboundMag": 322, "turn": "L", "minAltFt": 9000 },
+    { "fix": "NIXOV", "inboundMag": 64, "turn": "L", "minAltFt": 9000 },
+    { "fix": "IGLEV", "inboundMag": 93, "turn": "L", "minAltFt": 11000 },
+    { "fix": "ATMUG", "inboundMag": 181, "turn": "R", "minAltFt": 10000 },
+    { "fix": "DUBKA", "inboundMag": 271, "turn": "L", "minAltFt": 10000 },
+    { "fix": "BOTRA", "inboundMag": 278, "turn": "L", "minAltFt": 10000 },
+    { "fix": "NIXOV", "inboundMag": 64, "turn": "L", "minAltFt": 10000 },
+    { "fix": "IGLEV", "inboundMag": 93, "turn": "L", "minAltFt": 12000 },
+    { "fix": "BIXUR", "inboundMag": 158, "turn": "R", "minAltFt": 11000 },
+    { "fix": "MOVNI", "inboundMag": 278, "turn": "L", "minAltFt": 10000 },
+    { "fix": "MINOS", "inboundMag": 175, "turn": "R", "minAltFt": 11000 },
+    { "fix": "ASAMI", "inboundMag": 59, "turn": "R", "minAltFt": 6000 }
+  ]
+}
