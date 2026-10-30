@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { atisEntryKey, getActiveAtis, saveAtisEntry, deleteAtisEntry, setActiveAtis } from "@/lib/atis/atisLibrary";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 import { useTechlogData } from "@/hooks/useTechlogData";
 import { buildAtisHeader, buildAtisFooter, composeAtisContent, parseAtisPaste, type AtisType } from "@/lib/atis/atisTemplate";
@@ -49,7 +50,7 @@ export default function InboxPanel() {
     }
   };
 
-  // 🌟 教官預先上傳/覆寫嘅 ATIS 內容庫，keyed by icao+type——trainee 側
+  // ATIS bulletins are keyed by airport, type and identifier——trainee 側
   // AtisController.tsx request ATIS 之後 15 秒，會由 server 直接讀呢個
   // array 攞返對應嗰個版本出嚟（睇 atisAutoDeliver directive）
   const atisLibrary: any[] = flightData.atis_library || [];
@@ -103,9 +104,8 @@ export default function InboxPanel() {
     }
     // Keep the pasted header/footer and timestamp intact for automatic delivery.
     const type = parsed.type ?? libType;
-    const withoutExisting = atisLibrary.filter((e: any) => !(e.icao === parsed.icao && e.type === type));
     updateFlightData({
-      atis_library: [...withoutExisting, {
+      atis_library: saveAtisEntry(atisLibrary, {
         icao: parsed.icao,
         type,
         ident: parsed.ident,
@@ -113,7 +113,7 @@ export default function InboxPanel() {
         body: parsed.body,
         footer: parsed.footer,
         content: parsed.content,
-      }],
+      }, libEditingKey),
     });
     resetLibForm();
   };
@@ -122,12 +122,12 @@ export default function InboxPanel() {
     setLibType(entry.type);
     const fallback = composeAtisContent(entry.icao, entry.type, entry.ident || "?", entry.body ?? entry.content ?? "");
     setLibPasteText(entry.content || fallback);
-    setLibEditingKey(entry.icao + "-" + entry.type);
+    setLibEditingKey(atisEntryKey(entry));
   };
 
   const handleDeleteLibEntry = (entry: any) => {
-    updateFlightData({ atis_library: atisLibrary.filter((e: any) => !(e.icao === entry.icao && e.type === entry.type)) });
-    if (libEditingKey === `${entry.icao}-${entry.type}`) resetLibForm();
+    updateFlightData({ atis_library: deleteAtisEntry(atisLibrary, entry) });
+    if (libEditingKey === atisEntryKey(entry)) resetLibForm();
   };
 
   return (
@@ -183,22 +183,29 @@ export default function InboxPanel() {
           嗰張卡（手動 override）獨立並存，邊個先送到都得 */}
       <div className="bg-lido-800 border border-[#333333] rounded-xl p-4 shadow-sm">
         <div className="text-text-muted text-xs font-bold mb-3 uppercase">📻 ATIS Library (Pre-loaded)</div>
+        <p className="text-xs text-text-muted mb-3">Prepare multiple identifiers per airport and type. The first is active automatically; use SET ACTIVE to change future ATIS replies. Deleting the active bulletin leaves no active ATIS until you select another.</p>
 
         {atisLibrary.length === 0 ? (
           <div className="text-text-muted text-xs italic mb-3">No pre-loaded ATIS yet — a request will get a &quot;not available&quot; fallback after 15s until you add one below.</div>
         ) : (
           <div className="flex flex-col gap-2 mb-3">
             {atisLibrary.map((entry: any) => (
-              <div key={`${entry.icao}-${entry.type}`} className="bg-lido-950 border border-[#333333] rounded-lg p-2 flex justify-between items-start gap-2">
+              <div key={atisEntryKey(entry)} className="bg-lido-950 border border-[#333333] rounded-lg p-2 flex justify-between items-start gap-2">
                 <div className="min-w-0">
                   <div className="text-status-teal font-bold text-xs">
                     {entry.icao} {entry.type}
                     {/* 🌟 舊 entry（改版前）冇 ident 欄位，就唔顯示呢個 badge */}
+                    {entry.issued_at && <span className="ml-1">{entry.issued_at}</span>}
                     {entry.ident && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-[#00bfa5]/20 text-status-teal">INFO {entry.ident}</span>}
                   </div>
                   <div className="text-text-muted text-[0.65rem] truncate">{entry.body || entry.content}</div>
                 </div>
                 <div className="flex gap-1 shrink-0">
+                  {getActiveAtis(atisLibrary, entry.icao, entry.type) === entry ? (
+                    <span className="text-[0.6rem] px-2 py-1 text-status-teal font-bold">ACTIVE</span>
+                  ) : (
+                    <button onClick={() => updateFlightData({ atis_library: setActiveAtis(atisLibrary, entry) })} className="text-[0.6rem] px-2 py-1 rounded bg-[#00bfa5]/20 text-status-teal">SET ACTIVE</button>
+                  )}
                   <button onClick={() => handleEditLibEntry(entry)} className="text-[0.6rem] px-2 py-1 rounded bg-[#333] text-white hover:bg-[#444] transition-colors">EDIT</button>
                   <button onClick={() => handleDeleteLibEntry(entry)} className="text-[0.6rem] px-2 py-1 rounded bg-[#FF1744]/20 text-[#FF1744] hover:bg-[#FF1744] hover:text-white transition-colors">DEL</button>
                 </div>

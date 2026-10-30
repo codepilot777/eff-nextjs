@@ -3,6 +3,7 @@
 // array 覆寫（舊寫法會用 local 可能已過時嘅 flightData 做 base，同 techlog 修正前
 // 一樣有並發覆寫風險），改為由 server 對住自己啱啱讀到嘅最新一份 row 逐個 directive 咁 apply。
 
+import { getActiveAtis } from '../atis/atisLibrary';
 import { getOfpHistory, type OfpHistoryEntry } from './ofpHistory';
 
 export interface FlightPatch {
@@ -89,7 +90,7 @@ export function applyFlightDirectives(current: FlightRow, patch: FlightPatch): F
     const { icao, type } = patch.atisAutoDeliver;
     const atisRequests = (current.atis_requests as RowArray | undefined) || [];
     const library = (current.atis_library as RowArray | undefined) || [];
-    const libEntry = library.find((e) => e.icao === icao && e.type === type);
+    const libEntry = getActiveAtis(library, icao, type);
     const responseText = (libEntry?.content as string | undefined)
       || `${icao} ${type} ATIS — NO DATA AVAILABLE (not pre-loaded by instructor)`;
 
