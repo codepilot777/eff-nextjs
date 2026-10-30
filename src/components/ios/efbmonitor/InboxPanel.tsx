@@ -55,16 +55,17 @@ export default function InboxPanel() {
   const atisLibrary: any[] = flightData.atis_library || [];
 
   const parsedLibAtis = parseAtisPaste(libPasteText);
+  const effectiveLibType = parsedLibAtis?.type ?? libType;
 
   const generateLibAtis = async () => {
     if (!parsedLibAtis) {
-      alert("Paste an ATIS header first, for example: RCTP ATIS INFO A 0650Z.");
+      alert("Paste an ATIS header first, for example: RCTP ATIS INFO A 0650Z or HONG KONG ARRIVAL INFO A 0600Z.");
       return;
     }
     setIsGeneratingLib(true);
     try {
       const plainText = "Write only the body content (runway, wind, visibility, QNH and remarks) for a realistic " +
-        libType + " ATIS for " + parsedLibAtis.icao + ". Do not include a header or footer.";
+        effectiveLibType + " ATIS for " + parsedLibAtis.icao + ". Do not include a header or footer.";
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -74,8 +75,8 @@ export default function InboxPanel() {
       if (res.ok) {
         const header = parsedLibAtis.issuedAt
           ? parsedLibAtis.icao + " ATIS INFO " + parsedLibAtis.ident + " " + parsedLibAtis.issuedAt
-          : buildAtisHeader(parsedLibAtis.icao, libType, parsedLibAtis.ident);
-        const footer = parsedLibAtis.footer || buildAtisFooter(libType, parsedLibAtis.ident);
+          : buildAtisHeader(parsedLibAtis.icao, effectiveLibType, parsedLibAtis.ident);
+        const footer = parsedLibAtis.footer || buildAtisFooter(effectiveLibType, parsedLibAtis.ident);
         setLibPasteText([header, data.text.trim(), footer].filter(Boolean).join("\n"));
       } else alert(data.error);
     } catch (e) {
@@ -93,7 +94,7 @@ export default function InboxPanel() {
   const handleSaveLibEntry = () => {
     const parsed = parseAtisPaste(libPasteText);
     if (!parsed) {
-      alert("Could not read the first line. Expected a header like: RCTP ATIS INFO A 0650Z.");
+      alert("Could not read the first line. Expected a header like: RCTP ATIS INFO A 0650Z or HONG KONG ARRIVAL INFO A 0600Z.");
       return;
     }
     if (!parsed.body.trim()) {
@@ -101,11 +102,12 @@ export default function InboxPanel() {
       return;
     }
     // Keep the pasted header/footer and timestamp intact for automatic delivery.
-    const withoutExisting = atisLibrary.filter((e: any) => !(e.icao === parsed.icao && e.type === libType));
+    const type = parsed.type ?? libType;
+    const withoutExisting = atisLibrary.filter((e: any) => !(e.icao === parsed.icao && e.type === type));
     updateFlightData({
       atis_library: [...withoutExisting, {
         icao: parsed.icao,
-        type: libType,
+        type,
         ident: parsed.ident,
         issued_at: parsed.issuedAt,
         body: parsed.body,
@@ -206,7 +208,7 @@ export default function InboxPanel() {
         )}
 
         <div className="flex gap-2 mb-2">
-          <select value={libType} onChange={(e) => setLibType(e.target.value as AtisType)} className="flex-1 bg-lido-950 border border-[#404040] rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-[#00bfa5] cursor-pointer">
+          <select value={effectiveLibType} disabled={!!parsedLibAtis?.type} onChange={(e) => setLibType(e.target.value as AtisType)} className="flex-1 bg-lido-950 border border-[#404040] rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-[#00bfa5] cursor-pointer">
             <option value="DEPARTURE">DEPARTURE ATIS</option>
             <option value="ARRIVAL">ARRIVAL ATIS</option>
           </select>
@@ -221,12 +223,12 @@ export default function InboxPanel() {
         <textarea
           value={libPasteText}
           onChange={(e) => setLibPasteText(e.target.value)}
-          placeholder="Paste full ATIS here (ICAO ATIS INFO A 0650Z, body, footer)"
+          placeholder="Paste full ATIS here (RCTP ATIS INFO A 0650Z or HONG KONG ARRIVAL INFO A 0600Z, body, footer)"
           className="w-full bg-lido-950 border border-[#404040] rounded-lg p-2 text-xs text-status-teal font-mono h-40 outline-none focus:border-[#00bfa5] resize-y mb-2"
         />
         <div className="text-[0.65rem] text-[#8fa0a6] mb-2">
           {parsedLibAtis ? (
-            <>Parsed {parsedLibAtis.icao} · INFO {parsedLibAtis.ident}{parsedLibAtis.issuedAt ? " · " + parsedLibAtis.issuedAt : ""} · {libType} ATIS</>
+            <>Parsed {parsedLibAtis.icao} · INFO {parsedLibAtis.ident}{parsedLibAtis.issuedAt ? " · " + parsedLibAtis.issuedAt : ""} · {effectiveLibType} ATIS</>
           ) : (
             "Paste a full ATIS. ICAO, identifier and time are read from its first line; choose this airport’s Departure or Arrival type above."
           )}
