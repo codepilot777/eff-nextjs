@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { atisEntryKey, getActiveAtis, saveAtisEntry, deleteAtisEntry, setActiveAtis } from "@/lib/atis/atisLibrary";
+import AtisStationCard from "./AtisStationCard";
+import { atisEntryKey, saveAtisEntry, deleteAtisEntry, setActiveAtis } from "@/lib/atis/atisLibrary";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 import { useTechlogData } from "@/hooks/useTechlogData";
 import { buildAtisHeader, buildAtisFooter, composeAtisContent, parseAtisPaste, type AtisType } from "@/lib/atis/atisTemplate";
@@ -10,6 +11,7 @@ export default function InboxPanel() {
   const [isGeneratingAtis, setIsGeneratingAtis] = useState<number | null>(null);
 
   // Paste complete ATIS text; keep the airport-specific DEP/ARR choice explicit.
+  const [libFormOpen, setLibFormOpen] = useState(false);
   const [libType, setLibType] = useState<AtisType>("DEPARTURE");
   const [libPasteText, setLibPasteText] = useState("");
   const [libEditingKey, setLibEditingKey] = useState<string | null>(null);
@@ -55,6 +57,13 @@ export default function InboxPanel() {
   // array 攞返對應嗰個版本出嚟（睇 atisAutoDeliver directive）
   const atisLibrary: any[] = flightData.atis_library || [];
 
+  const atisStations = new Map<string, typeof atisLibrary>();
+  for (const entry of atisLibrary) {
+    const key = JSON.stringify([entry.icao, entry.type]);
+    const entries = atisStations.get(key) || [];
+    entries.push(entry);
+    atisStations.set(key, entries);
+  }
   const parsedLibAtis = parseAtisPaste(libPasteText);
   const effectiveLibType = parsedLibAtis?.type ?? libType;
 
@@ -90,6 +99,7 @@ export default function InboxPanel() {
   const resetLibForm = () => {
     setLibPasteText("");
     setLibEditingKey(null);
+    setLibFormOpen(false);
   };
 
   const handleSaveLibEntry = () => {
@@ -119,6 +129,7 @@ export default function InboxPanel() {
   };
 
   const handleEditLibEntry = (entry: any) => {
+    setLibFormOpen(true);
     setLibType(entry.type);
     const fallback = composeAtisContent(entry.icao, entry.type, entry.ident || "?", entry.body ?? entry.content ?? "");
     setLibPasteText(entry.content || fallback);
@@ -183,37 +194,26 @@ export default function InboxPanel() {
           嗰張卡（手動 override）獨立並存，邊個先送到都得 */}
       <div className="bg-lido-800 border border-[#333333] rounded-xl p-4 shadow-sm">
         <div className="text-text-muted text-xs font-bold mb-3 uppercase">📻 ATIS Library (Pre-loaded)</div>
-        <p className="text-xs text-text-muted mb-3">Prepare multiple identifiers per airport and type. The first is active automatically; use SET ACTIVE to change future ATIS replies. Deleting the active bulletin leaves no active ATIS until you select another.</p>
+        <p className="text-xs text-text-muted mb-3">Select an identifier, then SET ACTIVE to change future replies.</p>
 
         {atisLibrary.length === 0 ? (
           <div className="text-text-muted text-xs italic mb-3">No pre-loaded ATIS yet — a request will get a &quot;not available&quot; fallback after 15s until you add one below.</div>
         ) : (
           <div className="flex flex-col gap-2 mb-3">
-            {atisLibrary.map((entry: any) => (
-              <div key={atisEntryKey(entry)} className="bg-lido-950 border border-[#333333] rounded-lg p-2 flex justify-between items-start gap-2">
-                <div className="min-w-0">
-                  <div className="text-status-teal font-bold text-xs">
-                    {entry.icao} {entry.type}
-                    {/* 🌟 舊 entry（改版前）冇 ident 欄位，就唔顯示呢個 badge */}
-                    {entry.issued_at && <span className="ml-1">{entry.issued_at}</span>}
-                    {entry.ident && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-[#00bfa5]/20 text-status-teal">INFO {entry.ident}</span>}
-                  </div>
-                  <div className="text-text-muted text-[0.65rem] truncate">{entry.body || entry.content}</div>
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  {getActiveAtis(atisLibrary, entry.icao, entry.type) === entry ? (
-                    <span className="text-[0.6rem] px-2 py-1 text-status-teal font-bold">ACTIVE</span>
-                  ) : (
-                    <button onClick={() => updateFlightData({ atis_library: setActiveAtis(atisLibrary, entry) })} className="text-[0.6rem] px-2 py-1 rounded bg-[#00bfa5]/20 text-status-teal">SET ACTIVE</button>
-                  )}
-                  <button onClick={() => handleEditLibEntry(entry)} className="text-[0.6rem] px-2 py-1 rounded bg-[#333] text-white hover:bg-[#444] transition-colors">EDIT</button>
-                  <button onClick={() => handleDeleteLibEntry(entry)} className="text-[0.6rem] px-2 py-1 rounded bg-[#FF1744]/20 text-[#FF1744] hover:bg-[#FF1744] hover:text-white transition-colors">DEL</button>
-                </div>
-              </div>
+            {Array.from(atisStations).map(([key, entries]) => (
+              <AtisStationCard key={key} entries={entries}
+                onActivate={(entry) => updateFlightData({ atis_library: setActiveAtis(atisLibrary, entry) })}
+                onEdit={handleEditLibEntry} onDelete={handleDeleteLibEntry}
+              />
             ))}
           </div>
         )}
 
+        <button onClick={() => { if (libFormOpen) resetLibForm(); else setLibFormOpen(true); }}
+          aria-expanded={libFormOpen} className="text-xs text-status-teal font-bold mb-3">
+          {libFormOpen ? '− CLOSE FORM' : '＋ ADD ATIS'}
+        </button>
+        {libFormOpen && <div>
         <div className="flex gap-2 mb-2">
           <select value={effectiveLibType} disabled={!!parsedLibAtis?.type} onChange={(e) => setLibType(e.target.value as AtisType)} className="flex-1 bg-lido-950 border border-[#404040] rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-[#00bfa5] cursor-pointer">
             <option value="DEPARTURE">DEPARTURE ATIS</option>
@@ -248,6 +248,7 @@ export default function InboxPanel() {
             <button onClick={resetLibForm} className="px-3 bg-[#333] text-white rounded-lg text-xs font-bold hover:bg-[#444] transition-colors">CANCEL</button>
           )}
         </div>
+        </div>}
       </div>
 
       {(flightData.pdc_requests || []).filter((r:any) => r.status === "PENDING CLEARANCE").map((req:any, idx:number) => (
