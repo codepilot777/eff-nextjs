@@ -100,6 +100,9 @@ export default function Notam() {
 
   // 解析並回傳 Array
   const parseNotams = (overrideValue: string | undefined, rawSbArray: any): string[] => {
+    if (flightData.notam_source_mode === "INSTRUCTOR") {
+      return overrideValue ? [overrideValue] : ["No active NOTAMs available."];
+    }
     if (overrideValue && overrideValue !== "NIL") {
       return [overrideValue];
     }
@@ -141,7 +144,7 @@ export default function Notam() {
 
   altnArray.forEach((altn: any, idx: number) => {
     const icao = altn.icao_code || altn.icao;
-    if (icao && !seenIcaos.has(icao)) {
+    if (icao && (!seenIcaos.has(icao) || (flightData.notam_source_mode === "INSTRUCTOR" && alternates[idx]?.notam))) {
       // 🌟 修復：以前呢度個 overrideValue 寫死 undefined，完全跳過咗
       // NotamTab.tsx 教官編輯/AI 生成後寫入嘅 flightData.alternates[idx].notam，
       // 同 DEP/ARR 嘅正確行為唔一致
@@ -158,7 +161,7 @@ export default function Notam() {
   // 🌟 4. 起飛備降場 (Takeoff Alternate)——同目的地備降場係唔同概念，SimBrief
   // raw data 有獨立嘅 takeoff_altn 分類，以前完全冇用過
   const toffAltn = rawSb.takeoff_altn;
-  if (toffAltn?.icao_code && !seenIcaos.has(toffAltn.icao_code)) {
+  if (toffAltn?.icao_code && (!seenIcaos.has(toffAltn.icao_code) || (flightData.notam_source_mode === "INSTRUCTOR" && flightData.notam_toff_altn))) {
     renderList.push({
       id: `toff-altn`,
       type: "TOFF_ALTN",
@@ -176,7 +179,7 @@ export default function Notam() {
   const enrouteAltnOverrides = flightData?.enroute_altns || [];
   enrouteAltnArray.forEach((ea: any, idx: number) => {
     const icao = ea.icao_code || ea.icao;
-    if (icao && !seenIcaos.has(icao)) {
+    if (icao && (!seenIcaos.has(icao) || (flightData.notam_source_mode === "INSTRUCTOR" && enrouteAltnOverrides[idx]?.notam))) {
       renderList.push({
         id: `enr-altn-${idx}`,
         type: "ENR_ALTN",
@@ -192,7 +195,7 @@ export default function Notam() {
   const rawEnrouteStations = Array.isArray(rawSb.enroute_station) ? rawSb.enroute_station : [];
   const enrouteStationOverrides = flightData?.enroute_stations || [];
   const enrouteStationList = rawEnrouteStations
-    .filter((s: any) => (s.icao_code || s.icao) && !seenIcaos.has(s.icao_code || s.icao))
+    .filter((s: any, idx: number) => (s.icao_code || s.icao) && (!seenIcaos.has(s.icao_code || s.icao) || (flightData.notam_source_mode === "INSTRUCTOR" && enrouteStationOverrides[idx]?.notam)))
     .map((s: any, idx: number) => {
       const icao = s.icao_code || s.icao;
       seenIcaos.add(icao);

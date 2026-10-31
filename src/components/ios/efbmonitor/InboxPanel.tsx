@@ -1,20 +1,19 @@
 "use client";
 import { useState } from "react";
+import AtisStationCard from "./AtisStationCard";
+import { atisEntryKey, saveAtisEntry, deleteAtisEntry, setActiveAtis } from "@/lib/atis/atisLibrary";
 import { useFlightData } from "@/hooks/useFlightData"; // 🌟 引入神級大腦
 import { useTechlogData } from "@/hooks/useTechlogData";
-import { buildAtisHeader, buildAtisFooter, composeAtisContent, type AtisType } from "@/lib/atis/atisTemplate";
+import { buildAtisHeader, buildAtisFooter, composeAtisContent, parseAtisPaste, type AtisType } from "@/lib/atis/atisTemplate";
 
 // 🌟 Props 大清洗：剷走晒 flightData 同 updateFlightData
 export default function InboxPanel() {
   const [isGeneratingAtis, setIsGeneratingAtis] = useState<number | null>(null);
 
-  // 🌟 ATIS Library（教官預先上傳）嘅表格 state——HEADER/FOOTER 唔再係表格
-  // 一部分，改為由 libIdent 經 atisTemplate.ts 自動生成（睇下面 composeAtisContent），
-  // 教官淨係打 libIdent + libBody（純天氣/跑道等內文）
-  const [libIcao, setLibIcao] = useState("");
+  // Paste complete ATIS text; keep the airport-specific DEP/ARR choice explicit.
+  const [libFormOpen, setLibFormOpen] = useState(false);
   const [libType, setLibType] = useState<AtisType>("DEPARTURE");
-  const [libIdent, setLibIdent] = useState("");
-  const [libBody, setLibBody] = useState("");
+  const [libPasteText, setLibPasteText] = useState("");
   const [libEditingKey, setLibEditingKey] = useState<string | null>(null);
   const [isGeneratingLib, setIsGeneratingLib] = useState(false);
 
@@ -53,26 +52,43 @@ export default function InboxPanel() {
     }
   };
 
-  // 🌟 教官預先上傳/覆寫嘅 ATIS 內容庫，keyed by icao+type——trainee 側
+  // ATIS bulletins are keyed by airport, type and identifier——trainee 側
   // AtisController.tsx request ATIS 之後 15 秒，會由 server 直接讀呢個
   // array 攞返對應嗰個版本出嚟（睇 atisAutoDeliver directive）
   const atisLibrary: any[] = flightData.atis_library || [];
 
+  const atisStations = new Map<string, typeof atisLibrary>();
+  for (const entry of atisLibrary) {
+    const key = JSON.stringify([entry.icao, entry.type]);
+    const entries = atisStations.get(key) || [];
+    entries.push(entry);
+    atisStations.set(key, entries);
+  }
+  const parsedLibAtis = parseAtisPaste(libPasteText);
+  const effectiveLibType = parsedLibAtis?.type ?? libType;
+
   const generateLibAtis = async () => {
-    if (!libIcao.trim()) return;
+    if (!parsedLibAtis) {
+      alert("Paste an ATIS header first, for example: RCTP ATIS INFO A 0650Z or HONG KONG ARRIVAL INFO A 0600Z.");
+      return;
+    }
     setIsGeneratingLib(true);
     try {
-      // 🌟 淨係要求 AI 生成內文（跑道/天氣/NOTAM 等），唔好埋 header/footer——
-      // 嗰兩樣而家一定由 composeAtisContent 用 libIdent 自動生成，AI 生成埋只會撞版
-      const plainText = `Write only the body content (runway in use, wind, visibility, QNH, any relevant remarks) of a realistic ${libType} ATIS for ${libIcao.trim().toUpperCase()}. Flight ${flightData?.flight_no || 'CPA564'}. Do NOT include an "ATIS INFORMATION" header line or an "ADVISE YOU HAVE INFORMATION" footer line — just the body text.`;
+      const plainText = "Write only the body content (runway, wind, visibility, QNH and remarks) for a realistic " +
+        effectiveLibType + " ATIS for " + parsedLibAtis.icao + ". Do not include a header or footer.";
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ promptType: "ATIS", plainText, stdZ: flightData?.std_z || "0000Z", staZ: flightData?.sta_z || "0000Z" })
       });
       const data = await res.json();
-      if (res.ok) setLibBody(data.text);
-      else alert(data.error);
+      if (res.ok) {
+        const header = parsedLibAtis.issuedAt
+          ? parsedLibAtis.icao + " ATIS INFO " + parsedLibAtis.ident + " " + parsedLibAtis.issuedAt
+          : buildAtisHeader(parsedLibAtis.icao, effectiveLibType, parsedLibAtis.ident);
+        const footer = parsedLibAtis.footer || buildAtisFooter(effectiveLibType, parsedLibAtis.ident);
+        setLibPasteText([header, data.text.trim(), footer].filter(Boolean).join("\n"));
+      } else alert(data.error);
     } catch (e) {
       alert("AI Service Error");
     } finally {
@@ -81,39 +97,48 @@ export default function InboxPanel() {
   };
 
   const resetLibForm = () => {
-    setLibIcao(""); setLibIdent(""); setLibBody(""); setLibEditingKey(null);
+    setLibPasteText("");
+    setLibEditingKey(null);
+    setLibFormOpen(false);
   };
 
   const handleSaveLibEntry = () => {
-    const icao = libIcao.trim().toUpperCase();
-    const ident = libIdent.trim().toUpperCase();
-    if (!icao || !ident || !libBody.trim()) {
-      alert("ICAO, ATIS identifier and body content are required.");
+    const parsed = parseAtisPaste(libPasteText);
+    if (!parsed) {
+      alert("Could not read the first line. Expected a header like: RCTP ATIS INFO A 0650Z or HONG KONG ARRIVAL INFO A 0600Z.");
       return;
     }
-    // 🌟 Header/footer 一律由 composeAtisContent 用 icao/type/ident 計，
-    // 教官淨係控制 ident——唔會再有「改咗 header 唔記得改埋 footer」嘅情況
-    const content = composeAtisContent(icao, libType, ident, libBody);
-    // 🌟 Upsert：keyed by icao+type，一個機場+type 淨係得一份「而家嗰個版本」
-    const withoutExisting = atisLibrary.filter((e: any) => !(e.icao === icao && e.type === libType));
-    updateFlightData({ atis_library: [...withoutExisting, { icao, type: libType, ident, body: libBody.trim(), content }] });
+    if (!parsed.body.trim()) {
+      alert("ATIS body content is required.");
+      return;
+    }
+    // Keep the pasted header/footer and timestamp intact for automatic delivery.
+    const type = parsed.type ?? libType;
+    updateFlightData({
+      atis_library: saveAtisEntry(atisLibrary, {
+        icao: parsed.icao,
+        type,
+        ident: parsed.ident,
+        issued_at: parsed.issuedAt,
+        body: parsed.body,
+        footer: parsed.footer,
+        content: parsed.content,
+      }, libEditingKey),
+    });
     resetLibForm();
   };
 
   const handleEditLibEntry = (entry: any) => {
-    setLibIcao(entry.icao);
+    setLibFormOpen(true);
     setLibType(entry.type);
-    // 🌟 舊 entry（呢個功能改版之前存低嘅）冇 ident/body 呢兩個獨立欄位——
-    // fallback 落成個 content 入 body，等教官起碼唔會流失返舊資料，
-    // 但要重新填返 ident 先可以再 save（save 嗰陣會強制要求 ident）
-    setLibIdent(entry.ident || "");
-    setLibBody(entry.body ?? entry.content ?? "");
-    setLibEditingKey(`${entry.icao}-${entry.type}`);
+    const fallback = composeAtisContent(entry.icao, entry.type, entry.ident || "?", entry.body ?? entry.content ?? "");
+    setLibPasteText(entry.content || fallback);
+    setLibEditingKey(atisEntryKey(entry));
   };
 
   const handleDeleteLibEntry = (entry: any) => {
-    updateFlightData({ atis_library: atisLibrary.filter((e: any) => !(e.icao === entry.icao && e.type === entry.type)) });
-    if (libEditingKey === `${entry.icao}-${entry.type}`) resetLibForm();
+    updateFlightData({ atis_library: deleteAtisEntry(atisLibrary, entry) });
+    if (libEditingKey === atisEntryKey(entry)) resetLibForm();
   };
 
   return (
@@ -169,65 +194,52 @@ export default function InboxPanel() {
           嗰張卡（手動 override）獨立並存，邊個先送到都得 */}
       <div className="bg-lido-800 border border-[#333333] rounded-xl p-4 shadow-sm">
         <div className="text-text-muted text-xs font-bold mb-3 uppercase">📻 ATIS Library (Pre-loaded)</div>
+        <p className="text-xs text-text-muted mb-3">Select an identifier, then SET ACTIVE to change future replies.</p>
 
         {atisLibrary.length === 0 ? (
           <div className="text-text-muted text-xs italic mb-3">No pre-loaded ATIS yet — a request will get a &quot;not available&quot; fallback after 15s until you add one below.</div>
         ) : (
           <div className="flex flex-col gap-2 mb-3">
-            {atisLibrary.map((entry: any) => (
-              <div key={`${entry.icao}-${entry.type}`} className="bg-lido-950 border border-[#333333] rounded-lg p-2 flex justify-between items-start gap-2">
-                <div className="min-w-0">
-                  <div className="text-status-teal font-bold text-xs">
-                    {entry.icao} {entry.type}
-                    {/* 🌟 舊 entry（改版前）冇 ident 欄位，就唔顯示呢個 badge */}
-                    {entry.ident && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-[#00bfa5]/20 text-status-teal">INFO {entry.ident}</span>}
-                  </div>
-                  <div className="text-text-muted text-[0.65rem] truncate">{entry.body || entry.content}</div>
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  <button onClick={() => handleEditLibEntry(entry)} className="text-[0.6rem] px-2 py-1 rounded bg-[#333] text-white hover:bg-[#444] transition-colors">EDIT</button>
-                  <button onClick={() => handleDeleteLibEntry(entry)} className="text-[0.6rem] px-2 py-1 rounded bg-[#FF1744]/20 text-[#FF1744] hover:bg-[#FF1744] hover:text-white transition-colors">DEL</button>
-                </div>
-              </div>
+            {Array.from(atisStations).map(([key, entries]) => (
+              <AtisStationCard key={key} entries={entries}
+                onActivate={(entry) => updateFlightData({ atis_library: setActiveAtis(atisLibrary, entry) })}
+                onEdit={handleEditLibEntry} onDelete={handleDeleteLibEntry}
+              />
             ))}
           </div>
         )}
 
+        <button onClick={() => { if (libFormOpen) resetLibForm(); else setLibFormOpen(true); }}
+          aria-expanded={libFormOpen} className="text-xs text-status-teal font-bold mb-3">
+          {libFormOpen ? '− CLOSE FORM' : '＋ ADD ATIS'}
+        </button>
+        {libFormOpen && <div>
         <div className="flex gap-2 mb-2">
-          <input
-            type="text" maxLength={4} value={libIcao} onChange={(e) => setLibIcao(e.target.value.toUpperCase())}
-            placeholder="ICAO" className="w-20 bg-lido-950 border border-[#404040] rounded-lg px-2 py-1.5 text-xs text-white uppercase outline-none focus:border-[#00bfa5]"
-          />
-          <select value={libType} onChange={(e) => setLibType(e.target.value as AtisType)} className="flex-1 bg-lido-950 border border-[#404040] rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-[#00bfa5] cursor-pointer">
-            <option value="DEPARTURE">DEPARTURE</option>
-            <option value="ARRIVAL">ARRIVAL</option>
+          <select value={effectiveLibType} disabled={!!parsedLibAtis?.type} onChange={(e) => setLibType(e.target.value as AtisType)} className="flex-1 bg-lido-950 border border-[#404040] rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-[#00bfa5] cursor-pointer">
+            <option value="DEPARTURE">DEPARTURE ATIS</option>
+            <option value="ARRIVAL">ARRIVAL ATIS</option>
           </select>
-          {/* 🌟 教官淨係打呢個 identifier——header/footer 全部由 atisTemplate.ts
-              根據佢自動生成，唔使、亦唔可以手動打，所以唔會再有兩邊唔同步嘅情況 */}
-          <input
-            type="text" maxLength={1} value={libIdent} onChange={(e) => setLibIdent(e.target.value.toUpperCase())}
-            placeholder="C" title="ATIS Identifier"
-            className="w-12 bg-lido-950 border border-[#404040] rounded-lg px-2 py-1.5 text-xs text-white uppercase text-center outline-none focus:border-[#00bfa5]"
-          />
           <button
-            onClick={generateLibAtis} disabled={isGeneratingLib || !libIcao.trim()}
-            className="text-[0.65rem] px-2 rounded bg-[#00bfa5]/20 text-status-teal hover:bg-[#00bfa5] hover:text-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+            onClick={generateLibAtis} disabled={isGeneratingLib || !parsedLibAtis}
+            title={!parsedLibAtis ? "Paste a valid ATIS header first" : "Generate or replace the ATIS body"}
+            className="text-[0.65rem] px-3 rounded bg-[#00bfa5]/20 text-status-teal hover:bg-[#00bfa5] hover:text-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
           >
-            {isGeneratingLib ? "⏳" : "✨ AI"}
+            {isGeneratingLib ? "⏳" : "✨ AI body"}
           </button>
         </div>
-        {/* 🌟 Header/footer 預覽：永遠係固定格式，教官改 ident 呢度即刻反映，
-            等佢撳 save 之前已經肯定睇到成句 header 同 footer 係同步嘅 */}
-        <div className="bg-lido-950/60 border border-dashed border-[#404040] rounded-lg p-2 mb-2 text-[0.65rem] text-[#8fa0a6] font-mono leading-relaxed">
-          <div>{buildAtisHeader(libIcao || '----', libType, libIdent || '?')}</div>
-          <div className="italic opacity-60">(body below)</div>
-          <div>{buildAtisFooter(libType, libIdent || '?')}</div>
-        </div>
         <textarea
-          value={libBody} onChange={(e) => setLibBody(e.target.value)}
-          placeholder="ATIS body — runway, wind, QNH, remarks..."
-          className="w-full bg-lido-950 border border-[#404040] rounded-lg p-2 text-xs text-status-teal font-mono h-20 outline-none focus:border-[#00bfa5] resize-none mb-2"
+          value={libPasteText}
+          onChange={(e) => setLibPasteText(e.target.value)}
+          placeholder="Paste full ATIS here (RCTP ATIS INFO A 0650Z or HONG KONG ARRIVAL INFO A 0600Z, body, footer)"
+          className="w-full bg-lido-950 border border-[#404040] rounded-lg p-2 text-xs text-status-teal font-mono h-40 outline-none focus:border-[#00bfa5] resize-y mb-2"
         />
+        <div className="text-[0.65rem] text-[#8fa0a6] mb-2">
+          {parsedLibAtis ? (
+            <>Parsed {parsedLibAtis.icao} · INFO {parsedLibAtis.ident}{parsedLibAtis.issuedAt ? " · " + parsedLibAtis.issuedAt : ""} · {effectiveLibType} ATIS</>
+          ) : (
+            "Paste a full ATIS. ICAO, identifier and time are read from its first line; choose this airport’s Departure or Arrival type above."
+          )}
+        </div>
         <div className="flex gap-2">
           <button onClick={handleSaveLibEntry} className="flex-1 bg-[#00bfa5]/20 border border-[#00bfa5] text-status-teal py-1.5 rounded-lg text-xs font-bold hover:bg-[#00bfa5] hover:text-black transition-colors">
             {libEditingKey ? "💾 UPDATE ENTRY" : "➕ ADD TO LIBRARY"}
@@ -236,6 +248,7 @@ export default function InboxPanel() {
             <button onClick={resetLibForm} className="px-3 bg-[#333] text-white rounded-lg text-xs font-bold hover:bg-[#444] transition-colors">CANCEL</button>
           )}
         </div>
+        </div>}
       </div>
 
       {(flightData.pdc_requests || []).filter((r:any) => r.status === "PENDING CLEARANCE").map((req:any, idx:number) => (

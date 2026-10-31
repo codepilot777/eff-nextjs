@@ -99,6 +99,9 @@ export default function Weather() {
 
   // 決定天氣顯示的優先順序
   const getWx = (overrideValue: string | undefined, rawValue: string | undefined) => {
+    if (flightData.wx_source_mode === "INSTRUCTOR") {
+      return overrideValue && overrideValue !== "NIL" ? overrideValue : "NO METAR/TAF DATA AVAILABLE";
+    }
     if (overrideValue && overrideValue !== "NIL") return overrideValue;
     if (rawValue && rawValue !== "NIL") return rawValue;
     return "NO METAR/TAF DATA AVAILABLE";
@@ -140,7 +143,7 @@ export default function Weather() {
 
   altnArray.forEach((altn: any, idx: number) => {
     const icao = altn.icao_code || altn.icao;
-    if (icao && !seenIcaos.has(icao)) {
+    if (icao && (!seenIcaos.has(icao) || (flightData.wx_source_mode === "INSTRUCTOR" && (alternates[idx]?.metar || alternates[idx]?.taf)))) {
       // 🌟 修復：以前呢度淨係讀原始 SimBrief 數據，完全跳過咗 WxTab.tsx 教官編輯/
       // AI 生成後寫入嘅 flightData.alternates[idx].metar/taf override，令教官「SAVE
       // & PUBLISH」咗都好，trainee 呢邊永遠見唔到，同 DEP/ARR 嘅正確行為唔一致
@@ -159,7 +162,7 @@ export default function Weather() {
   // 🌟 4. 起飛備降場 (Takeoff Alternate)——同目的地備降場係唔同概念，SimBrief
   // raw data 有獨立嘅 takeoff_altn 分類，以前完全冇用過
   const toffAltn = rawSb.takeoff_altn;
-  if (toffAltn?.icao_code && !seenIcaos.has(toffAltn.icao_code)) {
+  if (toffAltn?.icao_code && (!seenIcaos.has(toffAltn.icao_code) || (flightData.wx_source_mode === "INSTRUCTOR" && (flightData.metar_toff_altn || flightData.taf_toff_altn)))) {
     renderList.push({
       id: `toff-altn-${toffAltn.icao_code}`,
       type: "TOFF_ALTN",
@@ -180,7 +183,7 @@ export default function Weather() {
   const enrouteAltnOverrides = flightData?.enroute_altns || [];
   enrouteAltnArray.forEach((ea: any, idx: number) => {
     const icao = ea.icao_code || ea.icao;
-    if (icao && !seenIcaos.has(icao)) {
+    if (icao && (!seenIcaos.has(icao) || (flightData.wx_source_mode === "INSTRUCTOR" && (enrouteAltnOverrides[idx]?.metar || enrouteAltnOverrides[idx]?.taf)))) {
       renderList.push({
         id: `enr-altn-${icao}-${idx}`,
         type: "ENR_ALTN",
@@ -198,7 +201,7 @@ export default function Weather() {
   const rawEnrouteStations = Array.isArray(rawSb.enroute_station) ? rawSb.enroute_station : [];
   const enrouteStationOverrides = flightData?.enroute_stations || [];
   const enrouteStationList = rawEnrouteStations
-    .filter((s: any) => (s.icao_code || s.icao) && !seenIcaos.has(s.icao_code || s.icao))
+    .filter((s: any, idx: number) => (s.icao_code || s.icao) && (!seenIcaos.has(s.icao_code || s.icao) || (flightData.wx_source_mode === "INSTRUCTOR" && (enrouteStationOverrides[idx]?.metar || enrouteStationOverrides[idx]?.taf))))
     .map((s: any, idx: number) => {
       const icao = s.icao_code || s.icao;
       seenIcaos.add(icao);

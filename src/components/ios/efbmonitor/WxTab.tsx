@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
 import { useFlightData } from "@/hooks/useFlightData";
+import { parseWxPaste } from "@/lib/flight/briefingPaste";
 
 export default function WxTab() {
-  const { flightData, updateFlightData } = useFlightData();
+  const { flightData, updateFlightData, updateFlightDataAsync } = useFlightData();
 
   const [aiPrompt, setAiPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -15,6 +16,8 @@ export default function WxTab() {
 
   // 🌟 升級 2：加入 Copy 狀態管理
   const [copyStatus, setCopyStatus] = useState<"METAR" | "TAF" | null>(null);
+  const [wxPaste, setWxPaste] = useState("");
+  const [pasteFeedback, setPasteFeedback] = useState("");
 
   // 🌟 Enroute Stations 可以成十幾個機場，同 trainee 側 Weather.tsx 一樣預設收埋，
   // 教官想編輯先展開
@@ -31,6 +34,7 @@ export default function WxTab() {
   const dayStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit' });
 
   const getWx = (overrideValue: string | undefined, rawValue: string | undefined) => {
+    if (flightData.wx_source_mode === "INSTRUCTOR") return overrideValue || "";
     if (overrideValue && overrideValue !== "NIL") return overrideValue;
     if (rawValue && rawValue !== "NIL") return rawValue;
     return "";
@@ -96,8 +100,8 @@ export default function WxTab() {
       const existingAlt = (flightData.alternates || [])[i] || { icao: a.icao_code || a.icao, burn: (parseFloat(a.burn) || 0) / 1000.0, time: Math.floor((parseInt(a.time) || 0) / 60) };
       return {
         ...existingAlt,
-        metar: (document.getElementById(`wx_maltn_${i}`) as HTMLTextAreaElement)?.value || "NIL",
-        taf: (document.getElementById(`wx_taltn_${i}`) as HTMLTextAreaElement)?.value || "NIL"
+        metar: (document.getElementById(`wx_maltn_${i}`) as HTMLTextAreaElement)?.value || "",
+        taf: (document.getElementById(`wx_taltn_${i}`) as HTMLTextAreaElement)?.value || ""
       };
     });
 
@@ -109,8 +113,8 @@ export default function WxTab() {
       const existing = (flightData.enroute_altns || [])[i] || { icao: ea.icao_code || ea.icao };
       return {
         ...existing,
-        metar: (document.getElementById(`wx_menraltn_${i}`) as HTMLTextAreaElement)?.value || "NIL",
-        taf: (document.getElementById(`wx_tenraltn_${i}`) as HTMLTextAreaElement)?.value || "NIL"
+        metar: (document.getElementById(`wx_menraltn_${i}`) as HTMLTextAreaElement)?.value || "",
+        taf: (document.getElementById(`wx_tenraltn_${i}`) as HTMLTextAreaElement)?.value || ""
       };
     });
 
@@ -118,25 +122,119 @@ export default function WxTab() {
       const existing = (flightData.enroute_stations || [])[i] || { icao: s.icao_code || s.icao };
       return {
         ...existing,
-        metar: (document.getElementById(`wx_menr_${i}`) as HTMLTextAreaElement)?.value || "NIL",
-        taf: (document.getElementById(`wx_tenr_${i}`) as HTMLTextAreaElement)?.value || "NIL"
+        metar: (document.getElementById(`wx_menr_${i}`) as HTMLTextAreaElement)?.value || "",
+        taf: (document.getElementById(`wx_tenr_${i}`) as HTMLTextAreaElement)?.value || ""
       };
     });
 
     updateFlightData({
-      metar_dep: (document.getElementById('wx_mdep') as HTMLTextAreaElement).value || "NIL",
-      taf_dep: (document.getElementById('wx_tdep') as HTMLTextAreaElement).value || "NIL",
-      metar_arr: (document.getElementById('wx_marr') as HTMLTextAreaElement).value || "NIL",
-      taf_arr: (document.getElementById('wx_tarr') as HTMLTextAreaElement).value || "NIL",
+      wx_source_mode: "INSTRUCTOR",
+      metar_dep: (document.getElementById('wx_mdep') as HTMLTextAreaElement).value || "",
+      taf_dep: (document.getElementById('wx_tdep') as HTMLTextAreaElement).value || "",
+      metar_arr: (document.getElementById('wx_marr') as HTMLTextAreaElement).value || "",
+      taf_arr: (document.getElementById('wx_tarr') as HTMLTextAreaElement).value || "",
       alternates: newAlternates,
       ...(toffAltn?.icao_code ? {
-        metar_toff_altn: (document.getElementById('wx_mtoffaltn') as HTMLTextAreaElement)?.value || "NIL",
-        taf_toff_altn: (document.getElementById('wx_ttoffaltn') as HTMLTextAreaElement)?.value || "NIL",
+        metar_toff_altn: (document.getElementById('wx_mtoffaltn') as HTMLTextAreaElement)?.value || "",
+        taf_toff_altn: (document.getElementById('wx_ttoffaltn') as HTMLTextAreaElement)?.value || "",
       } : {}),
       enroute_altns: newEnrouteAltns,
       enroute_stations: newEnrouteStations,
     });
     alert("Weather saved and published to EFB!");
+  };
+
+  const handleClearAll = () => {
+    const clearedAlternates = rawAlternates.map((a: any, i: number) => {
+      const existing = (flightData.alternates || [])[i] || { icao: a.icao_code || a.icao, burn: (parseFloat(a.burn) || 0) / 1000.0, time: Math.floor((parseInt(a.time) || 0) / 60) };
+      return { ...existing, metar: "", taf: "" };
+    });
+    const clearedEnrouteAltns = enrouteAltns.map((a: any, i: number) => ({
+      ...((flightData.enroute_altns || [])[i] || { icao: a.icao_code || a.icao }),
+      metar: "",
+      taf: "",
+    }));
+    const clearedEnrouteStations = enrouteStations.map((a: any, i: number) => ({
+      ...((flightData.enroute_stations || [])[i] || { icao: a.icao_code || a.icao }),
+      metar: "",
+      taf: "",
+    }));
+    document.querySelectorAll<HTMLTextAreaElement>('textarea[id^="wx_"]').forEach((el) => { el.value = ""; });
+    setWxPaste("");
+    setPasteFeedback("");
+    updateFlightData({
+      wx_source_mode: "INSTRUCTOR",
+      metar_dep: "",
+      taf_dep: "",
+      metar_arr: "",
+      taf_arr: "",
+      alternates: clearedAlternates,
+      metar_toff_altn: "",
+      taf_toff_altn: "",
+      enroute_altns: clearedEnrouteAltns,
+      enroute_stations: clearedEnrouteStations,
+    });
+  };
+
+  const handleRestoreSimbrief = async () => {
+    setWxPaste("");
+    setPasteFeedback("");
+    await updateFlightDataAsync({ wx_source_mode: "SIMBRIEF" });
+  };
+
+  const handlePasteImport = () => {
+    let blocks;
+    try {
+      blocks = parseWxPaste(wxPaste);
+    } catch (error) {
+      setPasteFeedback(error instanceof Error ? error.message : "Could not parse WX paste.");
+      return;
+    }
+
+    const sameIcao = (value: unknown, icao: string) => String(value || "").trim().toUpperCase() === icao;
+    const fields: Record<string, string> = {};
+    const unmatched: string[] = [];
+    for (const block of blocks) {
+      let id: string | null = null;
+      const suffix = block.field === "metar" ? "m" : "t";
+      if (block.scope === "dep" && sameIcao(flightData.dep_icao, block.icao)) id = "wx_" + suffix + "dep";
+      else if (block.scope === "arr" && sameIcao(flightData.arr_icao, block.icao)) id = "wx_" + suffix + "arr";
+      else if (block.scope === "alt") {
+        const index = rawAlternates.findIndex((a: any) => sameIcao(a.icao_code || a.icao, block.icao));
+        if (index >= 0) id = "wx_" + suffix + "altn_" + index;
+      } else if (block.scope === "toff_alt" && sameIcao(toffAltn?.icao_code || toffAltn?.icao, block.icao)) id = "wx_" + suffix + "toffaltn";
+      else if (block.scope === "enroute_alt") {
+        const index = enrouteAltns.findIndex((a: any) => sameIcao(a.icao_code || a.icao, block.icao));
+        if (index >= 0) id = "wx_" + suffix + "enraltn_" + index;
+      } else if (block.scope === "enroute") {
+        const index = enrouteStations.findIndex((a: any) => sameIcao(a.icao_code || a.icao, block.icao));
+        if (index >= 0) id = "wx_" + suffix + "enr_" + index;
+      }
+      if (!id) {
+        unmatched.push(block.field.toUpperCase() + " " + block.scope.toUpperCase() + " " + block.icao);
+        continue;
+      }
+      if (id in fields) {
+        setPasteFeedback("Duplicate " + block.field.toUpperCase() + " section for " + block.icao + ".");
+        return;
+      }
+      fields[id] = block.content;
+    }
+
+    if (unmatched.length) {
+      setPasteFeedback("Airport/category not found in this flight: " + unmatched.join(", "));
+      return;
+    }
+    for (const [id, value] of Object.entries(fields)) {
+      const input = document.getElementById(id) as HTMLTextAreaElement | null;
+      if (!input) {
+        setPasteFeedback("Could not find the matching airport row for " + id + ".");
+        return;
+      }
+      input.value = value;
+    }
+    setPasteFeedback("Filled " + Object.keys(fields).length + " METAR/TAF field(s). Review them, then save and publish.");
+    setWxPaste("");
   };
 
   return (
@@ -219,26 +317,36 @@ export default function WxTab() {
         )}
       </div>
 
+      <div className="bg-[#1a1a1a] border border-[#404040] rounded-xl p-4">
+        <div className="flex flex-wrap gap-2 mb-3">
+          <button onClick={handleClearAll} className="bg-[#FF1744]/20 border border-[#FF1744]/60 text-[#FF6B6B] px-3 py-2 rounded-lg text-xs font-bold">CLEAR ALL & USE INSTRUCTOR WX</button>
+          <button onClick={handleRestoreSimbrief} className="bg-[#333] border border-[#555] text-white px-3 py-2 rounded-lg text-xs font-bold">RESTORE SIMBRIEF WX</button>
+        </div>
+        <textarea value={wxPaste} onChange={(e) => setWxPaste(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded-lg p-3 text-xs text-white h-36 font-mono outline-none focus:border-[#00bfa5]" placeholder={"Use labeled blocks: metar_dep (RCTP): ... / taf_dep (RCTP): ... / metar_alt (RCKH): ... / taf_alt (RCKH): ..."} />
+        <button onClick={handlePasteImport} className="w-full mt-2 bg-[#00bfa5]/20 border border-[#00bfa5] text-[#00bfa5] py-2 rounded-lg text-xs font-bold">PARSE & FILL WX ROWS</button>
+        {pasteFeedback && <div className="text-xs text-[#8fa0a6] mt-2">{pasteFeedback}</div>}
+      </div>
+
       {/* 🛫 Departure WX */}
       <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
         <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Departure: {flightData.dep_icao}</h6>
-        <textarea id="wx_mdep" defaultValue={getWx(flightData.metar_dep, flightData.raw_simbrief?.origin?.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
-        <textarea id="wx_tdep" defaultValue={getWx(flightData.taf_dep, flightData.raw_simbrief?.origin?.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
+        <textarea key={flightData.wx_source_mode || "SIMBRIEF"} id="wx_mdep" defaultValue={getWx(flightData.metar_dep, flightData.raw_simbrief?.origin?.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
+        <textarea key={flightData.wx_source_mode || "SIMBRIEF"} id="wx_tdep" defaultValue={getWx(flightData.taf_dep, flightData.raw_simbrief?.origin?.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
       </div>
       
       {/* 🛬 Arrival WX */}
       <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
         <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Arrival: {flightData.arr_icao}</h6>
-        <textarea id="wx_marr" defaultValue={getWx(flightData.metar_arr, flightData.raw_simbrief?.destination?.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
-        <textarea id="wx_tarr" defaultValue={getWx(flightData.taf_arr, flightData.raw_simbrief?.destination?.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
+        <textarea key={flightData.wx_source_mode || "SIMBRIEF"} id="wx_marr" defaultValue={getWx(flightData.metar_arr, flightData.raw_simbrief?.destination?.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
+        <textarea key={flightData.wx_source_mode || "SIMBRIEF"} id="wx_tarr" defaultValue={getWx(flightData.taf_arr, flightData.raw_simbrief?.destination?.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
       </div>
 
       {/* 🔀 Alternates WX */}
       {rawAlternates.map((a: any, i: number) => (
         <div key={i} className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
           <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Alternate: {a.icao_code || a.icao}</h6>
-          <textarea id={`wx_maltn_${i}`} defaultValue={getWx((flightData.alternates || [])[i]?.metar, a.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
-          <textarea id={`wx_taltn_${i}`} defaultValue={getWx((flightData.alternates || [])[i]?.taf, a.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
+          <textarea key={flightData.wx_source_mode || "SIMBRIEF"} id={`wx_maltn_${i}`} defaultValue={getWx((flightData.alternates || [])[i]?.metar, a.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
+          <textarea key={flightData.wx_source_mode || "SIMBRIEF"} id={`wx_taltn_${i}`} defaultValue={getWx((flightData.alternates || [])[i]?.taf, a.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
         </div>
       ))}
 
@@ -246,8 +354,8 @@ export default function WxTab() {
       {toffAltn?.icao_code && (
         <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
           <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Takeoff Alternate: {toffAltn.icao_code}</h6>
-          <textarea id="wx_mtoffaltn" defaultValue={getWx(flightData.metar_toff_altn, toffAltn.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
-          <textarea id="wx_ttoffaltn" defaultValue={getWx(flightData.taf_toff_altn, toffAltn.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
+          <textarea key={flightData.wx_source_mode || "SIMBRIEF"} id="wx_mtoffaltn" defaultValue={getWx(flightData.metar_toff_altn, toffAltn.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
+          <textarea key={flightData.wx_source_mode || "SIMBRIEF"} id="wx_ttoffaltn" defaultValue={getWx(flightData.taf_toff_altn, toffAltn.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
         </div>
       )}
 
@@ -255,8 +363,8 @@ export default function WxTab() {
       {enrouteAltns.map((ea: any, i: number) => (
         <div key={`enraltn-${i}`} className="bg-[#2a2a2a] p-4 rounded-lg border border-[#333333] shadow-md">
           <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">Enroute Alternate: {ea.icao_code || ea.icao}</h6>
-          <textarea id={`wx_menraltn_${i}`} defaultValue={getWx((flightData.enroute_altns || [])[i]?.metar, ea.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
-          <textarea id={`wx_tenraltn_${i}`} defaultValue={getWx((flightData.enroute_altns || [])[i]?.taf, ea.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
+          <textarea key={flightData.wx_source_mode || "SIMBRIEF"} id={`wx_menraltn_${i}`} defaultValue={getWx((flightData.enroute_altns || [])[i]?.metar, ea.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
+          <textarea key={flightData.wx_source_mode || "SIMBRIEF"} id={`wx_tenraltn_${i}`} defaultValue={getWx((flightData.enroute_altns || [])[i]?.taf, ea.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
         </div>
       ))}
 
@@ -277,8 +385,8 @@ export default function WxTab() {
               {enrouteStations.map((s: any, i: number) => (
                 <div key={`enr-${i}`} className="bg-[#1a1a1a] p-4 rounded-lg border border-[#404040]">
                   <h6 className="text-[#00bfa5] text-xs font-black mb-2 uppercase tracking-widest">{s.icao_code || s.icao}</h6>
-                  <textarea id={`wx_menr_${i}`} defaultValue={getWx((flightData.enroute_stations || [])[i]?.metar, s.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
-                  <textarea id={`wx_tenr_${i}`} defaultValue={getWx((flightData.enroute_stations || [])[i]?.taf, s.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
+                  <textarea key={flightData.wx_source_mode || "SIMBRIEF"} id={`wx_menr_${i}`} defaultValue={getWx((flightData.enroute_stations || [])[i]?.metar, s.metar)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-20 mb-3 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="METAR" />
+                  <textarea key={flightData.wx_source_mode || "SIMBRIEF"} id={`wx_tenr_${i}`} defaultValue={getWx((flightData.enroute_stations || [])[i]?.taf, s.taf)} className="w-full bg-[#0a0a0a] border border-[#404040] rounded p-3 text-xs text-[#e2e8f0] h-28 font-mono outline-none focus:border-[#00bfa5] resize-none" placeholder="TAF" />
                 </div>
               ))}
             </div>

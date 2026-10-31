@@ -25,3 +25,40 @@ export function composeAtisContent(icao: string, type: AtisType, ident: string, 
   const trimmedBody = body.trim();
   return [header, trimmedBody, footer].filter(Boolean).join('\n\n');
 }
+
+
+export interface ParsedAtisPaste {
+  type: AtisType | null;
+  icao: string;
+  ident: string;
+  issuedAt: string | null;
+  body: string;
+  footer: string;
+  content: string;
+}
+
+/** Parse a complete ATIS paste, including the compact header format. */
+export function parseAtisPaste(input: string): ParsedAtisPaste | null {
+  const lines = input.trim().replace(/^"|"$/g, '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length === 0) return null;
+
+  const match = lines[0].match(
+    /^(HONG\s+KONG|[A-Z]{4})\s+(?:(DEPARTURE|ARRIVAL)\s+)?(?:ATIS\s+)?(?:INFO|INFORMATION)\s+([A-Z])(?:\s+(\d{4}Z))?$/i
+  );
+  if (!match) return null;
+
+  let footerIndex = lines.length;
+  if (/^(?:ADVISE\b|ON FIRST CONTACT\b)/i.test(lines[lines.length - 1])) {
+    footerIndex -= 1;
+  }
+
+  return {
+    icao: /^HONG\s+KONG$/i.test(match[1]) ? 'VHHH' : match[1].toUpperCase(),
+    type: (match[2]?.toUpperCase() as AtisType) || null,
+    ident: match[3].toUpperCase(),
+    issuedAt: match[4]?.toUpperCase() ?? null,
+    body: lines.slice(1, footerIndex).join("\n"),
+    footer: footerIndex < lines.length ? lines[footerIndex] : "",
+    content: lines.join("\n"),
+  };
+}
