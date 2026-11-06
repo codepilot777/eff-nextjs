@@ -12,6 +12,7 @@ import {
   TaskNormalClose, TaskGroundReturn, TaskAirReturn, 
   TaskDiversion, TaskDidNotDepart 
 } from "./forms";
+import { openTlReleaseBlock } from "@/lib/techlog/releaseEligibility";
 
 export default function TechLogRightPanel({ tlData, flightData, roleMode, activeTask, setActiveTask, selectedEntry, showInFlightMenu, setShowInFlightMenu, updateTechLogData, defects }: any) {
   
@@ -112,7 +113,14 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
     setActiveTask(null);
   };
 
+  const releaseBlock = openTlReleaseBlock(defects);
+
   const handleReleaseAircraft = () => {
+    const block = openTlReleaseBlock(defects);
+    if (block) {
+      alert(block.reason);
+      return;
+    }
     if (!confirm("Sign the Certificate of Release to Service for this aircraft? This cannot be undone.")) return;
 
     const crsId = `CRS-${Math.floor(1000 + Math.random() * 9000)}-X`;
@@ -189,7 +197,18 @@ export default function TechLogRightPanel({ tlData, flightData, roleMode, active
           {activeTask === "release_aircraft" && (
             <div className="flex flex-col h-full">
               <h3 className="text-xl font-bold uppercase tracking-widest text-[#00E676] border-b border-[#333] pb-4 mb-6 flex items-center gap-3">Release Aircraft</h3>
-              <button onClick={handleReleaseAircraft} className="w-full py-4.5 bg-[#C6FF00] text-black text-[0.8rem] uppercase tracking-widest font-black rounded-xl mt-auto hover:bg-[#a8db00]">SIGN RELEASING STATEMENT</button>
+              {releaseBlock && (
+                <div role="status" className="bg-[#FF9100]/10 border border-[#FF9100]/50 text-[#FF9100] text-[0.75rem] font-bold leading-relaxed rounded-xl p-4">
+                  {releaseBlock.reason}
+                </div>
+              )}
+              <button
+                onClick={handleReleaseAircraft}
+                disabled={!!releaseBlock}
+                className={`w-full py-4.5 text-[0.8rem] uppercase tracking-widest font-black rounded-xl mt-auto ${releaseBlock ? 'bg-[#1a1a1a] border border-[#333] text-[#555] cursor-not-allowed' : 'bg-[#C6FF00] text-black hover:bg-[#a8db00]'}`}
+              >
+                SIGN RELEASING STATEMENT
+              </button>
             </div>
           )}
 

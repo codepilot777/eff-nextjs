@@ -125,6 +125,64 @@ describe('/api/techlog', () => {
       expect(body2.data.tl_defects).toBe(true);
     });
 
+    it('rejects release while open TL entries exist, and leaves the row unreleased', async () => {
+      await POST(postRequest({ id: 'FLIGHT-REL-OPEN', defectAppend: { id: 'TL-1', status: 'OPEN', description: 'Pack fault' } }));
+      await POST(postRequest({ id: 'FLIGHT-REL-OPEN', defectAppend: { id: 'P1', status: 'DEFERRED', description: 'Hyd qty' } }));
+      // tl_release: false is a crew-style reset and must not itself be instructor-gated
+      await POST(postRequest({ id: 'FLIGHT-REL-OPEN', data: { tl_release: false, tl_defects: true } }));
+
+      const { token } = createSessionToken();
+      const cookie = `${SESSION_COOKIE_NAME}=${token}`;
+      const res = await POST(postRequest({
+        id: 'FLIGHT-REL-OPEN',
+        data: { tl_release: true, crs_id: 'CRS-OPEN-X' },
+        tlEntryAppend: { id: 'ENT-REL', action: 'AIRCRAFT RELEASED' },
+      }, cookie));
+      expect(res.status).toBe(409);
+      const body = await res.json();
+      expect(body.openCount).toBe(1);
+      expect(body.error).toMatch(/1 open TL entry/i);
+      expect(body.error).toMatch(/cleared or deferred/i);
+
+      const stored = await (await GET(getRequest('FLIGHT-REL-OPEN'))).json();
+      expect(stored.tl_release).toBe(false);
+      expect(stored.crs_id).toBeUndefined();
+      expect(stored.tl_entries).toBeUndefined();
+      expect(stored.defects.map((d: { id: string }) => d.id).sort()).toEqual(['P1', 'TL-1']);
+    });
+
+    it('allows release when there are no open TL entries (deferred and cleared do not block)', async () => {
+      await POST(postRequest({ id: 'FLIGHT-REL-OK', defectAppend: { id: 'P1', status: 'DEFERRED', description: 'Deferred item' } }));
+      await POST(postRequest({ id: 'FLIGHT-REL-OK', defectAppend: { id: 'C1', status: 'CLEARED', description: 'Cleared item' } }));
+
+      const { token } = createSessionToken();
+      const cookie = `${SESSION_COOKIE_NAME}=${token}`;
+      const res = await POST(postRequest({
+        id: 'FLIGHT-REL-OK',
+        data: { tl_release: true, crs_id: 'CRS-OK-X' },
+      }, cookie));
+      expect(res.status).toBe(200);
+      const stored = await (await GET(getRequest('FLIGHT-REL-OK'))).json();
+      expect(stored.tl_release).toBe(true);
+      expect(stored.crs_id).toBe('CRS-OK-X');
+    });
+
+    it('allows release in the same write that clears the last open TL entry', async () => {
+      await POST(postRequest({ id: 'FLIGHT-REL-CLEAR', defectAppend: { id: 'TL-9', status: 'OPEN' } }));
+
+      const { token } = createSessionToken();
+      const cookie = `${SESSION_COOKIE_NAME}=${token}`;
+      const res = await POST(postRequest({
+        id: 'FLIGHT-REL-CLEAR',
+        defectUpdate: { id: 'TL-9', changes: { status: 'CLEARED' } },
+        data: { tl_release: true },
+      }, cookie));
+      expect(res.status).toBe(200);
+      const stored = await (await GET(getRequest('FLIGHT-REL-CLEAR'))).json();
+      expect(stored.tl_release).toBe(true);
+      expect(stored.defects).toEqual([{ id: 'TL-9', status: 'CLEARED' }]);
+    });
+
     it('does not gate the flight-crew finalizeSector-style reset (writes tl_defects/tl_release/crs_id without instructor auth)', async () => {
       const res = await POST(postRequest({
         id: 'FLIGHT-CREW1',
