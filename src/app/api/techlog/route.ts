@@ -3,6 +3,7 @@ import db, { ensureSchema } from '@/lib/db';
 import { flightIdSchema, requiresInstructorAuth, techlogPostBodySchema } from '@/lib/validation';
 import { isInstructorAuthed } from '@/lib/auth';
 import { applyTechLogDirectives } from '@/lib/techlog/directives';
+import { releaseAttemptBlocked } from '@/lib/techlog/releaseEligibility';
 import { DEFAULT_TECHLOG } from '@/lib/techlog/techlogContinuity';
 
 export async function GET(request: Request) {
@@ -65,6 +66,18 @@ export async function POST(request: Request) {
       const row = result.rows[0];
       const current = row && row.data ? JSON.parse(row.data as string) : {};
       const merged = applyTechLogDirectives(current, patch);
+
+      // 🌟 Open TL（defects status === OPEN）存在時唔准簽 release。
+      // 睇 merge 之後嘅 list，唔好信 client 嘅 tl_defects flag——個 flag 可以
+      // 同真正未清嘅 defect 脫節。DEFERRED / CLEARED 唔擋。
+      const releaseBlock = releaseAttemptBlocked(merged, patch);
+      if (releaseBlock) {
+        await tx.rollback();
+        return NextResponse.json(
+          { error: releaseBlock.reason, openCount: releaseBlock.openCount },
+          { status: 409 },
+        );
+      }
 
       // 🌟 用 ON CONFLICT DO UPDATE 淨係改 data，唔好用 REPLACE INTO——REPLACE
       // 會成行刪咗重插，如果冇帶埋 reg 會將 /api/simbrief 起機嗰陣寫低嘅 reg

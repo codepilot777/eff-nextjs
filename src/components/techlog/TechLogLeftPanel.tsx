@@ -1,5 +1,7 @@
 "use client";
 
+import { openTlReleaseBlock } from "@/lib/techlog/releaseEligibility";
+
 export default function TechLogLeftPanel({ tlData, roleMode, setActiveTask, setSelectedEntry, updateTechLogData, defects }: any) {
   const {
     tl_prepared: isPrepared,
@@ -14,6 +16,8 @@ export default function TechLogLeftPanel({ tlData, roleMode, setActiveTask, setS
 
   // 🌟 嚴格過濾：必須係 OPEN 先入 TL Entries，必須係 DEFERRED 先入對應嘅 ADD list
   const openEntries = (defects || []).filter((d: any) => d.status === "OPEN");
+  const releaseBlock = openTlReleaseBlock(defects);
+  const releaseChecklistReady = Boolean(isFluids && isChecks && isDefects && !isReleased);
   const paddEntries = (defects || []).filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("P"));
   const saddEntries = (defects || []).filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("S"));
   const addEntries  = (defects || []).filter((d: any) => d.status === "DEFERRED" && d.id.startsWith("A"));
@@ -104,8 +108,19 @@ export default function TechLogLeftPanel({ tlData, roleMode, setActiveTask, setS
                     Sign Off Defects Log
                   </button>
                 )}
-                {isFluids && isChecks && isDefects && !isReleased && (
+                {!isReleased && releaseBlock && (
+                  <div role="status" className="text-left text-[#FF9100] font-bold text-[0.65rem] tracking-wide leading-relaxed p-4 border border-dashed border-[#FF9100]/50 rounded-xl bg-[#FF9100]/5">
+                    {releaseBlock.reason}
+                  </div>
+                )}
+                {releaseChecklistReady && !releaseBlock && (
                   <button onClick={() => setActiveTask("release_aircraft")} className="w-full py-3.5 bg-[#C6FF00] text-black font-black rounded-xl hover:bg-[#a8db00] transition-colors shadow-[0_4px_15px_rgba(198,255,0,0.3)] text-[0.75rem] uppercase tracking-widest flex items-center justify-center gap-2">
+                    <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+                    Release Aircraft
+                  </button>
+                )}
+                {releaseChecklistReady && releaseBlock && (
+                  <button type="button" disabled className="w-full py-3.5 bg-[#1a1a1a] border border-[#333] text-[#555] font-black rounded-xl cursor-not-allowed text-[0.75rem] uppercase tracking-widest flex items-center justify-center gap-2">
                     <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
                     Release Aircraft
                   </button>
